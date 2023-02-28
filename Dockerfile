@@ -11,7 +11,8 @@ ENV TZ JST-9
 ENV TERM xterm
 
 RUN apt-get install -y vim less
+COPY requirements.txt .
 RUN pip install --upgrade pip
 RUN pip install --upgrade setuptools
-
+RUN pip install -r requirements.txt && \ rm requirements.txt
 RUN python -m pip install jupyterlab
