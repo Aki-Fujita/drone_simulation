@@ -14,7 +14,7 @@
 docker build -t <タグ名> <ディレクトリ>
 ```
 
-というわけなので、`DockerFile`を作っておくと自分の好きなようにカス甘いずしあDocker Imageをコマンド1行で作成できるようになる。
+というわけなので、`DockerFile`を作っておくと自分の好きなようにカスタマイズしDocker Imageをコマンド1行で作成できるようになる。ちなみに、このコマンド、基本的に時間かかるけどcacheを持ってくれることがあり、そうなると早い。
 
 // このコマンドでコンテナ起動
 docker container run -it python-practice 
