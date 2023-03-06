@@ -6,4 +6,6 @@
 - https://zenn.dev/hamakou108/articles/ddddf1aa5a6100 
   - Dockerコンテナで立ち上げたjupyterをvscodeから利用する手順。
 - https://www.nyamucoro.com/entry/2018/08/13/222617
-  - docker-compose.ymlのvolumesのことがちょっとわかりやすく書いてある。
+  - docker-compose.ymlのvolumesのことがちょっとわかりやすく書いてある
+- https://dev.classmethod.jp/articles/add-vs-code-remote-development-settings-to-existing-docker-environment/
+-  
