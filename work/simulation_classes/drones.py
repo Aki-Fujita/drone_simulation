@@ -21,6 +21,9 @@ class Drones:
     def record(self):
         self.xcorList.append(self.xcor)
         self.v_xList.append(self.v_x)
+
+    def force_velocity_change(self, vel_after):
+        self.v_x = vel_after
         
 
     def bark(self):
