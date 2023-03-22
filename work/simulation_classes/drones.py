@@ -17,7 +17,7 @@ class Drones:
         self.xcor += self.v_x * delta_t
 
     def leader_update(self, delta_t):
-        self.v_x += (self.max_speed - self.v_x) * self.a * delta_t
+        self.v_x += (self.max_speed - self.v_x) * self.a * delta_t * 0.1
         self.xcor += self.v_x * delta_t
 
     def record(self):
