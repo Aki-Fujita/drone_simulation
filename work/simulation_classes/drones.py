@@ -1,5 +1,6 @@
 from functions.opt_velocity import optimal_velocity
 
+
 class Drones:
     def __init__(self, xcor, ycor, v_0, a, c, legal_speed) -> None:
         self.xcor = xcor
@@ -17,7 +18,7 @@ class Drones:
         self.xcor += self.v_x * delta_t
 
     def leader_update(self, delta_t):
-        self.v_x += (self.max_speed - self.v_x) * self.a * delta_t * 0.1
+        self.v_x += (self.max_speed - self.v_x) * self.a * delta_t
         self.xcor += self.v_x * delta_t
 
     def record(self):
@@ -27,6 +28,3 @@ class Drones:
     def force_velocity_change(self, vel_after):
         self.v_x = vel_after
         
-
-    def bark(self):
-        print("hello")

@@ -3,3 +3,4 @@ numpy
 pandas
 scipy
 autopep8
+flake8
