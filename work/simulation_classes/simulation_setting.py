@@ -1,16 +1,23 @@
-from .drones import Drones
+# from .drones import Drones
 import numpy as np
 import matplotlib.pyplot as plt
 
 
 class SimulationSettings:
-    def __init__(self, TOTAL_TIME, time_step, scale_factor, drone_list=[]):
+    def __init__(self, TOTAL_TIME, time_step, scale_factor,
+                 drone_list= [], boundary_condition='OPEN',
+                 TOTAL_DISTANCE = 0):
         self.TOTAL_TIME = TOTAL_TIME
         self.time_step = time_step
         self.simulation_steps = int(TOTAL_TIME / time_step)
         self.scale_factor = scale_factor
         self.drone_list = drone_list
         self.drone_num = len(drone_list)
+        self.boundary_condition = boundary_condition
+        self.TOTAL_DISTANCE = TOTAL_DISTANCE
+
+        if (self.boundary_condition == "FIXED" and self.TOTAL_DISTANCE == 0):
+            raise ValueError("TOTAL_DISTANCEが未入力です")
 
     def run(self):
         drone_list = self.drone_list
@@ -23,7 +30,7 @@ class SimulationSettings:
                     drone_i.leader_update(self.time_step)
                     drone_i.record()
                 else:
-                    delta_x = drone_list[int(idx - 1)].xcor - drone_i.xcor
+                    delta_x = drone_list[int(idx-1)].xcor - drone_i.xcor
                     if delta_x < 0:
                         print(f"idx={idx}")
                         print("先行車のx座標", drone_list[int(idx - 1)].xcor)
@@ -34,13 +41,9 @@ class SimulationSettings:
                     drone_i.record()
 
     def test(self):
-        if (self.drone_num == 1):
-            leader = Drones(xcor=0, ycor=0, v_0=0, a=1, c=2, legal_speed=2)
-            for i in range(self.simulation_steps):
-                leader.leader_update(self.time_step)
-                leader.record()
-            self.drones.append(leader)
-
+        if (self.boundary_condition == "FIXED"):
+            print("固定境界条件")
+            
         else:
             print("testはドローン1台でお願いします。")
 
