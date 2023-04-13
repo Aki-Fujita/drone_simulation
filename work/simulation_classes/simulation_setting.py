@@ -16,6 +16,9 @@ class SimulationSettings:
         self.boundary_condition = boundary_condition
         self.TOTAL_DISTANCE = TOTAL_DISTANCE
 
+        if self.boundary_condition not in ["OPEN", "FIXED"]:
+            raise ValueError("boundary_conditionの値が不適切です")
+
         if (self.boundary_condition == "FIXED" and self.TOTAL_DISTANCE == 0):
             raise ValueError("TOTAL_DISTANCEが未入力です")
 
@@ -36,14 +39,19 @@ class SimulationSettings:
                         print("先行車のx座標", drone_list[int(idx - 1)].xcor)
                         print("followerのx座標", drone_list[idx].xcor)
                         raise ValueError("追い抜きが発生しました")
-                    
+                                      
                     drone_i.update(self.time_step, delta_x)
                     drone_i.record()
+
+    def run_fixed(self):
+        drone_list = self.drone_list
+        print(drone_list)
 
     def test(self):
         if (self.boundary_condition == "FIXED"):
             print("固定境界条件")
-            
+            self.run_fixed()
+          
         else:
             print("testはドローン1台でお願いします。")
 

@@ -11,7 +11,6 @@ v_n: 現在の速度
 
 
 def optimal_velocity(c, a, delta_x, delta_t, v_n):
-  
     # 最適速度関数
     def V(h):
         return np.tanh(h - c) + np.tanh(c)
@@ -26,4 +25,4 @@ def optimal_velocity(c, a, delta_x, delta_t, v_n):
     k3 = f(v_n + k2 * delta_t / 2)
     k4 = f(v_n + k3 * delta_t)
 
-    return v_n + delta_t *(k1 + 2*k2 + 2*k3 + k4 ) / 6
+    return v_n + delta_t * (k1 + 2*k2 + 2*k3 + k4) / 6
