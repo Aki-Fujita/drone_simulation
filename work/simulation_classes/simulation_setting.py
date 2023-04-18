@@ -27,16 +27,20 @@ class SimulationSettings:
         if len(self.drone_list) < 1:
             print("ドローンがありません")
             return
-        for i in range(self.simulation_steps):
+        for step in range(self.simulation_steps):
             for idx, drone_i in enumerate(drone_list):
-                if idx == 0:
+                isLeader = (idx == 0) or \
+                    (idx > 0 and drone_list[int(idx-1)].isFinished)
+                isFinished = drone_i.isFinished
+                
+                if isLeader or isFinished:
                     drone_i.leader_update(self.time_step)
                     drone_i.record()
                 else:
                     delta_x = drone_list[int(idx-1)].xcor - drone_i.xcor
                     if delta_x < 0:
                         print(f"idx={idx}")
-                        print("先行車のx座標", drone_list[int(idx - 1)].xcor)
+                        print(f"先行車(id={idx})のx座標", drone_list[int(idx - 1)].xcor)
                         print("followerのx座標", drone_list[idx].xcor)
                         raise ValueError("追い抜きが発生しました")
                                       
@@ -66,6 +70,7 @@ class SimulationSettings:
         plt.yticks(fontsize=8)
         plt.xticks(fontsize=8)
         plt.xlabel("time", fontsize=8)
+        plt.ylabel("xcor", fontsize=8)
 
         plt.subplot(2, 1, 2)
         for drone in drone_list:
@@ -74,8 +79,7 @@ class SimulationSettings:
         plt.yticks(fontsize=8)
         plt.xticks(fontsize=8)
         plt.xlabel("time", fontsize=8)
-
-        # plt.savefig(f"../../result/condition={condition}_a={a}_N={N}_MaxSpeed={legal_speed}_windSpeed={wind_speed}_leaderUpdateChanged.png")
+        plt.ylabel("v_x", fontsize=8)
 
     def graph_show_scaled(self):
         drone_list = self.drone_list
@@ -87,7 +91,9 @@ class SimulationSettings:
         plt.plot(t, np.array(drone_list[0].xcorList) * self.scale_factor, color="red", linewidth=0.5)
         plt.yticks(fontsize=8)
         plt.xticks(fontsize=8)
+        plt.ylim(0, self.TOTAL_DISTANCE*self.scale_factor)
         plt.xlabel("time", fontsize=8)
+        plt.ylabel("xcor", fontsize=8)
 
         plt.subplot(2, 1, 2)
         for drone in drone_list:
@@ -96,6 +102,7 @@ class SimulationSettings:
         plt.yticks(fontsize=8)
         plt.xticks(fontsize=8)
         plt.xlabel("time", fontsize=8)
+        plt.ylabel("v_x", fontsize=8)
 
     def create_video(self):
         drone_list = self.drone_list
