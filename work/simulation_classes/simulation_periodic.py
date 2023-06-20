@@ -3,73 +3,53 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
+def find_delta_x(drone_list, idx, total_distance):
+    if len(drone_list) == 1:
+        return 1e6, 1e6
+    
+    # 追い抜きがなければこれで良いはず
+    delta_from_idx = drone_list[int(idx-1)].xcor - drone_list[idx].xcor
+    delta_v = drone_list[int(idx-1)].v_x - drone_list[idx].v_x
+    if delta_from_idx < 0:
+        delta_from_idx += total_distance
+    # 念の為チェック:面倒なのであとでやる
+    # current_position = drone_list[idx].xcor
+    # distance_list = [drone.xcor - current_position for drone in drone_list]
+    return delta_from_idx, delta_v
+
+
 class SimulationPeriodic:
     def __init__(self, TOTAL_TIME, time_step, scale_factor,
-                 drone_list= [], boundary_condition='PERIODIC',
-                 TOTAL_DISTANCE = 0, UPDATE_RULE = "parallel"):
+                 TOTAL_DISTANCE, drone_list= [],
+                 UPDATE_RULE = "parallel"):
         self.TOTAL_TIME = TOTAL_TIME
+        self.TOTAL_DISTANCE = TOTAL_DISTANCE
         self.time_step = time_step
         self.simulation_steps = int(TOTAL_TIME / time_step)
         self.scale_factor = scale_factor
         self.drone_list = drone_list
         self.drone_num = len(drone_list)
-        self.boundary_condition = boundary_condition
-        self.TOTAL_DISTANCE = TOTAL_DISTANCE
-        self.UPDATE_RULE = UPDATE_RULE
-
-        if self.boundary_condition not in ["OPEN", "FIXED", "PERIODIC"]:
-            raise ValueError("boundary_conditionの値が不適切です")
-
-        if (self.boundary_condition == "FIXED" and self.TOTAL_DISTANCE == 0):
-            raise ValueError("TOTAL_DISTANCEが未入力です")
+        self.UPDATE_RULE = UPDATE_RULE        
 
     def run_sequential(self, drone_list):
         print("===Sequential実行===")
-        for step in range(self.simulation_steps):
-            for idx, drone_i in enumerate(drone_list):
-                isLeader = (idx == 0) or \
-                    (idx > 0 and drone_list[int(idx-1)].isFinished)
-                isFinished = drone_i.isFinished
                 
-                if isLeader or isFinished:
-                    drone_i.decide_speed_leader(self.time_step)
-                    drone_i.move_leader(self.time_step)
-                else:
-                    delta_x = drone_list[int(idx-1)].xcor - drone_i.xcor
-                    if delta_x < 0:
-                        print(f"idx={idx}")
-                        print(f"先行車(id={idx})のx座標", drone_list[int(idx - 1)].xcor)
-                        print("followerのx座標", drone_list[idx].xcor)
-                        raise ValueError("追い抜きが発生しました")
-                                      
-                    drone_i.decide_speed(self.time_step, delta_x)
-                    drone_i.move(self.time_step)
-                drone_i.record()
-    
     def run_parallel(self, drone_list):
         print("===PARALLEL実行===")
         for step in range(self.simulation_steps):
             for idx, drone_i in enumerate(drone_list):
-                isLeader = (idx == 0) or \
-                    (idx > 0 and drone_list[int(idx-1)].isFinished)
-                
-                if isLeader or drone_i.isFinished:
-                    drone_i.decide_speed_leader(self.time_step)
-                else:
-                    delta_x = drone_list[int(idx-1)].xcor - drone_i.xcor
-                    if delta_x < 0:
-                        print(f"idx={idx}")
-                        print(f"先行車(id={idx})のx座標", drone_list[int(idx - 1)].xcor)
-                        print("followerのx座標", drone_list[idx].xcor)
-                        raise ValueError("追い抜きが発生しました")
-                    drone_i.decide_speed(self.time_step, delta_x)
+                delta_x, delta_v = find_delta_x(drone_list, idx, self.TOTAL_DISTANCE)
+                if delta_x < 0:
+                    print(f"idx={idx}")
+                    print(f"先行車(id={idx})のx座標", drone_list[int(idx - 1)].xcor)
+                    print("followerのx座標", drone_list[idx].xcor)
+                    raise ValueError("追い抜きが発生しました")
+                drone_i.decide_speed(self.time_step, delta_x, delta_v)
             
             for idx, drone_i in enumerate(drone_list):
-                if (isLeader or drone_i.isFinished):
-                    drone_i.move_leader(self.time_step)
-                else:
-                    drone_i.move(self.time_step)
+                drone_i.move(self.time_step, self.TOTAL_DISTANCE)
                 drone_i.record()
+        print("FINISHED")
         
     def run(self):
         if len(self.drone_list) < 1:
