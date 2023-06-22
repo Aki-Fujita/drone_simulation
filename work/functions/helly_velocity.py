@@ -11,15 +11,23 @@ v_n: 現在の速度
 
 
 def helly(delta_x, delta_v, delta_t, v_n, helly_params):
-    max_accel, min_accel, lambda_1, lambda_2, d, T_des = helly_params.values()
+    max_accel, min_accel, lambda_1, lambda_2, d, T_des, isRss = helly_params.values()
 
-    # 最適速度関数
-    def D(v):
+    # 安全距離の式
+    def D(v, isRSS=False):
+        if isRSS:
+            rho_delay = 1
+            front_car_max_brake = min_accel
+            proceeding_speed = v - delta_v
+            front_car_brake_distance = proceeding_speed**2 / front_car_max_brake / 2
+            brake_distance = (v+max_accel*rho_delay)**2/(max_accel)/2
+            idle_distance = v * rho_delay + max_accel * rho_delay**2 / 2
+            return d + brake_distance + idle_distance - front_car_brake_distance
         return d + T_des * v
 
     # 更新式
     def f(v):
-        return lambda_1 * (delta_x - D(v)) + lambda_2*(delta_v)
+        return lambda_1 * (delta_x - D(v, isRss)) + lambda_2*(delta_v)
 
     # ここからルンゲクッタ
     k1 = f(v_n)
@@ -31,7 +39,7 @@ def helly(delta_x, delta_v, delta_t, v_n, helly_params):
 
     # 加速の場合
     if v_diff >= 0:
-        print(v_diff, max_accel)
+        # print(v_diff, max_accel)
         return min(v_diff, max_accel * delta_t) + v_n
     # 減速の場合
-    return max(v_diff, min_accel * delta_t) + v_n
+    return max(max(v_diff, -1*min_accel * delta_t) + v_n, 0)   
