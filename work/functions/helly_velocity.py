@@ -16,7 +16,7 @@ def helly(delta_x, delta_v, delta_t, v_n, helly_params):
     # 安全距離の式
     def D(v, isRSS=False):
         if isRSS:
-            rho_delay = 1
+            rho_delay = 0.5
             front_car_max_brake = min_accel
             proceeding_speed = v - delta_v
             front_car_brake_distance = proceeding_speed**2 / front_car_max_brake / 2
