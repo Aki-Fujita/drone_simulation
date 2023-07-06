@@ -11,17 +11,30 @@ v_n: 現在の速度
 
 
 def helly(delta_x, delta_v, delta_t, v_n, helly_params):
-    max_accel, min_accel, lambda_1, lambda_2, d, T_des, isRss = helly_params.values()
+    max_accel = helly_params.get("max_accel")
+    min_accel = helly_params.get("min_accel")
+    lambda_1 = helly_params.get("lambda_1")
+    lambda_2 = helly_params.get("lambda_2")
+    d = helly_params.get("d")
+    T_des = helly_params.get("T_des")
+    isRss = helly_params.get("isRss", False)
 
     # 安全距離の式
     def D(v, isRSS=False):
         if isRSS:
-            rho_delay = 0.5
-            front_car_max_brake = min_accel
-            proceeding_speed = v - delta_v
-            front_car_brake_distance = proceeding_speed**2 / front_car_max_brake / 2
-            brake_distance = (v+max_accel*rho_delay)**2/(max_accel)/2
+            rho_delay = helly_params.get("response_time", 0.5)
+            min_comfortable_accel = helly_params.get("min_comfortable_accel", min_accel*0.5)
+            front_car_brake = helly_params.get("front_car_brake", min_accel)
+            proceeding_speed = v + delta_v
+            front_car_brake_distance = proceeding_speed**2 / front_car_brake / 2
+            brake_distance = (v+max_accel*rho_delay)**2/(min_comfortable_accel)/2
             idle_distance = v * rho_delay + max_accel * rho_delay**2 / 2
+            # print("my speed:", v)
+            # print("proceeding_speed:", proceeding_speed)
+            # print("front_car_brake_distance:", front_car_brake_distance)
+            # print("brake_distance:", brake_distance)
+            # print("idle_distance:", idle_distance)
+            # print(d + brake_distance + idle_distance - front_car_brake_distance)
             return d + brake_distance + idle_distance - front_car_brake_distance
         return d + T_des * v
 
@@ -35,11 +48,15 @@ def helly(delta_x, delta_v, delta_t, v_n, helly_params):
     k3 = f(v_n + k2 * delta_t / 2)
     k4 = f(v_n + k3 * delta_t)
 
-    v_diff = delta_t * (k1 + 2*k2 + 2*k3 + k4) / 6
+    desired_acceleration = (k1 + 2*k2 + 2*k3 + k4) / 6
+    # print("delta_x=", delta_x, ", D=", D(v_n, isRss))
 
     # 加速の場合
-    if v_diff >= 0:
-        # print(v_diff, max_accel)
-        return min(v_diff, max_accel * delta_t) + v_n
+    if desired_acceleration >= 0:
+        # print("加速", max_accel, desired_acceleration, min(desired_acceleration, max_accel) * delta_t + v_n)
+        return min(desired_acceleration, max_accel) * delta_t + v_n
     # 減速の場合
-    return max(max(v_diff, -1*min_accel * delta_t) + v_n, 0)   
+    # print("減速", -1*min_accel, desired_acceleration)
+
+    deceleration = max(desired_acceleration, -1*min_accel)
+    return max(deceleration * delta_t + v_n, 0)

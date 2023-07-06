@@ -3,16 +3,24 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def find_delta_x(drone_list, idx, total_distance):
+def find_delta_x(drone_list, idx, total_distance, step):
     if len(drone_list) == 1:
         return 1e6, 1e6
-    
+       
     # 追い抜きがなければこれで良いはず
+    # print("先行車の座標", drone_list[int(idx-1)].xcor)
+    # print("自分の座標", drone_list[int(idx)].xcor)
     delta_from_idx = drone_list[int(idx-1)].xcor - drone_list[idx].xcor
     delta_v = drone_list[int(idx-1)].v_x - drone_list[idx].v_x
     if delta_from_idx < 0:
+        # 念の為追い抜きのチェック:
+        if drone_list[int(idx-1)].covered_distance - drone_list[int(idx)].covered_distance < 0:
+            print(f"idx={idx}, time_step={step}")
+            print(f"先行車(id={idx-1})のx座標", drone_list[int(idx - 1)].xcor)
+            print("followerのx座標", drone_list[idx].xcor)
+            raise ValueError("追い抜きが発生しました")
+
         delta_from_idx += total_distance
-    # 念の為チェック:面倒なのであとでやる
     # current_position = drone_list[idx].xcor
     # distance_list = [drone.xcor - current_position for drone in drone_list]
     return delta_from_idx, delta_v
@@ -37,13 +45,15 @@ class SimulationPeriodic:
     def run_parallel(self, drone_list):
         print("===PARALLEL実行===")
         for step in range(self.simulation_steps):
+            # print("t=", step)
             for idx, drone_i in enumerate(drone_list):
-                delta_x, delta_v = find_delta_x(drone_list, idx, self.TOTAL_DISTANCE)
+                delta_x, delta_v = find_delta_x(drone_list, idx, self.TOTAL_DISTANCE, step)
                 if delta_x < 0:
                     print(f"idx={idx}")
                     print(f"先行車(id={idx})のx座標", drone_list[int(idx - 1)].xcor)
                     print("followerのx座標", drone_list[idx].xcor)
                     raise ValueError("追い抜きが発生しました")
+                # print("Drone ID=", idx)
                 drone_i.decide_speed(self.time_step, delta_x, delta_v)
             
             for idx, drone_i in enumerate(drone_list):
