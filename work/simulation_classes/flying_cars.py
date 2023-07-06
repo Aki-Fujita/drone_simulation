@@ -33,7 +33,7 @@ class FlyingCars:
 
     # parallel updateの場合に出てくる、事前にスピードを決めておく。
     def decide_speed(self, delta_t, delta_x, delta_v):
-        next_speed = min(helly(delta_x, delta_v, delta_t, self.v_x, self.helly_params), self.max_speed)
+        next_speed = min(helly(delta_x, delta_v, delta_t, self.v_x, self.helly_params, car_idx=self.idx), self.max_speed)
         self.v_x = next_speed
         # print("Next Speed=", next_speed)
         self.headwayList.append(delta_x)
