@@ -127,7 +127,7 @@ class SimulationPeriodic:
     def create_video(self, fileName=""):
         color_list = ["orange", "pink", "blue", "brown", "red", "green"]
         drones = self.drone_list
-        frames = len(self.drone_list[0].xcorList)
+        frames = len(self.drone_list[0].xcorList) - 1
         images = []
         radius = 4
 
