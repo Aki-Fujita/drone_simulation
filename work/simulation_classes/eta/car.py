@@ -11,12 +11,12 @@ class Cars:
         self.xcor = 0
 
     def create_desired_list(self, way_points):
-        way_points_with_eta = []
-        for idx, way_point in enumerate(way_points):
+        
+        def calc_eta(way_point):
             estimated_time_of_arrival = way_point["x"] / self.mean_speeed + self.arrival_time
-            retObj = {**way_point, "eta": estimated_time_of_arrival, "car_idx": self.index}
-            way_points_with_eta.append(retObj)
-
+            return {**way_point, "eta": estimated_time_of_arrival, "car_idx": self.index}
+        way_points_with_eta = list(map(calc_eta, way_points))
+        
         return way_points_with_eta
     
     def proceed(self, **kwargs):
