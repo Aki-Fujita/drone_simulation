@@ -18,6 +18,7 @@ def helly(delta_x, delta_v, delta_t, v_n, helly_params, car_idx):
     d = helly_params.get("d")
     T_des = helly_params.get("T_des")
     isRss = helly_params.get("isRss", False)
+    lambda_2 = 0 if isRss else lambda_2
 
     # 安全距離の式
     def D(v, isRSS=False, should_print=False):
@@ -41,20 +42,20 @@ def helly(delta_x, delta_v, delta_t, v_n, helly_params, car_idx):
 
     # 更新式
     def f(v):
-        return lambda_1 * (delta_x - D(v, isRss)) + lambda_2*(delta_v)
+        return lambda_1 * (delta_x - D(v, isRss)) + lambda_2*(delta_v)        
 
     # ここからルンゲクッタ
     k1 = f(v_n)
     k2 = f(v_n + k1 * delta_t / 2)
     k3 = f(v_n + k2 * delta_t / 2)
     k4 = f(v_n + k3 * delta_t)
-    # if (car_idx == 1):
-    #     print("RSS距離=", D(v_n, isRss, True))
-    #     print("my speed:", v_n)
-
+    
     desired_acceleration = (k1 + 2*k2 + 2*k3 + k4) / 6
-    # print("delta_x=", delta_x, ", D=", D(v_n, isRss))
 
+    # RSSかつ減速の場合はmin_brack_accを返す
+    if isRss and delta_x - D(v_n, isRss) < 0:
+        return max(-1*min_accel * delta_t + v_n, 0)
+        
     # 加速の場合
     if desired_acceleration >= 0:
         # print("加速", max_accel, desired_acceleration, min(desired_acceleration, max_accel) * delta_t + v_n)

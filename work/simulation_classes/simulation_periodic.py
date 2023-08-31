@@ -1,25 +1,17 @@
 # from .drones import Drones
 import numpy as np
 import matplotlib.pyplot as plt
+import cv2
+import os
 
 
 def find_delta_x(drone_list, idx, total_distance, step):
     if len(drone_list) == 1:
         return 1e6, 1e6
        
-    # 追い抜きがなければこれで良いはず
-    # print("先行車の座標", drone_list[int(idx-1)].xcor)
-    # print("自分の座標", drone_list[int(idx)].xcor)
     delta_from_idx = drone_list[int(idx-1)].xcor - drone_list[idx].xcor
     delta_v = drone_list[int(idx-1)].v_x - drone_list[idx].v_x
     if delta_from_idx < 0:
-        # 念の為追い抜きのチェック:
-        if drone_list[int(idx-1)].covered_distance - drone_list[int(idx)].covered_distance < 0:
-            print(f"idx={idx}, time_step={step}")
-            print(f"先行車(id={idx-1})のx座標", drone_list[int(idx - 1)].xcor)
-            print("followerのx座標", drone_list[idx].xcor)
-            raise ValueError("追い抜きが発生しました")
-
         delta_from_idx += total_distance
     # current_position = drone_list[idx].xcor
     # distance_list = [drone.xcor - current_position for drone in drone_list]
@@ -48,15 +40,21 @@ class SimulationPeriodic:
             # print("t=", step)
             for idx, drone_i in enumerate(drone_list):
                 delta_x, delta_v = find_delta_x(drone_list, idx, self.TOTAL_DISTANCE, step)
-                if delta_x < 0:
-                    print(f"idx={idx}")
-                    print(f"先行車(id={idx})のx座標", drone_list[int(idx - 1)].xcor)
-                    print("followerのx座標", drone_list[idx].xcor)
-                    raise ValueError("追い抜きが発生しました")
-                # print("Drone ID=", idx)
                 drone_i.decide_speed(self.time_step, delta_x, delta_v)
             
             for idx, drone_i in enumerate(drone_list):
+                delta_x, delta_v = find_delta_x(drone_list, idx, self.TOTAL_DISTANCE, step)
+                precedent_car = drone_list[int(idx - 1)]
+                if delta_x < (drone_i.v_x - precedent_car.v_x) * self.time_step:
+                    print("!!!!!!!!!!!!!")
+                    print("追い抜き発生")
+                    print(f"step={step}_先行車(id={idx-1})のx座標", drone_list[int(idx - 1)].xcor, precedent_car.xcor)
+                    print(f"follower(id={idx})のx座標", drone_list[idx].xcor)
+                    print("delta_x", delta_x, " v_x", drone_i.v_x, " leader_v_x", precedent_car.v_x)
+                    print("接近距離", (drone_i.v_x - precedent_car.v_x) * self.time_step)
+                    print("!!!!!!!!!!!!!")
+                    return {"step": step, "follower_idx": idx}
+                    raise ValueError("追い抜きが発生しました")
                 drone_i.move(self.time_step, self.TOTAL_DISTANCE)
                 drone_i.record()
         print("FINISHED")
@@ -70,7 +68,9 @@ class SimulationPeriodic:
             self.run_sequential(self.drone_list)
             return
         
-        self.run_parallel(self.drone_list)
+        result = self.run_parallel(self.drone_list)
+        return result
+
 
     def test(self):
         if (self.boundary_condition == "FIXED"):
@@ -124,7 +124,59 @@ class SimulationPeriodic:
         plt.xlabel("time", fontsize=8)
         plt.ylabel("v_x", fontsize=8)
 
-    def create_video(self):
-        drone_list = self.drone_list
-        conducted_steps = len(drone_list[0].xcorList)
-        print(conducted_steps)
+    def create_video(self, fileName=""):
+        color_list = ["orange", "pink", "blue", "brown", "red", "green"]
+        drones = self.drone_list
+        frames = len(self.drone_list[0].xcorList) - 1
+        images = []
+        radius = 4
+
+        for i in range(frames):
+            if (i % 4 == 1):
+                continue
+            plt.figure(figsize=(4, 4))
+
+            for (droneNum, drone) in enumerate(drones):
+                theta = drone.xcorList[int(i)] / self.TOTAL_DISTANCE * 2 * np.pi
+                if (droneNum == 0):
+                    plt.scatter(radius * np.cos(theta), radius * np.sin(theta), color=color_list[droneNum % 6], s=6)
+                else:
+                    plt.scatter(radius * np.cos(theta), radius * np.sin(theta), color=color_list[droneNum % 6], s=6)
+            plt.xlim(-1*(radius + 1), radius + 1)
+            plt.ylim(-1*(radius + 1), radius + 1)
+            plt.yticks(fontsize=8)
+            plt.xticks(fontsize=8)
+            # plt.xlabel("Distance", fontsize=8)
+            # plt.ylabel("Height", fontsize=8)
+            plt.savefig(f"tmp/frame_{i}.png")
+            plt.close()
+
+            filename = 'tmp/frame_{}.png'.format(i)
+            img = cv2.imread(filename)
+            images.append(img)
+            os.remove(f"tmp/frame_{i}.png")
+            if (i % 100 == 0):
+                print(f"frame_{i}__Done")
+
+        print("動画作成開始")
+        output_file = f'tmp/output_circular_DroneNum={self.drone_num}_RSS.mp4'
+        if fileName != "":
+            output_file = fileName
+        fps = 5
+        size = (images[0].shape[1], images[0].shape[0])
+
+        # 動画を保存するためのオブジェクトを生成する
+        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        out = cv2.VideoWriter(output_file, fourcc, fps, size)
+
+        # 100枚の画像を動画に書き込む
+        for i in range(len(images)):
+            out.write(images[i])
+
+        # 動画を保存するための処理を終了する
+        out.release()
+        print("END")
+
+
+
+    
