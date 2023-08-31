@@ -1,4 +1,4 @@
 /result
 /research_log/notebooks/.ipynb_checkpoints
-/functions/__pycache__
-/simulation_clases/eta/__pycache__
+*/__pycache__
+*.mp4
