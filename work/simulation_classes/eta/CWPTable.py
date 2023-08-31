@@ -3,7 +3,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-
 class CWPTable:
     def __init__(self, **kwargs) -> None:
         self.waypoints = kwargs.get("waypoints")
@@ -61,10 +60,17 @@ class CWPTable:
     def plot(self):
         color_list = ["orange", "pink", "blue", "brown", "red", "green"]
         car_idx_list = self.waypoint_table["car_idx"].unique()
+        waypoints = self.waypoint_table["x"].unique()
 
         plt.figure(figsize=(6, 6))
         for car_idx in car_idx_list:
             _df = self.waypoint_table
             df_by_car = _df[_df["car_idx"] == car_idx]
-            plt.plot(df_by_car["eta"], df_by_car["x"], color=color_list[car_idx % 6], linewidth=1, linestyle='--') 
-            plt.scatter(df_by_car["eta"], df_by_car["x"], color=color_list[car_idx % 6], alpha=0.7, s=20) 
+            plt.plot(df_by_car["x"], df_by_car["eta"], color=color_list[car_idx % 6], linewidth=1, linestyle='--') 
+            plt.scatter(df_by_car["x"], df_by_car["eta"], color=color_list[car_idx % 6], alpha=0.7, s=20)
+        x_ticks = waypoints
+        plt.xticks(x_ticks)
+        # 罫線を引く
+        plt.grid()
+        plt.xlabel('x')
+        plt.ylabel('eta')
