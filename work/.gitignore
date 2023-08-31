@@ -2,3 +2,4 @@
 /research_log/notebooks/.ipynb_checkpoints
 */__pycache__
 *.mp4
+*.ipynb_checkpoints/
