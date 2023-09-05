@@ -10,7 +10,7 @@ v_n: 現在の速度
 """
 
 
-def helly(delta_x, delta_v, delta_t, v_n, helly_params, car_idx):
+def helly(delta_x, delta_v, delta_t, v_n, helly_params):
     max_accel = helly_params.get("max_accel")
     min_accel = helly_params.get("min_accel")
     lambda_1 = helly_params.get("lambda_1")
@@ -24,11 +24,11 @@ def helly(delta_x, delta_v, delta_t, v_n, helly_params, car_idx):
     def D(v, isRSS=False, should_print=False):
         if isRSS:
             rho_delay = helly_params.get("response_time", 0.5)
-            min_comfortable_accel = helly_params.get("rear_brake_acc", min_accel*0.5)
+            min_comfortable_accel = helly_params.get("rear_brake_acc", min_accel * 0.5)
             front_car_brake = helly_params.get("front_car_brake", min_accel)
             proceeding_speed = v + delta_v
             front_car_brake_distance = proceeding_speed**2 / front_car_brake / 2
-            brake_distance = (v + max_accel*rho_delay)**2/(min_comfortable_accel)/2
+            brake_distance = (v + max_accel * rho_delay)**2 / (min_comfortable_accel) / 2
             idle_distance = v * rho_delay + max_accel * rho_delay**2 / 2
 
             # if (car_idx == 1 and should_print and v > 1):
@@ -42,20 +42,20 @@ def helly(delta_x, delta_v, delta_t, v_n, helly_params, car_idx):
 
     # 更新式
     def f(v):
-        return lambda_1 * (delta_x - D(v, isRss)) + lambda_2*(delta_v)        
+        return lambda_1 * (delta_x - D(v, isRss)) + lambda_2 * (delta_v)
 
     # ここからルンゲクッタ
     k1 = f(v_n)
     k2 = f(v_n + k1 * delta_t / 2)
     k3 = f(v_n + k2 * delta_t / 2)
     k4 = f(v_n + k3 * delta_t)
-    
-    desired_acceleration = (k1 + 2*k2 + 2*k3 + k4) / 6
+
+    desired_acceleration = (k1 + 2 * k2 + 2 * k3 + k4) / 6
 
     # RSSかつ減速の場合はmin_brack_accを返す
     if isRss and delta_x - D(v_n, isRss) < 0:
-        return max(-1*min_accel * delta_t + v_n, 0)
-        
+        return max(-1 * min_accel * delta_t + v_n, 0)
+
     # 加速の場合
     if desired_acceleration >= 0:
         # print("加速", max_accel, desired_acceleration, min(desired_acceleration, max_accel) * delta_t + v_n)
@@ -63,5 +63,5 @@ def helly(delta_x, delta_v, delta_t, v_n, helly_params, car_idx):
     # 減速の場合
     # print("減速", -1*min_accel, desired_acceleration)
 
-    deceleration = max(desired_acceleration, -1*min_accel)
+    deceleration = max(desired_acceleration, -1 * min_accel)
     return max(deceleration * delta_t + v_n, 0)

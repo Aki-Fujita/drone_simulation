@@ -33,7 +33,7 @@ class FlyingCars:
 
     # parallel updateの場合に出てくる、事前にスピードを決めておく。
     def decide_speed(self, delta_t, delta_x, delta_v):
-        next_speed = min(helly(delta_x, delta_v, delta_t, self.v_x, self.helly_params, car_idx=self.idx), self.max_speed)
+        next_speed = min(helly(delta_x, delta_v, delta_t, self.v_x, self.helly_params), self.max_speed)
         self.v_x = next_speed
         # print("Next Speed=", next_speed)
         self.headwayList.append(delta_x)
@@ -41,7 +41,7 @@ class FlyingCars:
     def move(self, delta_t, total_distance):
         self.xtotal += self.v_x * delta_t
         self.xcor = self.xtotal % total_distance
-           
+
     def update(self, delta_t, delta_x):
         # self.v_x = min(optimal_velocity(self.c, self.a, delta_x, delta_t, self.v_x), self.max_speed)
         self.v_x = optimal_velocity(self.c, self.a, delta_x, delta_t, self.v_x)
@@ -62,7 +62,7 @@ class FlyingCars:
             raise ValueError("シミュレーションが完了していません！")
         v_delta = np.diff(self.v_xList)
         return {"xList": self.xcorList, "v_delta": v_delta, "headways": self.headwayList, "vList": self.v_xList}
-    
+
     def plot_history(self, time_step=1):
         steps = len(self.xcorList)
         t = np.arange(steps) * time_step
@@ -108,14 +108,14 @@ class FlyingCars:
         plt.ylabel("Distance[m]", fontsize=8)
 
         plt.subplot(4, 1, 2)
-        plt.plot(t, np.array(self.v_xList)*scale_factor, color="red", linewidth=0.5)
+        plt.plot(t, np.array(self.v_xList) * scale_factor, color="red", linewidth=0.5)
         plt.yticks(fontsize=8)
         plt.xticks(fontsize=8)
         plt.xlabel("time [s]", fontsize=8)
         plt.ylabel("velocity [m/s]", fontsize=8)
 
         plt.subplot(4, 1, 3)
-        plt.plot(np.array(self.xcorList)*scale_factor, np.array(self.v_xList)*scale_factor, color="red", linewidth=0.5)
+        plt.plot(np.array(self.xcorList) * scale_factor, np.array(self.v_xList) * scale_factor, color="red", linewidth=0.5)
         plt.yticks(fontsize=8)
         plt.xticks(fontsize=8)
         plt.xlabel("x", fontsize=8)
@@ -128,4 +128,3 @@ class FlyingCars:
         plt.xticks(fontsize=8)
         plt.xlabel("x", fontsize=8)
         plt.ylabel("acc", fontsize=8)
-
