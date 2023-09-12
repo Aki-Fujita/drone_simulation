@@ -9,17 +9,21 @@ class Cars:
         self.index = kwagrs.get("index")
         self.mean_speeed = kwagrs.get("mean_speed")
         self.xcor = 0
-        self.v_x = 0
+        self.v_x = kwagrs.get("mean_speed")
         self.helly_params = kwagrs.get("helly_params")
         self.target_speed = 0
         self.xcorList = []
         self.v_xList = []
+        # この辺はETAのCONTROLに必要になる
+        self.group_id = kwagrs.get("group_id")
+        self.order_in_grouop = kwagrs.get("order_in_group")
 
     def create_desired_list(self, way_points):
 
         def calc_eta(way_point):
             estimated_time_of_arrival = way_point["x"] / self.mean_speeed + self.arrival_time
-            return {**way_point, "eta": estimated_time_of_arrival, "car_idx": self.index}
+            return {**way_point, "eta": estimated_time_of_arrival, "car_idx": self.index,
+                    "group_id": self.group_id, "order_in_group": self.order_in_grouop}
         way_points_with_eta = list(map(calc_eta, way_points))
 
         return way_points_with_eta
