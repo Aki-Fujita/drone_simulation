@@ -51,20 +51,23 @@ class PathPlanner:
         time_limit = params["t_end"] - params["t_0"]
         length_limit = params["length"]
 
+        # そもそもスピードに届かない場合
         if delta_v > a_max * time_limit:
             return {"is_possible": False, "Reason": "Time limit"}
 
         cover_distance = (params["v_exit"]**2 - params["v_0"]**2) / a_max * 0.5
+
+        # 加速区間が足りない場合
         if cover_distance > length_limit:
             return {"is_possible": False, "Reason": "Length limit"}
 
+        # そもそもベタ踏みしてもゴールに届かない場合
         if length_limit > a_max * time_limit**2 * 0.5 + time_limit * params["v_0"]:
             return {"is_possible": False, "Reason": "Cannot Arrive in time"}
 
         return {"is_possible": True, "Reason": "OK"}
 
     def calc_distance_by_profile(self, m1, profile, params):
-        # print("PROFILE: ",profile)
 
         if profile in ["CAC"]:
             # 加速型の特殊版 (減速ないもの). ただ、カバー範囲はCADと同じになるはず。減速区間がないので変数は加速のタイミングのみ.
@@ -93,9 +96,9 @@ class PathPlanner:
         """
         m3 = (m1 * params["a_max"] - params["delta_v"]) / params["a_dec"]  # 最後にv_3になるという制約
         m2 = params["time_limit"] - m3 - m1  # 総和が time_limitであるという制約
-        print()
+        # print()
         # print("calc_distance_by_profile")
-        print("m1={0:.2f}, m2={1:.2f}, m3={2:.2f}".format(m1, m2, m3))
+        # print("m1={0:.2f}, m2={1:.2f}, m3={2:.2f}".format(m1, m2, m3))
 
         if profile in ["ACD", "ADC", "CAD"]:
             v_max = params["v_0"] + params["a_max"] * m1
@@ -111,7 +114,7 @@ class PathPlanner:
             if profile == "CAD":
                 D2 = params["v_0"] * m2
 
-            print("D1={0:.2f}, D2={1:.2f}, D3={2:.2f}".format(D1, D2, D3))
+            # print("D1={0:.2f}, D2={1:.2f}, D3={2:.2f}".format(D1, D2, D3))
 
             return D1 + D2 + D3
 
@@ -128,10 +131,9 @@ class PathPlanner:
 
             if profile == "DCA":
                 D2 = v_min * m2
-            print("D1={0:.2f}, D2={1:.2f}, D3={2:.2f}".format(D1, D2, D3))
+            # print("D1={0:.2f}, D2={1:.2f}, D3={2:.2f}".format(D1, D2, D3))
             return D1 + D2 + D3
 
-    # この実装だと 関数がxに対して単調増加である必要がある？
     def conduct_binary_search(self, **kwargs):
         profile = kwargs.get("profile")
         a = kwargs.get("min_x")
@@ -156,7 +158,7 @@ class PathPlanner:
                     a = midpoint
                 else:
                     b = midpoint
-        print(count)
+        print("二分探索の反復数: ", count)
         return (a + b) / 2.0
 
     def create_path_by_m1(self, profile, m1, params):
@@ -214,20 +216,29 @@ class PathPlanner:
         if is_accelerated_profile:
             # 加速型だった場合の解は CAC か ACD のいずれかになるので CAC_MAXとの比較をしてどっちに入るかを判断する
             m1_min_for_acd = delta_v / params["a_max"]
-            m1_max_for_acd = (time_limit - m1_min_for_acd) / (params["a_max"] + params["a_dec"]) * params["a_dec"] + m1_min_for_acd
+            m1_max_for_acd_by_time = (time_limit - m1_min_for_acd) / (params["a_max"] + params["a_dec"]) * params["a_dec"] + m1_min_for_acd
+            m1_max_for_acd_by_speed_limit = (params["v_lim"] - params["v_0"]) / params["a_max"]
+            m1_max_for_acd = min(m1_max_for_acd_by_time, m1_max_for_acd_by_speed_limit)
+            # ここでACDの最大距離を計算する。もしもACDの最大を超えていたら Impossileの場合の処理をreturn
+            max_acd_distance = self.calc_distance_by_profile(m1_max_for_acd, "ACD", params)
+            print("ACD_MAX=", max_acd_distance)
+            if self.COURSE_LENGTH > max_acd_distance:
+                print("ACDでも不可能")
+                return []
+
             m1_min_for_cac = 0
             m1_max_for_cac = time_limit - delta_v / params["a_max"]
             CAC_MAX = self.calc_distance_by_profile(0, "CAC", params)
-            print("CAC_MAX={0:.2f}, distance={1:.2f}".format(CAC_MAX, self.COURSE_LENGTH))
+            print("CAC_MAX={0:.2f}, course_length={1:.2f}".format(CAC_MAX, self.COURSE_LENGTH))
 
             profile = "CAC" if self.COURSE_LENGTH <= CAC_MAX else "ACD"
             print("PROFILE: ", profile)
             min_x = m1_min_for_cac if profile == "CAC" else (m1_min_for_acd)
             max_x = m1_max_for_cac if profile == "CAC" else (m1_max_for_acd)
-            binary_searcy_params = {"profile": profile, "params": params, "min_x": min_x,
+            binary_search_params = {"profile": profile, "params": params, "min_x": min_x,
                                     "max_x": max_x}
 
-            m1 = self.conduct_binary_search(**binary_searcy_params)
+            m1 = self.conduct_binary_search(**binary_search_params)
             print("m1の解={0:.2f}".format(m1))
             print("距離:{0:.2f}".format(self.calc_distance_by_profile(m1, profile, params)))
 
@@ -253,7 +264,6 @@ class PathPlanner:
 
         result = self.create_path_by_m1(profile, m1, params)
         self.speed_profile = result
-        print(result)
         return result
 
     def plot_speed_profile(self, partition_num=200):
