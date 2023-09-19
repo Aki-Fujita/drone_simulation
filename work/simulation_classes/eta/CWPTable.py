@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from dataclasses import dataclass
+from .PathPlanner import PathPlanner
 
 
 @dataclass
@@ -10,7 +11,7 @@ class GlobalParams:
     START_TIME: float
     DESIRED_TTC: float
     DESIRED_SPEED: float
-    ORIFITH_LENGTH: int
+    ORIFITH_EXIT_INDEX: int
     V_MAX: float  # 整流区間内で出して良い最大スピード
 
 
@@ -20,6 +21,8 @@ class CWPTable:
         self.algorithm = kwargs.get("algorithm", "KISS")
         self.global_params = GlobalParams(**kwargs.get("global_params"))
         self.waypoint_table = pd.DataFrame([])
+        orifith_end_index = self.global_params.ORIFITH_EXIT_INDEX
+        self.ORIFITH_LENGTH = self.waypoints[orifith_end_index]["x"]
         print(self.global_params.WINDOW_SIZE)
 
     def validate(self, waypoints_with_eta):
@@ -90,13 +93,90 @@ class CWPTable:
             enter_speed = kwargs.get("enter_speed")
             max_acc = kwargs.get("max_acc", 0.5)
             max_dec = kwargs.get("max_dec", 0.4)
-            car_spec = {"enter_speed": enter_speed, "max_acc": max_acc, "max_dec": max_dec}
+            car_spec = {"enter_speed": enter_speed, "max_acc": max_acc, "max_dec": max_dec, "v_max": self.global_params.V_MAX}
             calibrated_list.append(waypoints_with_eta[0])
             ideal_params_at_end = self.calc_ideal_params_at_end(waypoints_with_eta)
             initial_params = {"time": waypoints_with_eta[0]["eta"], "speed": enter_speed}
-            eta_controlled = self.calc_controlled_eta(initial_params, ideal_params_at_end, car_spec)
+            pathPlanner = PathPlanner(
+                car_spec=car_spec, initial_params=initial_params, ideal_params_at_end=ideal_params_at_end,
+                COURSE_LENGTH=self.ORIFITH_LENGTH
+            )
+            print(pathPlanner.describe_params())
+            speed_profile = pathPlanner.solve_path()
+            print(speed_profile)
+            # 続いてこのspeed_profileをもとに各場所へのETAを計算する。
+            calibrated_waypoints = self.convert_profile_to_eta(speed_profile, waypoints_with_eta)
+            # print(calibrated_waypoints)
 
-        return calibrated_list
+        return calibrated_waypoints
+
+    def calc_arrival_time(self, speed_profile, distance_from_start):
+        d = distance_from_start
+        # print(speed_profile)
+        if len(speed_profile) == 3:
+            phase_1 = speed_profile[0]
+            phase_2 = speed_profile[1]
+            phase_3 = speed_profile[2]
+            v_0 = phase_1["initial_speed"]
+
+            if phase_1["ACC"] == 0:
+                # CACの場合
+                end_of_phase_1 = phase_1["duration"] * v_0
+                end_of_phase_2 = phase_2["ACC"] * phase_2["duration"] ** 2 * 0.5 + end_of_phase_1
+                if d <= end_of_phase_1:
+                    return d / v_0
+                if d <= end_of_phase_2:
+                    delta = d - end_of_phase_1
+                    return ((v_0 ** 2 + 2 * phase_2["ACC"] * delta)**0.5 - v_0) / phase_2["ACC"] + phase_1["duration"]
+                return (d - end_of_phase_2) / phase_3["initial_speed"] + phase_1["duration"] + phase_2["duration"]
+
+            else:
+                # ACDまたはDCAの場合
+                end_of_phase_1 = phase_1["ACC"] * phase_1["duration"]**2 * 0.5 + phase_1["duration"] * v_0
+                end_of_phase_2 = end_of_phase_1 + phase_2["duration"] * phase_2["initial_speed"]
+                if d <= end_of_phase_1:
+                    return ((v_0 ** 2 + 2 * phase_1["ACC"] * d)**0.5 - v_0) / phase_1["ACC"]
+                if d <= end_of_phase_2:
+                    return (d - end_of_phase_1) / phase_2["initial_speed"] + phase_1["duration"]
+                # 残すは最後の減速区間
+                delta = d - end_of_phase_2
+                v_max = phase_3["initial_speed"]
+                return ((v_max ** 2 + 2 * phase_3["ACC"] * delta)**0.5 - v_max) / phase_3["ACC"] + phase_1["duration"] + phase_2["duration"]
+
+        if len(speed_profile) == 2:
+            # ADの場合のみ
+            phase_1 = speed_profile[0]
+            phase_2 = speed_profile[1]
+            end_of_phase_1 = phase_1["ACC"] * phase_1["duration"]**2 * 0.5 + phase_1["duration"] * v_0
+            if d <= end_of_phase_1:
+                return ((v_0 ** 2 + 2 * phase_1["ACC"] * d)**0.5 - v_0) / phase_1["ACC"]
+            v_max = phase_2["initial_speed"]
+            delta = d - end_of_phase_1
+            return ((v_max ** 2 + 2 * phase_2["ACC"] * delta)**0.5 - v_max) / phase_2["ACC"] + phase_1["duration"]
+
+    def convert_profile_to_eta(self, speed_profile, waypoints):
+        print()
+        entrance_time = waypoints[0]["eta"]
+        calibrated_ETA_list = []
+        v = speed_profile[0]["initial_speed"]
+        for phase in speed_profile:
+            v += phase["duration"] * phase["ACC"]
+        v_exit = v
+
+        arrival_at_orifice_exit = 0
+        for idx, waypoint_with_eta in enumerate(waypoints):
+            if idx <= self.global_params.ORIFITH_EXIT_INDEX:
+                xcor = waypoint_with_eta["x"]
+                arrival_time = self.calc_arrival_time(speed_profile, xcor)
+                calibrated_ETA = {**waypoint_with_eta, "eta": arrival_time + entrance_time}
+                arrival_at_orifice_exit = arrival_time + entrance_time
+            else:
+                print("出口到達時刻: ", arrival_at_orifice_exit)
+                distance_from_previous_exit = waypoint_with_eta["x"] - waypoints[int(self.global_params.ORIFITH_EXIT_INDEX)]["x"]
+                calibrated_ETA = {**waypoint_with_eta, "eta": arrival_at_orifice_exit + distance_from_previous_exit / v_exit}
+            calibrated_ETA_list.append(calibrated_ETA)
+
+        return calibrated_ETA_list
 
     def calc_ideal_params_at_end(self, waypoints_with_eta):
         gp = self.global_params
@@ -105,41 +185,11 @@ class CWPTable:
         order_in_group = waypoints_with_eta[0]["order_in_group"]
 
         # group_idx, グループ内順位をもとに終点の理想時刻を計算
-        orifith_end_index = gp.ORIFITH_LENGTH
-        DISTANCE_TO_ORIFITH_END = self.waypoints[orifith_end_index]["x"]
-        ideal_time_for_idx_zero = gp.START_TIME + DISTANCE_TO_ORIFITH_END / gp.DESIRED_SPEED + group_idx * gp.WINDOW_SIZE
+        ideal_time_for_idx_zero = gp.START_TIME + self.ORIFITH_LENGTH / gp.DESIRED_SPEED + group_idx * gp.WINDOW_SIZE
         ideal_arrive_time_at_end = ideal_time_for_idx_zero + order_in_group * gp.DESIRED_TTC
         print("理想到着時刻", ideal_arrive_time_at_end)
 
         return {"ideal_arrive_time": ideal_arrive_time_at_end, "ideal_speed": gp.DESIRED_SPEED}
-
-    def calc_controlled_eta(self, initial_params, ideal_params_at_end, car_spec):
-        v_0 = initial_params["speed"]
-        v_max = self.global_params.V_MAX
-        v_exit = ideal_params_at_end["ideal_speed"]
-        a_max = car_spec["max_acc"]
-        a_dec = car_spec["max_dec"]
-        t_0 = initial_params["time"]
-        t_end = ideal_params_at_end["ideal_arrive_time"]
-        orifith_end_index = self.global_params.ORIFITH_LENGTH
-        L_max = self.waypoints[orifith_end_index]["x"]
-
-        if v_0 > v_max or v_exit > v_max:
-            ValueError("Enter Speedが最高速度を上回っています")
-
-        # まずは全速力で行けるかを判定
-        s_1 = (v_max**2 - v_0 ** 2) / 2 / a_max
-        s_3 = (v_max**2 - v_exit ** 2) / 2 / a_dec
-        t_1 = (v_max - v_0) / a_max
-        t_3 = (v_max - v_exit) / a_dec
-        t_2 = t_end - t_0 - t_1 - t_3
-        S = s_1 + s_3 + t_2 * v_max
-        can_be_realized = True
-        if t_2 < 0 or S > L_max:
-            can_be_realized = False
-        print("達成可能性:", can_be_realized)
-
-        return
 
     def plot(self):
         color_list = ["orange", "pink", "blue", "brown", "red", "green"]

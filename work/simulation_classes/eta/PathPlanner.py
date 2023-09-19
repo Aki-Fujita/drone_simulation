@@ -158,7 +158,7 @@ class PathPlanner:
                     a = midpoint
                 else:
                     b = midpoint
-        print("二分探索の反復数: ", count)
+        # print("二分探索の反復数: ", count)
         return (a + b) / 2.0
 
     def create_path_by_m1(self, profile, m1, params):
@@ -207,8 +207,10 @@ class PathPlanner:
         print(can_reach_v_exit_output)
 
         if not can_reach_v_exit_output["is_possible"]:
-            print("後ほど実装")
-            return []
+            if can_reach_v_exit_output["Reason"] == "Time limit":
+                return [{"ACC": params["a_max"], "duration": time_limit, "initial_speed":params["v_0"]}]
+            if can_reach_v_exit_output["Reason"] == "Length limit":
+                return [{"ACC": params["a_max"], "duration": time_limit, "initial_speed":params["v_0"]}]
 
         threshold_distance = cover_distance + (time_limit - delta_v / params["a_max"]) * params["v_0"]
         is_accelerated_profile = self.COURSE_LENGTH >= threshold_distance
@@ -224,7 +226,16 @@ class PathPlanner:
             print("ACD_MAX=", max_acd_distance)
             if self.COURSE_LENGTH > max_acd_distance:
                 print("ACDでも不可能")
-                return []
+                m3 = (params["v_lim"] - params["v_exit"]) / params["a_dec"]  # 最後にv_3になるという制約
+                m2 = params["time_limit"] - m3 - m1_max_for_acd  # 総和が time_limitであるという制約
+                if m1_max_for_acd_by_speed_limit < m1_max_for_acd_by_time:
+                    return [{"ACC": params["a_max"], "duration": m1_max_for_acd_by_speed_limit, "initial_speed":params["v_0"]},
+                            {"ACC": 0, "duration": m2, "initial_speed": params["v_lim"]},
+                            {"ACC": params["a_dec"] * (-1), "duration": m3, "initial_speed":params["v_lim"]},]
+                else:
+                    m2 = time_limit - m1_max_for_acd_by_time
+                    return [{"ACC": params["a_max"], "duration": m1_max_for_acd_by_time, "initial_speed":params["v_0"]},
+                            {"ACC": params["a_dec"] * (-1), "duration": m2, "initial_speed":params["v_exit"] + m2 * params["a_dec"]}]
 
             m1_min_for_cac = 0
             m1_max_for_cac = time_limit - delta_v / params["a_max"]
@@ -259,7 +270,7 @@ class PathPlanner:
             binary_search_params = {"profile": profile, "params": params, "min_x": min_x,
                                     "max_x": max_x}
             m1 = self.conduct_binary_search(**binary_search_params)
-            print("m1の解={0:.2f}".format(m1))
+            # print("m1の解={0:.2f}".format(m1))
             print("距離:{0:.2f}".format(self.calc_distance_by_profile(m1, profile, params)))
 
         result = self.create_path_by_m1(profile, m1, params)
@@ -319,6 +330,8 @@ class PathPlanner:
 
         if not can_reach_v_exit_output["is_possible"]:
             print("後ほど実装")
+            # この場合はとりあえず最大加速するように返しておく
+
             return []
 
         # ここから求解を開始する
