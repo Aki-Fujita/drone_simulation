@@ -1,4 +1,8 @@
 import sys
+import numpy as np
+import matplotlib.pyplot as plt
+
+
 sys.path.append("../")
 
 
@@ -9,6 +13,7 @@ class PathPlanner:
         self.ideal_params_at_end = kwargs.get("ideal_params_at_end")
         self.COURSE_LENGTH = kwargs.get("COURSE_LENGTH")
         self.time_to_exit = self.ideal_params_at_end["ideal_arrive_time"] - self.initial_params["time"]
+        self.speed_profile = []
 
     def decide_is_delayed(self):
         v_0 = self.initial_params["speed"]
@@ -247,7 +252,39 @@ class PathPlanner:
             print("距離:{0:.2f}".format(self.calc_distance_by_profile(m1, profile, params)))
 
         result = self.create_path_by_m1(profile, m1, params)
+        self.speed_profile = result
         print(result)
+        return result
+
+    def plot_speed_profile(self, partition_num=200):
+        if self.speed_profile == []:
+            print("speed_profileが未計算です")
+            return
+
+        times = np.linspace(0, int(self.time_to_exit), partition_num)
+        v_0 = self.initial_params["speed"]
+
+        def calc_speed_by_time(speed_profile, t, v_0):
+            thresh_1 = speed_profile[0]["duration"]
+            thresh_2 = thresh_1 + speed_profile[1]["duration"]
+            v_after_phase_1 = v_0 + speed_profile[0]["ACC"] * speed_profile[0]["duration"]
+            v_after_phase_2 = v_after_phase_1 + speed_profile[1]["ACC"] * speed_profile[1]["duration"]
+            if t <= thresh_1:
+                return v_0 + speed_profile[0]["ACC"] * t
+            if t <= thresh_2:
+                return v_after_phase_1 + (t - thresh_1) * speed_profile[1]["ACC"]
+            return v_after_phase_2 + (t - thresh_2) * speed_profile[2]["ACC"]
+
+        v_xlist = [calc_speed_by_time(self.speed_profile, time, v_0) for time in times]
+
+        # グラフのタイトルや軸ラベルの設定
+        plt.plot(times, v_xlist)
+
+        plt.title("Speed Profile")
+        plt.xlabel("Time")
+        plt.ylabel("v_x")
+        plt.grid()
+        plt.show()
 
     def solve_path_debug(self, priority="speed"):
         """
