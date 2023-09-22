@@ -87,6 +87,8 @@ class CWPTable:
                 else:
                     entry_time = desired_entry_time
                 calibrated_list.append({**waypoint_info, "eta": entry_time})
+            speed_profile = []
+            return calibrated_list, speed_profile
 
         if self.algorithm == "CONTROLLED":
             print("control")
@@ -101,14 +103,13 @@ class CWPTable:
                 car_spec=car_spec, initial_params=initial_params, ideal_params_at_end=ideal_params_at_end,
                 COURSE_LENGTH=self.ORIFITH_LENGTH
             )
-            print(pathPlanner.describe_params())
             speed_profile = pathPlanner.solve_path()
-            print(speed_profile)
+            # print(speed_profile)
             # 続いてこのspeed_profileをもとに各場所へのETAを計算する。
             calibrated_waypoints = self.convert_profile_to_eta(speed_profile, waypoints_with_eta)
             # print(calibrated_waypoints)
 
-        return calibrated_waypoints
+            return calibrated_waypoints, speed_profile
 
     def calc_arrival_time(self, speed_profile, distance_from_start):
         d = distance_from_start
@@ -122,7 +123,7 @@ class CWPTable:
             if phase_1["ACC"] == 0:
                 # CACの場合
                 end_of_phase_1 = phase_1["duration"] * v_0
-                end_of_phase_2 = phase_2["ACC"] * phase_2["duration"] ** 2 * 0.5 + end_of_phase_1
+                end_of_phase_2 = phase_2["ACC"] * phase_2["duration"] ** 2 * 0.5 + v_0 * phase_2["duration"] + end_of_phase_1
                 if d <= end_of_phase_1:
                     return d / v_0
                 if d <= end_of_phase_2:
@@ -171,7 +172,8 @@ class CWPTable:
                 calibrated_ETA = {**waypoint_with_eta, "eta": arrival_time + entrance_time}
                 arrival_at_orifice_exit = arrival_time + entrance_time
             else:
-                print("出口到達時刻: ", arrival_at_orifice_exit)
+                if idx == self.global_params.ORIFITH_EXIT_INDEX + 1:
+                    print("出口到達時刻: ", arrival_at_orifice_exit)
                 distance_from_previous_exit = waypoint_with_eta["x"] - waypoints[int(self.global_params.ORIFITH_EXIT_INDEX)]["x"]
                 calibrated_ETA = {**waypoint_with_eta, "eta": arrival_at_orifice_exit + distance_from_previous_exit / v_exit}
             calibrated_ETA_list.append(calibrated_ETA)
@@ -202,9 +204,12 @@ class CWPTable:
             df_by_car = _df[_df["car_idx"] == car_idx]
             plt.plot(df_by_car["x"], df_by_car["eta"], color=color_list[car_idx % 6], linewidth=1, linestyle='--')
             plt.scatter(df_by_car["x"], df_by_car["eta"], color=color_list[car_idx % 6], alpha=0.7, s=20)
+
+        plt.axvspan(xmin=self.ORIFITH_LENGTH, xmax=max(waypoints), facecolor='lightgray', alpha=0.4)
+
         x_ticks = waypoints
         plt.xticks(x_ticks)
         # 罫線を引く
         plt.grid()
         plt.xlabel('x')
-        plt.ylabel('eta')
+        plt.ylabel('ETA')
