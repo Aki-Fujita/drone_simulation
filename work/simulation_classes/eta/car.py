@@ -53,7 +53,7 @@ class Cars:
         time_to_exit = 0
         for phase in self.speed_profile:
             time_to_exit += phase["duration"]
-        times = np.linspace(0, int(time_to_exit), partition_num)
+        times = np.linspace(0, time_to_exit, partition_num)
         v_0 = self.speed_profile[0]["initial_speed"]
 
         def calc_speed_by_time(speed_profile, t, v_0):
@@ -71,7 +71,8 @@ class Cars:
 
         # グラフのタイトルや軸ラベルの設定
         plt.plot(times, v_xlist)
-        plt.ylim(0, v_lim)
+        plt.ylim(0, v_lim + 5)
+        plt.xlim(0, time_to_exit + 1)
         plt.title("Speed Profile")
         plt.xlabel("Time")
         plt.ylabel("v_x")

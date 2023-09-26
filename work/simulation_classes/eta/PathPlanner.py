@@ -225,7 +225,6 @@ class PathPlanner:
             max_acd_distance = self.calc_distance_by_profile(m1_max_for_acd, "ACD", params)
             print("ACD_MAX=", max_acd_distance)
             if self.COURSE_LENGTH > max_acd_distance:
-                print("ACDでも不可能")
                 m3 = (params["v_lim"] - params["v_exit"]) / params["a_dec"]  # 最後にv_3になるという制約
                 m2 = params["time_limit"] - m3 - m1_max_for_acd  # 総和が time_limitであるという制約
                 if m1_max_for_acd_by_speed_limit < m1_max_for_acd_by_time:

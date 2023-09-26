@@ -135,28 +135,41 @@ class CWPTable:
                 # ACDまたはDCAの場合
                 end_of_phase_1 = phase_1["ACC"] * phase_1["duration"]**2 * 0.5 + phase_1["duration"] * v_0
                 end_of_phase_2 = end_of_phase_1 + phase_2["duration"] * phase_2["initial_speed"]
+                end_of_phase_3 = phase_3["initial_speed"] * phase_3["duration"] + 0.5 * phase_3["ACC"] * phase_3["duration"]**2 + end_of_phase_2
+
                 if d <= end_of_phase_1:
                     return ((v_0 ** 2 + 2 * phase_1["ACC"] * d)**0.5 - v_0) / phase_1["ACC"]
                 if d <= end_of_phase_2:
                     return (d - end_of_phase_1) / phase_2["initial_speed"] + phase_1["duration"]
                 # 残すは最後の減速区間
-                delta = d - end_of_phase_2
-                v_max = phase_3["initial_speed"]
-                return ((v_max ** 2 + 2 * phase_3["ACC"] * delta)**0.5 - v_max) / phase_3["ACC"] + phase_1["duration"] + phase_2["duration"]
+                if d <= end_of_phase_3:
+                    delta = d - end_of_phase_2
+                    v_max = phase_3["initial_speed"]
+                    return ((v_max ** 2 + 2 * phase_3["ACC"] * delta)**0.5 - v_max) / phase_3["ACC"] + phase_1["duration"] + phase_2["duration"]
+                # ここは間に合ってない人たち
+                delta = d - end_of_phase_3
+                v_exit = phase_3["initial_speed"] + phase_3["duration"] * phase_3["ACC"]
+                return delta / v_exit + phase_1["duration"] + phase_2["duration"] + phase_3["duration"]
 
         if len(speed_profile) == 2:
             # ADの場合のみ
             phase_1 = speed_profile[0]
             phase_2 = speed_profile[1]
+            v_0 = phase_1["initial_speed"]
             end_of_phase_1 = phase_1["ACC"] * phase_1["duration"]**2 * 0.5 + phase_1["duration"] * v_0
+            v_max = phase_2["initial_speed"]
+            end_of_phase_2 = phase_2["ACC"] * phase_2["duration"]**2 * 0.5 + phase_2["duration"] * v_max + end_of_phase_1
             if d <= end_of_phase_1:
                 return ((v_0 ** 2 + 2 * phase_1["ACC"] * d)**0.5 - v_0) / phase_1["ACC"]
-            v_max = phase_2["initial_speed"]
-            delta = d - end_of_phase_1
-            return ((v_max ** 2 + 2 * phase_2["ACC"] * delta)**0.5 - v_max) / phase_2["ACC"] + phase_1["duration"]
+            if d <= end_of_phase_2:
+                delta = d - end_of_phase_1
+                return ((v_max ** 2 + 2 * phase_2["ACC"] * delta)**0.5 - v_max) / phase_2["ACC"] + phase_1["duration"]
+            delta = d - end_of_phase_2
+            v_exit = phase_2["initial_speed"] + phase_2["duration"] * phase_2["ACC"]
+            print(d, end_of_phase_1, end_of_phase_2)
+            return delta / v_exit + phase_1["duration"] + phase_2["duration"]
 
     def convert_profile_to_eta(self, speed_profile, waypoints):
-        print()
         entrance_time = waypoints[0]["eta"]
         calibrated_ETA_list = []
         v = speed_profile[0]["initial_speed"]
@@ -177,7 +190,7 @@ class CWPTable:
                 distance_from_previous_exit = waypoint_with_eta["x"] - waypoints[int(self.global_params.ORIFITH_EXIT_INDEX)]["x"]
                 calibrated_ETA = {**waypoint_with_eta, "eta": arrival_at_orifice_exit + distance_from_previous_exit / v_exit}
             calibrated_ETA_list.append(calibrated_ETA)
-
+        print()
         return calibrated_ETA_list
 
     def calc_ideal_params_at_end(self, waypoints_with_eta):
@@ -189,6 +202,13 @@ class CWPTable:
         # group_idx, グループ内順位をもとに終点の理想時刻を計算
         ideal_time_for_idx_zero = gp.START_TIME + self.ORIFITH_LENGTH / gp.DESIRED_SPEED + group_idx * gp.WINDOW_SIZE
         ideal_arrive_time_at_end = ideal_time_for_idx_zero + order_in_group * gp.DESIRED_TTC
+        # 前の車の到着時刻にTTCを足す
+        df = self.waypoint_table
+        if order_in_group > 0:
+            previous_car_arrival_time = df[(df["group_id"] == group_idx) & (df["order_in_group"] == int(order_in_group - 1)) &
+                                           (df["waypoint_idx"] == gp.ORIFITH_EXIT_INDEX)]["eta"].iloc[0]
+            print(order_in_group, previous_car_arrival_time)
+            ideal_arrive_time_at_end = max(ideal_arrive_time_at_end, previous_car_arrival_time + gp.DESIRED_TTC)
         print("理想到着時刻", ideal_arrive_time_at_end)
 
         return {"ideal_arrive_time": ideal_arrive_time_at_end, "ideal_speed": gp.DESIRED_SPEED}
