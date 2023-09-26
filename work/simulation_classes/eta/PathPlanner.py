@@ -82,9 +82,6 @@ class PathPlanner:
             D2 = (params["v_exit"] ** 2 - params["v_0"]**2) / params["a_max"] * 0.5  # 途中の加速区間に進む距離
             D3 = (m3 * params["v_exit"])
 
-            # print("m1={0:.2f}, m2={1:.2f}, m3={2:.2f}".format(m1, m2, m3))
-            # print("D1={0:.2f}, D2={1:.2f}, D3={2:.2f}".format(D1,D2,D3))
-
             return D1 + D2 + D3
 
         # ここから、A,C,Dが全て登場する速度プロファイル
@@ -96,9 +93,6 @@ class PathPlanner:
         """
         m3 = (m1 * params["a_max"] - params["delta_v"]) / params["a_dec"]  # 最後にv_3になるという制約
         m2 = params["time_limit"] - m3 - m1  # 総和が time_limitであるという制約
-        # print()
-        # print("calc_distance_by_profile")
-        # print("m1={0:.2f}, m2={1:.2f}, m3={2:.2f}".format(m1, m2, m3))
 
         if profile in ["ACD", "ADC", "CAD"]:
             v_max = params["v_0"] + params["a_max"] * m1
@@ -113,8 +107,6 @@ class PathPlanner:
 
             if profile == "CAD":
                 D2 = params["v_0"] * m2
-
-            # print("D1={0:.2f}, D2={1:.2f}, D3={2:.2f}".format(D1, D2, D3))
 
             return D1 + D2 + D3
 
@@ -131,7 +123,6 @@ class PathPlanner:
 
             if profile == "DCA":
                 D2 = v_min * m2
-            # print("D1={0:.2f}, D2={1:.2f}, D3={2:.2f}".format(D1, D2, D3))
             return D1 + D2 + D3
 
     def conduct_binary_search(self, **kwargs):
@@ -158,7 +149,6 @@ class PathPlanner:
                     a = midpoint
                 else:
                     b = midpoint
-        # print("二分探索の反復数: ", count)
         return (a + b) / 2.0
 
     def create_path_by_m1(self, profile, m1, params):
@@ -238,7 +228,6 @@ class PathPlanner:
             m1_min_for_cac = 0
             m1_max_for_cac = time_limit - delta_v / params["a_max"]
             CAC_MAX = self.calc_distance_by_profile(0, "CAC", params)
-            print("ACD_MAX={0:.2f}, CAC_MAX={1:.2f}, course_length={2:.2f}".format(max_acd_distance, CAC_MAX, self.COURSE_LENGTH))
 
             profile = "CAC" if self.COURSE_LENGTH <= CAC_MAX else "ACD"
             min_x = m1_min_for_cac if profile == "CAC" else (m1_min_for_acd)
@@ -247,13 +236,12 @@ class PathPlanner:
                                     "max_x": max_x}
 
             m1 = self.conduct_binary_search(**binary_search_params)
-            print("m1の解={0:.2f}".format(m1))
-            print("距離:{0:.2f}".format(self.calc_distance_by_profile(m1, profile, params)))
+            # print("m1の解={0:.2f}".format(m1))
+            # print("距離:{0:.2f}".format(self.calc_distance_by_profile(m1, profile, params)))
 
         else:
             # 減速型だった場合の解は DCA 一択
             profile = "DCA"
-            print("PROFILE: ", profile)
 
             m1_min = delta_v / params["a_max"]  # つまりは m3 = 0 の状態
 
@@ -268,7 +256,7 @@ class PathPlanner:
                                     "max_x": max_x}
             m1 = self.conduct_binary_search(**binary_search_params)
             # print("m1の解={0:.2f}".format(m1))
-            print("距離:{0:.2f}".format(self.calc_distance_by_profile(m1, profile, params)))
+            # print("距離:{0:.2f}".format(self.calc_distance_by_profile(m1, profile, params)))
 
         result = self.create_path_by_m1(profile, m1, params)
         self.speed_profile = result
