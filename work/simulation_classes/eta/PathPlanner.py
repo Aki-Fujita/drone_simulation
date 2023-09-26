@@ -223,7 +223,6 @@ class PathPlanner:
             m1_max_for_acd = min(m1_max_for_acd_by_time, m1_max_for_acd_by_speed_limit)
             # ここでACDの最大距離を計算する。もしもACDの最大を超えていたら Impossileの場合の処理をreturn
             max_acd_distance = self.calc_distance_by_profile(m1_max_for_acd, "ACD", params)
-            print("ACD_MAX=", max_acd_distance)
             if self.COURSE_LENGTH > max_acd_distance:
                 m3 = (params["v_lim"] - params["v_exit"]) / params["a_dec"]  # 最後にv_3になるという制約
                 m2 = params["time_limit"] - m3 - m1_max_for_acd  # 総和が time_limitであるという制約
@@ -239,10 +238,9 @@ class PathPlanner:
             m1_min_for_cac = 0
             m1_max_for_cac = time_limit - delta_v / params["a_max"]
             CAC_MAX = self.calc_distance_by_profile(0, "CAC", params)
-            print("CAC_MAX={0:.2f}, course_length={1:.2f}".format(CAC_MAX, self.COURSE_LENGTH))
+            print("ACD_MAX={0:.2f}, CAC_MAX={1:.2f}, course_length={2:.2f}".format(max_acd_distance, CAC_MAX, self.COURSE_LENGTH))
 
             profile = "CAC" if self.COURSE_LENGTH <= CAC_MAX else "ACD"
-            print("PROFILE: ", profile)
             min_x = m1_min_for_cac if profile == "CAC" else (m1_min_for_acd)
             max_x = m1_max_for_cac if profile == "CAC" else (m1_max_for_acd)
             binary_search_params = {"profile": profile, "params": params, "min_x": min_x,

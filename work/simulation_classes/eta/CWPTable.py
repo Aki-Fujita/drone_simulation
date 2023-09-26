@@ -91,7 +91,6 @@ class CWPTable:
             return calibrated_list, speed_profile
 
         if self.algorithm == "CONTROLLED":
-            print("control")
             enter_speed = kwargs.get("enter_speed")
             max_acc = kwargs.get("max_acc", 0.5)
             max_dec = kwargs.get("max_dec", 0.4)
@@ -207,7 +206,6 @@ class CWPTable:
         if order_in_group > 0:
             previous_car_arrival_time = df[(df["group_id"] == group_idx) & (df["order_in_group"] == int(order_in_group - 1)) &
                                            (df["waypoint_idx"] == gp.ORIFITH_EXIT_INDEX)]["eta"].iloc[0]
-            print(order_in_group, previous_car_arrival_time)
             ideal_arrive_time_at_end = max(ideal_arrive_time_at_end, previous_car_arrival_time + gp.DESIRED_TTC)
         print("理想到着時刻", ideal_arrive_time_at_end)
 
