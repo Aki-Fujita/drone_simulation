@@ -165,7 +165,6 @@ class CWPTable:
                 return ((v_max ** 2 + 2 * phase_2["ACC"] * delta)**0.5 - v_max) / phase_2["ACC"] + phase_1["duration"]
             delta = d - end_of_phase_2
             v_exit = phase_2["initial_speed"] + phase_2["duration"] * phase_2["ACC"]
-            print(d, end_of_phase_1, end_of_phase_2)
             return delta / v_exit + phase_1["duration"] + phase_2["duration"]
 
     def convert_profile_to_eta(self, speed_profile, waypoints):
@@ -189,7 +188,7 @@ class CWPTable:
                 distance_from_previous_exit = waypoint_with_eta["x"] - waypoints[int(self.global_params.ORIFITH_EXIT_INDEX)]["x"]
                 calibrated_ETA = {**waypoint_with_eta, "eta": arrival_at_orifice_exit + distance_from_previous_exit / v_exit}
             calibrated_ETA_list.append(calibrated_ETA)
-        print()
+        # print()
         return calibrated_ETA_list
 
     def calc_ideal_params_at_end(self, waypoints_with_eta):
@@ -207,7 +206,7 @@ class CWPTable:
             previous_car_arrival_time = df[(df["group_id"] == group_idx) & (df["order_in_group"] == int(order_in_group - 1)) &
                                            (df["waypoint_idx"] == gp.ORIFITH_EXIT_INDEX)]["eta"].iloc[0]
             ideal_arrive_time_at_end = max(ideal_arrive_time_at_end, previous_car_arrival_time + gp.DESIRED_TTC)
-        print("理想到着時刻", ideal_arrive_time_at_end)
+        # print("理想到着時刻", ideal_arrive_time_at_end)
 
         return {"ideal_arrive_time": ideal_arrive_time_at_end, "ideal_speed": gp.DESIRED_SPEED}
 

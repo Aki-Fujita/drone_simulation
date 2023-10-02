@@ -23,9 +23,7 @@ class ETASimulation:
             for idx, car in enumerate(self.CARS):
                 # この時間に到着する車がいれば打刻する
                 if car.arrival_time >= t and car.arrival_time < t + sp["TIME_STEP"]:
-                    print("idx={0}, エントランス到着時刻={1}".format(idx, car.arrival_time))
                     desired_list = car.create_desired_list(self.cwp_table.waypoints)
-                    # print(desired_list)
                     is_valid = self.cwp_table.validate(desired_list)
                     if is_valid:
                         self.cwp_table.register(desired_list)
@@ -33,7 +31,6 @@ class ETASimulation:
                         calibration_info = {"desired_list": desired_list, "enter_speed": car.mean_speed,
                                             "max_acc": car.helly_params["max_accel"], "max_dec": car.helly_params["rear_brake_acc"]}
                         calibrated_list, speed_profile = self.cwp_table.calibrate_list(**calibration_info)
-                        # print(calibrated_list)
                         self.cwp_table.register(calibrated_list)
                         car.speed_profile = speed_profile
                     continue
@@ -60,3 +57,10 @@ class ETASimulation:
         arrival_time_sd = calc_interval_deviation(arrival_time_list)
         exit_time_sd = calc_interval_deviation(exit_time_list)
         return exit_time_sd / arrival_time_sd
+
+    def calc_expansion(self):
+        df = self.cwp_table.waypoint_table
+        orifith_exit = self.cwp_table.global_params.ORIFITH_EXIT_INDEX
+        arrival_time_list = df[df["x"] == 0]["eta"].tolist()
+        exit_time_list = df[df["waypoint_idx"] == orifith_exit]["eta"].tolist()
+        return (exit_time_list[-1] - exit_time_list[0]) / (arrival_time_list[-1] - arrival_time_list[0])

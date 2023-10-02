@@ -236,8 +236,6 @@ class PathPlanner:
                                     "max_x": max_x}
 
             m1 = self.conduct_binary_search(**binary_search_params)
-            # print("m1の解={0:.2f}".format(m1))
-            # print("距離:{0:.2f}".format(self.calc_distance_by_profile(m1, profile, params)))
 
         else:
             # 減速型だった場合の解は DCA 一択
@@ -255,8 +253,6 @@ class PathPlanner:
             binary_search_params = {"profile": profile, "params": params, "min_x": min_x,
                                     "max_x": max_x}
             m1 = self.conduct_binary_search(**binary_search_params)
-            # print("m1の解={0:.2f}".format(m1))
-            # print("距離:{0:.2f}".format(self.calc_distance_by_profile(m1, profile, params)))
 
         result = self.create_path_by_m1(profile, m1, params)
         self.speed_profile = result
@@ -336,7 +332,6 @@ class PathPlanner:
 
         threshold_distance = cover_distance + (time_limit - delta_v / params["a_max"]) * params["v_0"]
         # まずは(1) ~ (3)の中に解があるか判定
-        print("加速型プロファイルの場合の最低距離:", threshold_distance)
         acc_profile_list = ["CAD", "ADC", "ACD"]
         dec_profile_list = ["CDA", "DAC", "DCA"]
 
