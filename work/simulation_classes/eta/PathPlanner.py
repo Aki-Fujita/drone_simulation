@@ -179,11 +179,40 @@ class PathPlanner:
 
         return [action_1, action_2, action_3]
 
+    # 俗に根性回路と呼んでいるもの。とりあえずMAXで頑張る
+    # MAXで急ぐことは確定しているので、純粋に加速度,最大速度, オリフィス長で決まる
+    def crt_fastest_profile(self):
+        params = self.describe_params()
+        time_limit = params["t_end"] - params["t_0"]
+        delta_v = params["v_exit"] - params["v_0"]
+        params["delta_v"] = delta_v
+        params["time_limit"] = time_limit
+
+        # まずはACDを仮定して一番進んだ場合の距離を計算
+        t1 = (params["v_lim"] - params["v_0"]) / params["a_max"]
+        t3 = (params["v_lim"] - params["v_exit"]) / params["a_dec"]
+        d1 = params["v_0"] * t1 + 0.5 * params["a_max"] * t1 ** 2
+        d3 = params["v_lim"] * t3 - 0.5 * params["v_exit"] * t3 ** 2
+        if params["length"] >= d1 + d3:  # v_limまで加速して良い場合
+            t2 = (params["length"] - d1 - d3) / params["v_lim"]
+            return [{"ACC": params["a_max"], "duration": t1, "initial_speed":params["v_0"]},
+                    {"ACC": 0, "duration": t2, "initial_speed": params["v_lim"]},
+                    {"ACC": params["a_dec"] * -1, "duration": t3, "initial_speed":params["v_lim"]}]
+
+        # ここに入るのはv_limまで加速すると距離をオーバーする場合 => AD確定
+        print("CASE: AD")
+        left_hand = (params["v_0"] ** 2 / 2 / params["a_max"]) + (params["v_lim"] ** 2 / 2 / params["a_dec"]) + params["length"]
+        v_max = (2 * left_hand / (1 / params["a_max"] + 1 / params["a_dec"])) ** 0.5
+
+        return [{"ACC": params["a_max"], "duration": (v_max - params["v_0"]) / params["a_max"], "initial_speed":params["v_0"]},
+                {"ACC": params["a_dec"] * -1, "duration": (v_max - params["v_exit"]) / params["a_dec"], "initial_speed":params["v_lim"]}]
+
     def solve_path(self, priority="speed"):
         """
         下のsolve_path_debugの実験をもとに作成
         """
         params = self.describe_params()
+        print("params:", params)
         time_limit = params["t_end"] - params["t_0"]
         delta_v = params["v_exit"] - params["v_0"]
         cover_distance = (params["v_exit"]**2 - params["v_0"]**2) / params["a_max"] * 0.5  # v_0からv_eまでの加速距離
@@ -195,6 +224,10 @@ class PathPlanner:
 
         can_reach_v_exit_output = self.can_reach_v_exit(params)
         print(can_reach_v_exit_output)
+
+        if (time_limit <= 0):
+            profile = self.crt_fastest_profile()
+            return profile
 
         if not can_reach_v_exit_output["is_possible"]:
             if can_reach_v_exit_output["Reason"] == "Time limit":
@@ -307,7 +340,7 @@ class PathPlanner:
 
         # priority = "speed"の場合はまずはそもそもVeで帰れるかを判定する。
         can_reach_v_exit_output = self.can_reach_v_exit(params)
-        print(can_reach_v_exit_output)
+        # print(can_reach_v_exit_output)
 
         if not can_reach_v_exit_output["is_possible"]:
             print("後ほど実装")
