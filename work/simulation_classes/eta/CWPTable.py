@@ -13,6 +13,7 @@ class GlobalParams:
     DESIRED_SPEED: float
     ORIFITH_EXIT_INDEX: int
     V_MAX: float  # 整流区間内で出して良い最大スピード
+    CAR_NUM: int
 
 
 class CWPTable:
@@ -23,7 +24,7 @@ class CWPTable:
         self.waypoint_table = pd.DataFrame([])
         orifith_end_index = self.global_params.ORIFITH_EXIT_INDEX
         self.ORIFITH_LENGTH = self.waypoints[orifith_end_index]["x"]
-        print(self.global_params.WINDOW_SIZE)
+        self.separation_policy = kwargs.get("separation_policy", "tight")
 
     def validate(self, waypoints_with_eta):
         if self.algorithm == "KISS":
@@ -37,7 +38,7 @@ class CWPTable:
     def validate_with_kiss(self, waypoints_with_eta):
         df = self.waypoint_table
         if df.shape[0] < 1:
-            print("初回")
+            # print("初回")
             return True
 
         is_valid = True
@@ -96,14 +97,15 @@ class CWPTable:
             max_dec = kwargs.get("max_dec", 0.4)
             car_spec = {"enter_speed": enter_speed, "max_acc": max_acc, "max_dec": max_dec, "v_max": self.global_params.V_MAX}
             calibrated_list.append(waypoints_with_eta[0])
-            ideal_params_at_end = self.calc_ideal_params_at_end(waypoints_with_eta)
+            ideal_params_at_end = self.calc_ideal_params_at_end(waypoints_with_eta, policy=self.separation_policy)
+            # print("理想到着時刻:", ideal_params_at_end)
             initial_params = {"time": waypoints_with_eta[0]["eta"], "speed": enter_speed}
             pathPlanner = PathPlanner(
                 car_spec=car_spec, initial_params=initial_params, ideal_params_at_end=ideal_params_at_end,
                 COURSE_LENGTH=self.ORIFITH_LENGTH
             )
             speed_profile = pathPlanner.solve_path()
-            # print(speed_profile)
+            # print("profile=", speed_profile)
             # 続いてこのspeed_profileをもとに各場所へのETAを計算する。
             calibrated_waypoints = self.convert_profile_to_eta(speed_profile, waypoints_with_eta)
             # print(calibrated_waypoints)
@@ -184,29 +186,41 @@ class CWPTable:
                 arrival_at_orifice_exit = arrival_time + entrance_time
             else:
                 if idx == self.global_params.ORIFITH_EXIT_INDEX + 1:
-                    print("出口到達時刻: ", arrival_at_orifice_exit)
+                    # print("出口到達時刻: ", arrival_at_orifice_exit)
+                    pass
                 distance_from_previous_exit = waypoint_with_eta["x"] - waypoints[int(self.global_params.ORIFITH_EXIT_INDEX)]["x"]
                 calibrated_ETA = {**waypoint_with_eta, "eta": arrival_at_orifice_exit + distance_from_previous_exit / v_exit}
             calibrated_ETA_list.append(calibrated_ETA)
         # print()
         return calibrated_ETA_list
 
-    def calc_ideal_params_at_end(self, waypoints_with_eta):
+    def calc_ideal_params_at_end(self, waypoints_with_eta, policy="tight"):
         gp = self.global_params
         # グループIDとグループの中で何番目の車かを把握
         group_idx = waypoints_with_eta[0]["group_id"]
         order_in_group = waypoints_with_eta[0]["order_in_group"]
+        # print("order:", order_in_group)
 
         # group_idx, グループ内順位をもとに終点の理想時刻を計算
         ideal_time_for_idx_zero = gp.START_TIME + self.ORIFITH_LENGTH / gp.DESIRED_SPEED + group_idx * gp.WINDOW_SIZE
+
+        # 一旦前に詰めるポリシー（均等割りではない）で理想到着時刻を計算
+        # print("policy=", policy)
         ideal_arrive_time_at_end = ideal_time_for_idx_zero + order_in_group * gp.DESIRED_TTC
+        # print("入場時刻 :", waypoints_with_eta[0]["eta"])
+        # print("理想到着Tight :", ideal_arrive_time_at_end)
+
+        if policy == "even":
+            mean_ttc = gp.WINDOW_SIZE / gp.CAR_NUM
+            ideal_arrive_time_at_end = ideal_time_for_idx_zero + order_in_group * mean_ttc
+            # print("理想到着even :", ideal_arrive_time_at_end)
+
         # 前の車の到着時刻にTTCを足す
         df = self.waypoint_table
         if order_in_group > 0:
             previous_car_arrival_time = df[(df["group_id"] == group_idx) & (df["order_in_group"] == int(order_in_group - 1)) &
                                            (df["waypoint_idx"] == gp.ORIFITH_EXIT_INDEX)]["eta"].iloc[0]
             ideal_arrive_time_at_end = max(ideal_arrive_time_at_end, previous_car_arrival_time + gp.DESIRED_TTC)
-        # print("理想到着時刻", ideal_arrive_time_at_end)
 
         return {"ideal_arrive_time": ideal_arrive_time_at_end, "ideal_speed": gp.DESIRED_SPEED}
 
