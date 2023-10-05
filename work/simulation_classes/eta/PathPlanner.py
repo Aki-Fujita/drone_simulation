@@ -212,7 +212,7 @@ class PathPlanner:
         下のsolve_path_debugの実験をもとに作成
         """
         params = self.describe_params()
-        print("params:", params)
+        # print("params:", params)
         time_limit = params["t_end"] - params["t_0"]
         delta_v = params["v_exit"] - params["v_0"]
         cover_distance = (params["v_exit"]**2 - params["v_0"]**2) / params["a_max"] * 0.5  # v_0からv_eまでの加速距離
@@ -223,7 +223,7 @@ class PathPlanner:
             ValueError("Priorityの値が不適切です")
 
         can_reach_v_exit_output = self.can_reach_v_exit(params)
-        print(can_reach_v_exit_output)
+        # print(can_reach_v_exit_output)
 
         if (time_limit <= 0):
             profile = self.crt_fastest_profile()
@@ -231,7 +231,7 @@ class PathPlanner:
 
         if not can_reach_v_exit_output["is_possible"]:
             if can_reach_v_exit_output["Reason"] == "Time limit":
-                return [{"ACC": params["a_max"], "duration": time_limit, "initial_speed":params["v_0"]}]
+                return self.crt_fastest_profile()
             if can_reach_v_exit_output["Reason"] == "Length limit":
                 return [{"ACC": params["a_max"], "duration": time_limit, "initial_speed":params["v_0"]}]
 
@@ -383,10 +383,6 @@ class PathPlanner:
             # 続いてCADの場合の最大値を計算
             m1_max = (time_limit - m1_min) / (params["a_max"] + params["a_dec"]) * params["a_dec"] + m1_min
             CAD_MAX = self.calc_distance_by_profile(m1_max, profile, params)
-            print("Profile=", profile)
-            print("最短の場合: 加速秒数:{m1:.2f} 秒,  最短距離:{distance:.2f} m".format(m1=m1_min, distance=CAD_MIN))
-            print("最長の場合: 加速秒数:{m1:.2f} 秒,  最長距離:{distance:.2f} m".format(m1=m1_max, distance=CAD_MAX))
-            print()
 
         # ここからはCACのケース
         m1_min = time_limit - delta_v / params["a_max"]
