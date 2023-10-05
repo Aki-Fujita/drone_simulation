@@ -5,3 +5,4 @@ scipy
 autopep8
 flake8
 opencv-python
+tqdm
