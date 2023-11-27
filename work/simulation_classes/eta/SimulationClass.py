@@ -64,3 +64,10 @@ class ETASimulation:
         arrival_time_list = df[df["x"] == 0]["eta"].tolist()
         exit_time_list = df[df["waypoint_idx"] == orifith_exit]["eta"].tolist()
         return (exit_time_list[-1] - exit_time_list[0]) / (arrival_time_list[-1] - arrival_time_list[0])
+
+    def calc_flow(self):
+        df = self.cwp_table.waypoint_table
+        orifith_exit = self.cwp_table.global_params.ORIFITH_EXIT_INDEX
+        v_exit = self.cwp_table.global_params.DESIRED_SPEED
+        exit_time_list = df[df["waypoint_idx"] == orifith_exit]["eta"].tolist()
+        return len(exit_time_list) * v_exit / (exit_time_list[-1] - exit_time_list[0])
