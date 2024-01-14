@@ -9,8 +9,8 @@ def check_single_noise_effect(noise, eta_table):
             """
     noise_x_range = noise["x"]
     noise_t_range = noise["t"]
-    waypoint_x_list = [wp["x"] for wp in eta_table]
-    waypoint_eta_list = [wp["eta"] for wp in eta_table]
+    waypoint_x_list = sorted([wp["x"] for wp in eta_table])
+    waypoint_eta_list = sorted([wp["eta"] for wp in eta_table])
     for i, x_coor in enumerate(waypoint_x_list):
         if i >= len(waypoint_x_list) - 1:  # 一番最後のwaypointに来た時
             return False

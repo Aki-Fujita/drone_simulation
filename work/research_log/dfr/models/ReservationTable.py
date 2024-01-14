@@ -71,16 +71,16 @@ class ReservationTable:
         self.eta_table = combined_df
 
     def update_with_request(self, **request):
+        print("======update occured!=======")
         df = self.eta_table
         car_idx = request.get("car_idx")
         new_eta = request.get("new_eta")
+        print(f"car_idx={car_idx}")
+        print(f"new_eta={new_eta}")
         if car_idx == None or new_eta == None:
             raise ValueError(
                 "car_idx and new_eta must be specified in the request")
-        car_0 = df[df["car_idx"] == car_idx].copy()
-        print(len(car_0))
-        car_0['eta'] = new_eta
-
+        car_0 = pd.DataFrame(new_eta)
         new_df = df[df['car_idx'] != car_idx]
         # 更新された部分集合を元のDataFrameに追加
         new_df = pd.concat([new_df, car_0], ignore_index=True)
@@ -105,7 +105,7 @@ class ReservationTable:
             plt.plot(df_by_car["x"], df_by_car["eta"],
                      color=color_list[car_idx % 6], linewidth=1, linestyle='--')
             plt.scatter(df_by_car["x"], df_by_car["eta"],
-                        color=color_list[car_idx % 6], alpha=0.7, s=20)
+                        color=color_list[car_idx % 6], alpha=0.3, s=20)
 
         # ノイズ領域の描画
         for noise in noise_list:
