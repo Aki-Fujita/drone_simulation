@@ -1,7 +1,5 @@
 from utils import validate_with_ttc
 import pandas as pd
-import sys
-sys.path.append("../")
 
 
 class Cars:
@@ -17,9 +15,9 @@ class Cars:
         self.itenerary = []  # 自分のETA予定表のこと
         self.speed_itinerary = [
             {"speed": self.v_x, "start": self.arrival_time}]  # 速度の更新予定表
+        self.acc_itinerary = [{"acc": 0, "start": self.arrival_time}]
 
     def create_desired_eta(self, way_points):
-
         def calc_eta(way_points):
             estimated_time_of_arrival = way_points["x"] / \
                 self.mean_speed + self.arrival_time
