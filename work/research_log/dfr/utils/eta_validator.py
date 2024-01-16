@@ -33,9 +33,20 @@ def validate_with_ttc(eta_reservation_table, car_plan, TTC):
             break
     return is_valid
 
+class Hoge:
+    def __init__(self):
+        self.hensuu = 1
+    
+    def call(self):
+        hoge_func(self)
+        
+
+def hoge_func(hogeInstance):
+    print(hogeInstance.hensuu)
 
 def test():
-    print("hello")
+    hoge = Hoge()
+    hoge.call()
 
 
 if __name__ == "__main__":

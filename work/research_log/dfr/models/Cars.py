@@ -1,21 +1,25 @@
-from utils import validate_with_ttc
+import sys
+sys.path.append("..")
+from utils import calc_early_avoid_acc, validate_with_ttc, create_eta_from_acc
 import pandas as pd
+from ReservationTable import ReservationTable
 
 
 class Cars:
     def __init__(self, **kwagrs):
-        self.arrival_time = kwagrs.get("arrival_time")
+        self.arrival_time = kwagrs.get("arrival_time", 0)
         self.index = kwagrs.get("index")
         self.mean_speed = kwagrs.get("mean_speed")
         self.max_speed = kwagrs.get("max_speed")
+        self.a_max = kwagrs.get("a_max")
         self.xcor = 0
         self.xcorList = []
         self.timeLog = []
         self.v_x = kwagrs.get("mean_speed")
-        self.itenerary = []  # 自分のETA予定表のこと
+        self.itinerary = []  # 自分のETA予定表のこと
         self.speed_itinerary = [
             {"speed": self.v_x, "start": self.arrival_time}]  # 速度の更新予定表
-        self.acc_itinerary = [{"acc": 0, "start": self.arrival_time}]
+        self.acc_itinerary = [{"acc": 0, "start": self.arrival_time, "v_0":self.v_x}]
 
     def create_desired_eta(self, way_points):
         def calc_eta(way_points):
@@ -23,7 +27,7 @@ class Cars:
                 self.mean_speed + self.arrival_time
             return {**way_points, "eta": estimated_time_of_arrival, "car_idx": self.index}
         way_points_with_eta = list(map(calc_eta, way_points))
-        self.itenerary = way_points_with_eta
+        self.itinerary = way_points_with_eta
 
         return way_points_with_eta
 
@@ -36,14 +40,14 @@ class Cars:
 
         df = table.eta_table
         TTC = table.global_params.DESIRED_TTC
-        previous_plan = self.itenerary.copy()
+        previous_plan = self.itinerary.copy()
         ETAs_for_leading_car = df[df["car_idx"] == int(self.index-1)]
         new_eta = []
         for idx, row in enumerate(ETAs_for_leading_car):
             if row["eta"] + TTC > previous_plan[idx]["eta"]:
                 previous_plan[idx]["eta"] = row["eta"] + TTC
             new_eta.append(previous_plan[idx])
-        self.itenerary = new_eta
+        self.itinerary = new_eta
         return new_eta
 
     def avoid_noise(self, noiseList, current_time, table):
@@ -68,20 +72,21 @@ class Cars:
         # (a)の場合
         if max(required_speeds) <= self.max_speed:
             print("trying accel avoid")
-            noise_to_avoid = noiseList[required_speeds.index(
-                max(required_speeds))]
-
-            ideal_eta = self.calc_accel_eta(
-                noise_to_avoid, current_time)  # 今この瞬間から全速力を出した場合のETA
+            noise_to_avoid = noiseList[required_speeds.index( max(required_speeds))]
+            temp_acc_itinerary = calc_early_avoid_acc(noise_to_avoid, current_time, self)
+            ideal_eta = create_eta_from_acc(
+                car_obj=self, current_time=current_time
+            )
             if validate_with_ttc(reservation_table, ideal_eta, TTC):
-                self.itenerary = ideal_eta
+                self.itinerary = ideal_eta
+                self.acc_itinerary = temp_acc_itinerary
                 return ideal_eta
 
         # (b)の場合
         print("遅い側で避ける")
         noise_to_avoid = noiseList[required_speeds.index(min(required_speeds))]
         ideal_eta = self.calc_decel_eta(noise_to_avoid, current_time)
-        self.itenerary = ideal_eta
+        self.itinerary = ideal_eta
 
         return ideal_eta
 
@@ -92,7 +97,7 @@ class Cars:
         (b) これから行く場所に対して、それがノイズより手前なら最大スピードで超えに行く
         (c) ノイズより後ならノイズまで最大速度で走ってその後通常スピードへ
         """
-        previous_plan = self.itenerary
+        previous_plan = self.itinerary
         new_eta = []
         noise_end = noise_to_avoid["x"][1]
         for _, row in enumerate(previous_plan):
@@ -130,7 +135,7 @@ class Cars:
         (b) これから行く場所に対して、それがノイズより手前ならノイズの左上を横切るためのスピードで走った時のETAを記録
         (c) ノイズより後ならノイズまで所定速度で走ってその後通常スピードへ
         """
-        previous_plan = self.itenerary
+        previous_plan = self.itinerary
 
         new_eta = []
         noise_start = noise_to_avoid["x"][0]
@@ -185,7 +190,7 @@ class Cars:
         この関数は自分のETA計画表をもとに自分のスピードを決める. 
         """
         future_waypoints = [
-            w for w in self.itenerary if w['x'] - self.xcor > 0]
+            w for w in self.itinerary if w['x'] - self.xcor > 0]
         closest_waypoint = min(
             future_waypoints, key=lambda w: abs(w['x'] - self.xcor))
         distance = closest_waypoint['x'] - self.xcor
@@ -201,3 +206,22 @@ class Cars:
         self.xcor += self.v_x * time_step
         self.xcorList.append(self.xcor)
         self.timeLog.append(current_time)
+    
+
+def test():
+    print("============TEST START============")
+    current_time = 0.5
+    noise = {"t": [10, 13], "x": [220, 240]}
+    acc_itinerary_1 = [{"start": 0, "acc": 3}, {"start": 4, "acc": -1}]
+    acc_itinerary_2 = [{"start": 4, "acc": 0}]
+    carObj = Cars(
+        mean_speed=20, acc_itinerary=acc_itinerary_1, a_max=3, max_speed=30)
+
+    sample_table = ReservationTable( waypoints=[],
+        global_params={"DESIRED_TTC":3}
+    )
+    carObj.avoid_noise(noiseList=[noise], current_time=current_time, table=sample_table)
+
+
+if __name__ == "__main__":
+    test()

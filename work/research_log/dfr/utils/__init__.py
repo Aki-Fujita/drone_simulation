@@ -1,3 +1,4 @@
 from .check_noise_effect import check_single_noise_effect, check_multiple_noise_effect
 from .eta_validator import validate_with_ttc
-from .noise_avoidance import avoid_noise
+from .noise_avoidance import calc_early_avoid_acc
+from .create_eta_from_acc import create_eta_from_acc

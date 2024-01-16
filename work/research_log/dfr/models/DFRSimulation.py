@@ -36,7 +36,7 @@ class DFRSimulation:
             """
             STEP 0. 到着する車がいれば到着
             """
-            if time >= next_car.itenerary[0]["eta"]:
+            if time >= next_car.itinerary[0]["eta"]:
                 cars_on_road.append(next_car)
                 next_car_idx = cars_on_road[-1].index + 1
                 event_flg = True
@@ -105,14 +105,14 @@ class DFRSimulation:
 
     def find_noise_influenced_cars(self, cars_on_road, noiseList):
         car_list = [car.index for idx, car in enumerate(
-            cars_on_road) if check_multiple_noise_effect(noiseList, car.itenerary)]
+            cars_on_road) if check_multiple_noise_effect(noiseList, car.itinerary)]
         return car_list
 
     def find_ETA_influenced_cars(self, cars_on_road):
         eta_reservation_table = self.reservation_table.eta_table
         TTC = self.reservation_table.global_params.DESIRED_TTC
         car_list = [car.index for car_id, car in enumerate(cars_on_road) if not validate_with_ttc(
-            eta_reservation_table, car.itenerary, TTC)]
+            eta_reservation_table, car.itinerary, TTC)]
         return car_list
 
     def create_noise(self, current_time):
