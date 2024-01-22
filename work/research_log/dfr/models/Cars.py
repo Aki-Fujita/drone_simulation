@@ -2,33 +2,29 @@ import sys
 sys.path.append("..")
 from utils import calc_early_avoid_acc, validate_with_ttc, create_eta_from_acc
 import pandas as pd
-from ReservationTable import ReservationTable
+from .ReservationTable import ReservationTable
 
 
 class Cars:
     def __init__(self, **kwagrs):
         self.arrival_time = kwagrs.get("arrival_time", 0)
-        self.index = kwagrs.get("index")
-        self.mean_speed = kwagrs.get("mean_speed")
-        self.max_speed = kwagrs.get("max_speed")
+        self.car_idx = kwagrs.get("index")
+        self.v_mean = kwagrs.get("v_mean")
+        self.v_max = kwagrs.get("v_max")
         self.a_max = kwagrs.get("a_max")
         self.xcor = 0
-        self.xcorList = []
+        self.xcorList = [0]
         self.timeLog = []
         self.v_x = kwagrs.get("mean_speed")
         self.itinerary = []  # 自分のETA予定表のこと
-        self.speed_itinerary = [
-            {"speed": self.v_x, "start": self.arrival_time}]  # 速度の更新予定表
-        self.acc_itinerary = [{"acc": 0, "start": self.arrival_time, "v_0":self.v_x}]
+        self.acc_itinerary = [{"acc": 0, "start": self.arrival_time, "v_0": self.v_x}]
 
     def create_desired_eta(self, way_points):
         def calc_eta(way_points):
-            estimated_time_of_arrival = way_points["x"] / \
-                self.mean_speed + self.arrival_time
-            return {**way_points, "eta": estimated_time_of_arrival, "car_idx": self.index}
+            estimated_time_of_arrival = way_points["x"] / self.v_mean + self.arrival_time
+            return {**way_points, "eta": estimated_time_of_arrival, "car_idx": self.car_idx}
         way_points_with_eta = list(map(calc_eta, way_points))
-        self.itinerary = way_points_with_eta
-
+        self.itinerary = pd.DataFrame(way_points_with_eta)
         return way_points_with_eta
 
     def consider_others(self, table):
@@ -49,6 +45,19 @@ class Cars:
             new_eta.append(previous_plan[idx])
         self.itinerary = new_eta
         return new_eta
+    
+    def select_closest_noise(self, noiseList, current_time):
+        required_speeds = []
+        for noise in noiseList:
+            margin_time = noise["t"][0] - current_time
+            noise_end = noise["x"][1]
+            required_speed = noise_end / margin_time
+            required_speeds.append(required_speed)
+            if margin_time < 0:
+                raise ValueError("margin time is Negative! Something's wrong!")
+        noise_to_avoid = noiseList[required_speeds.index( max(required_speeds))]
+        return noise_to_avoid, required_speeds
+
 
     def avoid_noise(self, noiseList, current_time, table):
         """
@@ -57,26 +66,19 @@ class Cars:
         (b) 上記の達成が不可能な場合はおとなしく左上を目指す. 
         """
         print(f"avoidance by idx={self.index}")
-        required_speeds = []
-        reservation_table = table.eta_table
-        TTC = table.global_params.DESIRED_TTC
 
-        for noise in noiseList:
-            margin_time = noise["t"][0] - current_time
-            noise_end = noise["x"][1]
-            required_speed = noise_end / margin_time
-            required_speeds.append(required_speed)
-            if margin_time < 0:
-                raise ValueError("margin time is Negative! Something's wrong!")
+        noise_to_avoid, required_speeds = self.select_closest_noise(noiseList, current_time)
 
         # (a)の場合
-        if max(required_speeds) <= self.max_speed:
-            print("trying accel avoid")
-            noise_to_avoid = noiseList[required_speeds.index( max(required_speeds))]
-            temp_acc_itinerary = calc_early_avoid_acc(noise_to_avoid, current_time, self)
+        if max(required_speeds) <= self.v_max:
+            print("trying early avoid")
+            temp_acc_itinerary = calc_early_avoid_acc(noise_to_avoid, current_time, self, table)
             ideal_eta = create_eta_from_acc(
-                car_obj=self, current_time=current_time
+                car_obj=self, current_time=current_time,
             )
+
+            # reservation_table = table.eta_table
+            # TTC = table.global_params.DESIRED_TTC
             if validate_with_ttc(reservation_table, ideal_eta, TTC):
                 self.itinerary = ideal_eta
                 self.acc_itinerary = temp_acc_itinerary
@@ -111,7 +113,7 @@ class Cars:
             elif self.xcor < row["x"] and row["x"] > noise_end:
                 next_waypoint_eta = current_time + \
                     (noise_end - self.xcor)/self.max_speed + \
-                    (row["x"] - noise_end)/self.mean_speed
+                    (row["x"] - noise_end)/self.v_mean
                 new_plan = {**row, "eta": next_waypoint_eta}
                 new_eta.append(new_plan)
             else:
@@ -207,6 +209,10 @@ class Cars:
         self.xcorList.append(self.xcor)
         self.timeLog.append(current_time)
     
+
+def prepare_test():
+    return 
+
 
 def test():
     print("============TEST START============")

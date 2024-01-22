@@ -12,11 +12,9 @@ class DFRSimulation:
         self.ONE_SEC_STEP = int(1/self.TIME_STEP)
         self.total_steps = int(self.TOTAL_TIME / self.TIME_STEP)
         self.TOTAL_LENGTH = kwargs.get("TOTAL_LENGTH")
-
         # 他モデルのインポート
         self.CARS = kwargs.get("CARS")
         self.reservation_table = kwargs.get("reservation_table")
-
         # ノイズ関係の諸元
         self.NOISE_PROBABILITY = kwargs.get("NOISE_PROBABILITY")
         # だいたい何秒先のノイズならわかるか、に相当する数字.
@@ -36,7 +34,7 @@ class DFRSimulation:
             """
             STEP 0. 到着する車がいれば到着
             """
-            if time >= next_car.itinerary[0]["eta"]:
+            if time >= next_car.arrival_time:
                 cars_on_road.append(next_car)
                 next_car_idx = cars_on_road[-1].index + 1
                 event_flg = True
@@ -59,8 +57,7 @@ class DFRSimulation:
             """
             STEP 2. ノイズの影響を受ける車と、ノイズによって影響を受けた他の車の影響を受けた車をリスト化
             """
-            influenced_by_noise_cars = self.find_noise_influenced_cars(
-                cars_on_road, current_noise)
+            influenced_by_noise_cars = self.find_noise_influenced_cars(cars_on_road, current_noise)
             influenced_by_eta_cars = self.find_ETA_influenced_cars(
                 cars_on_road)
             influenced_cars = list(
@@ -105,7 +102,7 @@ class DFRSimulation:
 
     def find_noise_influenced_cars(self, cars_on_road, noiseList):
         car_list = [car.index for idx, car in enumerate(
-            cars_on_road) if check_multiple_noise_effect(noiseList, car.itinerary)]
+            cars_on_road) if check_multiple_noise_effect(noiseList, car)]
         return car_list
 
     def find_ETA_influenced_cars(self, cars_on_road):
@@ -166,3 +163,10 @@ class DFRSimulation:
         plt.savefig(f"dfr_simulation_t={current_time}")
 
         plt.show()
+
+
+def test():
+    print("============TEST START============")
+
+if __name__ == "__main__":
+    test()
