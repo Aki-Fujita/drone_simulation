@@ -15,7 +15,7 @@ class Cars:
         self.xcor = 0
         self.xcorList = [0]
         self.timeLog = []
-        self.v_x = kwagrs.get("mean_speed")
+        self.v_x = kwagrs.get("v_mean")
         self.itinerary = []  # 自分のETA予定表のこと
         self.acc_itinerary = [{"acc": 0, "start": self.arrival_time, "v_0": self.v_x}]
 
@@ -24,7 +24,7 @@ class Cars:
             estimated_time_of_arrival = way_points["x"] / self.v_mean + self.arrival_time
             return {**way_points, "eta": estimated_time_of_arrival, "car_idx": self.car_idx}
         way_points_with_eta = list(map(calc_eta, way_points))
-        self.itinerary = pd.DataFrame(way_points_with_eta)
+        self.itinerary = way_points_with_eta
         return way_points_with_eta
 
     def consider_others(self, table):
@@ -65,7 +65,7 @@ class Cars:
         (a) もしもノイズの右端を横切れてかつ、それで他の車にも影響がない場合はそれを新たな経路にする. 
         (b) 上記の達成が不可能な場合はおとなしく左上を目指す. 
         """
-        print(f"avoidance by idx={self.index}")
+        print(f"avoidance by idx={self.car_idx}")
 
         noise_to_avoid, required_speeds = self.select_closest_noise(noiseList, current_time)
 
@@ -176,7 +176,7 @@ class Cars:
 
             else:
                 print(
-                    f"car_id: {self.index}, waypoint={row}, noise_info={noise_to_avoid}")
+                    f"car_id: {self.car_idx}, waypoint={row}, noise_info={noise_to_avoid}")
                 raise ValueError("こんなケースはないはず！")
 
         """

@@ -36,7 +36,7 @@ class DFRSimulation:
             """
             if time >= next_car.arrival_time:
                 cars_on_road.append(next_car)
-                next_car_idx = cars_on_road[-1].index + 1
+                next_car_idx = cars_on_road[-1].car_idx + 1
                 event_flg = True
 
             """
@@ -58,10 +58,8 @@ class DFRSimulation:
             STEP 2. ノイズの影響を受ける車と、ノイズによって影響を受けた他の車の影響を受けた車をリスト化
             """
             influenced_by_noise_cars = self.find_noise_influenced_cars(cars_on_road, current_noise)
-            influenced_by_eta_cars = self.find_ETA_influenced_cars(
-                cars_on_road)
-            influenced_cars = list(
-                set(influenced_by_noise_cars + influenced_by_eta_cars))
+            influenced_by_eta_cars = self.find_ETA_influenced_cars(cars_on_road)
+            influenced_cars = list(set(influenced_by_noise_cars + influenced_by_eta_cars))
 
             if event_flg or len(influenced_cars) > 0:
                 print()
@@ -101,14 +99,14 @@ class DFRSimulation:
                 self.plot_history_by_time(current_noise, time)
 
     def find_noise_influenced_cars(self, cars_on_road, noiseList):
-        car_list = [car.index for idx, car in enumerate(
+        car_list = [car.car_idx for idx, car in enumerate(
             cars_on_road) if check_multiple_noise_effect(noiseList, car)]
         return car_list
 
     def find_ETA_influenced_cars(self, cars_on_road):
         eta_reservation_table = self.reservation_table.eta_table
         TTC = self.reservation_table.global_params.DESIRED_TTC
-        car_list = [car.index for car_id, car in enumerate(cars_on_road) if not validate_with_ttc(
+        car_list = [car.car_idx for car_id, car in enumerate(cars_on_road) if not validate_with_ttc(
             eta_reservation_table, car.itinerary, TTC)]
         return car_list
 
@@ -120,7 +118,7 @@ class DFRSimulation:
         各車のETAの変更履歴、座標、ノイズの有無をプロットする。
         """
         color_list = ["orange", "pink", "blue", "brown", "red", "green"]
-        car_idx_list = [car.index for car in self.CARS]
+        car_idx_list = [car.car_idx for car in self.CARS]
         eta_table = self.reservation_table.eta_table
         waypoints = eta_table["x"].unique()
 
@@ -166,7 +164,9 @@ class DFRSimulation:
 
 
 def test():
-    print("============TEST START============")
+    print(f"============TEST START============")
+    print("file name: DFRSimulation.py")
+
 
 if __name__ == "__main__":
     test()
