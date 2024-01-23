@@ -11,7 +11,7 @@ def validate_with_ttc(eta_reservation_table, car_plan, TTC):
     is_valid = True
     car_idx = car_plan[0]["car_idx"]
     df = df[df["car_idx"] < car_idx]  # 追い抜きがないので自分より前にいる車 = indexが若い車
-    print(f"Len(filtered_df) = {len(df)}")
+    # print(f"Len(filtered_df) = {len(df)}")
 
     if df.shape[0] < 1:
         return True
@@ -23,7 +23,7 @@ def validate_with_ttc(eta_reservation_table, car_plan, TTC):
 
         target_waypoint = waypoint_info["waypoint_idx"]
         filtered_df = df[df["waypoint_idx"] == target_waypoint]
-        print(f"len(wpts)={len(filtered_df)}")
+        # print(f"len(wpts)={len(filtered_df)}")
         last_entry_time = filtered_df["eta"].max()
         if waypoint_info["eta"] > last_entry_time + TTC:
             continue

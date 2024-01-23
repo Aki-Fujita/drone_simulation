@@ -1,6 +1,6 @@
 import sys
 sys.path.append("..")
-from utils import calc_early_avoid_acc, validate_with_ttc, create_eta_from_acc
+from utils import calc_early_avoid_acc, validate_with_ttc, create_itinerary_from_acc, calc_eta_from_acc
 import pandas as pd
 from .ReservationTable import ReservationTable
 
@@ -12,17 +12,20 @@ class Cars:
         self.v_mean = kwagrs.get("v_mean")
         self.v_max = kwagrs.get("v_max")
         self.a_max = kwagrs.get("a_max")
+        self.a_dec = kwagrs.get("a_dec") #許容可能な減速度
         self.xcor = 0
         self.xcorList = [0]
         self.timeLog = []
         self.v_x = kwagrs.get("v_mean")
         self.itinerary = []  # 自分のETA予定表のこと
-        self.acc_itinerary = [{"acc": 0, "start": self.arrival_time, "v_0": self.v_x}]
+        self.acc_itinerary = [{"acc": 0, "t_start": self.arrival_time, "v_0": self.v_x}]
+        if self.a_max == None or self.v_max== None:
+            raise ValueError("入力されていない項目があります。")
 
     def create_desired_eta(self, way_points):
         def calc_eta(way_points):
             estimated_time_of_arrival = way_points["x"] / self.v_mean + self.arrival_time
-            return {**way_points, "eta": estimated_time_of_arrival, "car_idx": self.car_idx}
+            return {**way_points, "eta": estimated_time_of_arrival, "car_idx": self.car_idx, "type":"waypoint"}
         way_points_with_eta = list(map(calc_eta, way_points))
         self.itinerary = way_points_with_eta
         return way_points_with_eta
@@ -66,23 +69,25 @@ class Cars:
         (b) 上記の達成が不可能な場合はおとなしく左上を目指す. 
         """
         print(f"avoidance by idx={self.car_idx}")
-
         noise_to_avoid, required_speeds = self.select_closest_noise(noiseList, current_time)
+        print(required_speeds, self.v_max)
 
-        # (a)の場合
-        if max(required_speeds) <= self.v_max:
-            print("trying early avoid")
-            temp_acc_itinerary = calc_early_avoid_acc(noise_to_avoid, current_time, self, table)
-            ideal_eta = create_eta_from_acc(
-                car_obj=self, current_time=current_time,
-            )
+        # (a)の場合をまずは検討. 
+        temp_acc_itinerary = calc_early_avoid_acc(noise_to_avoid, current_time, self, table)
+        if not temp_acc_itinerary:
+            temp_acc_itinerary = self.calc_decel_eta(noise_to_avoid, current_time)
+        
+        """この時点でtemp_acc_itineraryは早いものか遅いものが何かしら入っている
+            ただし、いずれの場合も未認証. 
+        """
+        print(f"acc_itinerary:{temp_acc_itinerary}")
 
-            # reservation_table = table.eta_table
-            # TTC = table.global_params.DESIRED_TTC
-            if validate_with_ttc(reservation_table, ideal_eta, TTC):
-                self.itinerary = ideal_eta
-                self.acc_itinerary = temp_acc_itinerary
-                return ideal_eta
+        ideal_eta = create_itinerary_from_acc(car_obj=self, current_time=current_time )
+
+        if validate_with_ttc(table.eta_table, ideal_eta, table.global_params.DESIRED_TTC):
+            self.itinerary = ideal_eta
+            self.acc_itinerary = temp_acc_itinerary
+            return ideal_eta
 
         # (b)の場合
         print("遅い側で避ける")
@@ -179,13 +184,19 @@ class Cars:
                     f"car_id: {self.car_idx}, waypoint={row}, noise_info={noise_to_avoid}")
                 raise ValueError("こんなケースはないはず！")
 
-        """
-        最後にnew_speed_itineraryの重複を削除する
-        """
-        speed_itinerary = []
-        for item in new_speed_itinerary:
-            continue
         return new_eta
+    
+    def get_noise_eta(self, noiselist):
+        current_itinerary = self.itinerary
+        noise_x_coors = []
+        for noise in noiselist:
+            noise_x_coors.append(noise["x"][0])
+            noise_x_coors.append(noise["x"][1])
+        print(noise_x_coors)
+        for noise_x_coor in noise_x_coors:
+            eta_at_noise = calc_eta_from_acc(noise_x_coor, self.acc_itinerary)
+            print(f"noise_x:{noise_x_coor}, eta:{eta_at_noise}")
+            current_itinerary.append({"eta": eta_at_noise, "car_idx": self.car_idx, "type":"noise", "x":noise_x_coor})
 
     def decide_speed(self, current_time):
         """
@@ -218,8 +229,8 @@ def test():
     print("============TEST START============")
     current_time = 0.5
     noise = {"t": [10, 13], "x": [220, 240]}
-    acc_itinerary_1 = [{"start": 0, "acc": 3}, {"start": 4, "acc": -1}]
-    acc_itinerary_2 = [{"start": 4, "acc": 0}]
+    acc_itinerary_1 = [{"t_start": 0, "acc": 3}, {"t_start": 4, "acc": -1}]
+    acc_itinerary_2 = [{"t_start": 4, "acc": 0}]
     carObj = Cars(
         mean_speed=20, acc_itinerary=acc_itinerary_1, a_max=3, max_speed=30)
 

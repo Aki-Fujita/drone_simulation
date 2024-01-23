@@ -1,36 +1,27 @@
-# from ..models import Cars
-# import sys
-# sys.path.append("../")
+import sys
+sys.path.append("..")
+import random
+from models import ReservationTable , Cars
 
-class Cars:
-    def __init__(self, **kwagrs):
-        self.arrival_time = kwagrs.get("arrival_time", 0)
-        self.xcor = 0
-        self.v_x = kwagrs.get("v_x")
-        self.a_max = kwagrs.get("a_max")
-        self.max_speed = kwagrs.get("max_speed")
-        self.speed_itinerary = [
-            {"speed": self.v_x, "start": self.arrival_time}]  # 速度の更新予定表
-        self.acc_itinerary = kwagrs.get("acc_itinerary")
 
 
 """
 noiseを早避けするためのacc_itineraryを計算する関数 
 
-a. (1)前処理: acc_itineraryでcurrent_time以後に始まるものは削除
-   (2)そもそも最大加速で辿り着くか検討. 無理だったらFalse
+a. (1) 前処理: acc_itineraryでcurrent_time以後に始まるものは削除
+   (2) そもそも最大加速で辿り着くか検討. 無理だったらFalse
+   (3) 続いて、何時につきたいかをランダムに選択
+       a. 最短は前の車の時間 - TTC
+       b. 最遅はnoise_start
+   (4) それに合わせてacc_itineraryを作成. 
 
 b. (1) 続いて、今から一定加速度で加速してnoiseを避ける場合のpathを計算. 
        ただ、この時の加速度は一定範囲のものを選べても良いかもしれない. 
    (2) 経路のvalidate
 """
-
-
-def calc_early_avoid_acc(noise, current_time, carObj: Cars, ):
+def calc_early_avoid_acc(noise, current_time, carObj, table ):
     noise_start_time = noise["t"][0]
     noise_end_poisition = noise["x"][1]
-    acc_itinerary = [
-        accObj for accObj in carObj.acc_itinerary if accObj["start"] <= current_time]
 
     margin_time_to_noise = noise_start_time - current_time
     max_cover_distance = calc_max_cover_distance(margin_time_to_noise, carObj)
@@ -38,51 +29,137 @@ def calc_early_avoid_acc(noise, current_time, carObj: Cars, ):
     distance_to_noise_end = noise_end_poisition - carObj.xcor
     if distance_to_noise_end > max_cover_distance["distance"]:
         return False
+    
+    reservation = table.eta_table
+    print(f"reservation:{reservation}")
+    TTC = table.global_params.DESIRED_TTC
+    ETA_of_front_car = reservation[reservation["car_idx"] == carObj.car_idx -1]
+    print(f"前の車の予定表:{ETA_of_front_car}")
 
-    # カバーできる場合適当なaccを指定してもらって、それを元に経路を作成.
-    # そのためにまずは必要な最低加速度を計算する.
-    minimum_required_acc = solve_minimum_required_acc(
-        carObj.a_max,  # a_max
-        carObj.max_speed,  # v_max
-        carObj.v_x,  # v_0
-        margin_time_to_noise,  # margin_time_to_noise
-        distance_to_noise_end,  # delta_x
-    )
-    # print(f"最小加速度:{minimum_required_acc}")
-    random_param = 0.2
-    selected_acc = random_param * carObj.a_max + \
-        (1-random_param)*minimum_required_acc
-
-    max_available_acc = calc_max_available_acc()
-    acc_itinerary.append({"start": current_time, "acc": selected_acc})
+    earliest_time = calc_earliest_time(carObj, noise_end_poisition, current_time)
+    if len(ETA_of_front_car) > 0:
+        earliest_time = ETA_of_front_car[ETA_of_front_car["x"] == noise_end_poisition] + TTC
+    
+    ratio = random.uniform(0, 1) # このパラメタが急ぎ度に相当.
+    eta_of_noise_end = ratio * earliest_time + (1-ratio) * noise_start_time
+    print(f"eta: {eta_of_noise_end}, 最速:{earliest_time}, late:{noise_start_time}")
+    # 続いてこのETAを満たすacc_itineraryを求める. 
+    acc_itinerary = solve_acc_itinerary(eta_of_noise_end, carObj, current_time, noise)        
 
     return acc_itinerary
 
 
-def calc_max_available_acc():
-    return
+def solve_acc_itinerary(eta_of_noise_end, carObj, current_time, noise):
+    """
+    今回のケースの場合、ベタ踏みして最大速度でいけば到着できることはわかっている. 
+    ・加速度はなるべく小さくしたい
+    ・ゴールの速度はなるべく小さくしたい
+    という制約でこの問題を解く
+    """
+    acc_itinerary = [acc for acc in carObj.acc_itinerary if acc["t_start"]<current_time]
+    distance_to_noise_end = noise["x"][1] - carObj.xcor
+    delta_t = eta_of_noise_end - current_time # この時間枠の中で色々しないといけない. 
+    S = distance_to_noise_end
+    max_cover_distance = calc_cover_distance(carObj.v_max, carObj, delta_t)
+    delta_v = carObj.v_max - carObj.v_x
+    delta_v_mean = carObj.v_max - carObj.v_mean
+    time_to_v_max = delta_v / carObj.a_max
+    time_to_v_mean = delta_v_mean / carObj.a_dec # 一旦加速度と同じ減速度にする. 
+    coast_time = delta_t - time_to_v_max - time_to_v_mean
+    print(f"delta_t:{delta_t}, time_to_v_max:{time_to_v_max}")
+    print(f"v_e条件のもと行ける距離:{max_cover_distance}. \nノイズとの距離: {S}, 定常走行時間:{coast_time} ")
+ 
+    # まずは最後にv_meanで終了可能な場合
+    if S <= max_cover_distance and coast_time > 0:
+        v_m = binary_search_for_v(carObj, S, delta_t)
+        if(v_m != -1):
+            
+            t_1 = (v_m - carObj.v_x)/carObj.a_max
+            t_3 = (v_m - carObj.v_mean)/carObj.a_dec
+            t_2 = delta_t - t_1 - t_3
+            acc_itinerary.append({"t_start":current_time, "acc":carObj.a_max, "v_0":carObj.v_x})
+            acc_itinerary.append({"t_start":current_time + t_1, "acc":0, "v_0":v_m})
+            acc_itinerary.append({"t_start":current_time+ t_1 + t_2, "acc":-1*(carObj.a_dec), "v_0":v_m})
+            acc_itinerary.append({"t_start":eta_of_noise_end, "acc":0, "v_0":carObj.v_mean})
+            return acc_itinerary
+    
+    # v_meanの終了は無理だが距離はカバーできる場合（そもそもこの関数の前提条件的にみんなここに入る）
+    print("can cover but cannot finish with v_e")
+    t_1 = (carObj.v_max- carObj.v_x)/carObj.a_max
+    S_dash = S - (carObj.v_max**2- carObj.v_x**2) / 2 / carObj.a_max
+    t_rem = delta_t - t_1 #区間2,3の時間和
+    t_3 = ((carObj.v_max + t_rem - S_dash)*2/carObj.a_dec) ** 0.5
+    t_2 = t_rem - t_3
+    acc_itinerary.append({"t_start":current_time, "acc":carObj.a_max, "v_0":carObj.v_x})
+    acc_itinerary.append({"t_start":current_time + t_1, "acc":0, "v_0":carObj.v_max})
+    acc_itinerary.append({"t_start":current_time + t_1 + t_2, "acc":carObj.a_dec, "v_0":carObj.v_max})
+    acc_itinerary.append({"t_start":eta_of_noise_end, "acc":0, "v_0":carObj.v_max})
+
+    
+    return acc_itinerary
+
+def calc_cover_distance(v, carObj, delta_t):
+    t_1 = (v - carObj.v_x)/carObj.a_max
+    t_2 = (v - carObj.v_mean)/carObj.a_dec
+    coast_time =  delta_t - t_1 - t_2
+    S1 = (v**2 - carObj.v_x ** 2) / carObj.a_max / 2
+    S2 = coast_time * v
+    S3 =  (v**2 - carObj.v_mean ** 2) / carObj.a_dec / 2
+    return S1 + S2 + S3
+
+def binary_search_for_v(carObj, S, delta_t, epsilon=1e-3):
+    low = carObj.v_x
+    high = carObj.v_max
+    count = 0
+    
+    # 2分探索
+    while low <= high and count < 100:
+        mid = (low + high) / 2
+        distance = calc_cover_distance(mid, carObj, delta_t)
+        print(count, mid, distance, S)        
+        if abs(distance - S) < epsilon:  # epsilonで許容誤差を設定
+            print(count, mid, distance, S)
+            return mid  # Sに十分近い値が見つかった場合
+        elif distance < S:
+            low = mid + epsilon
+        else:
+            high = mid - epsilon
+        count += 1
+    
+    return -1  # 解が見つからなかった場合
 
 
 def calc_max_cover_distance(margin_time_to_noise, carObj: Cars):
     # 最大限加速したら最大スピードに達する場合
-    if margin_time_to_noise * carObj.a_max + carObj.v_x > carObj.max_speed:
-        delta_t_to_max_speed = (carObj.max_speed - carObj.v_x) / carObj.a_max
+    print(margin_time_to_noise, carObj.a_max, carObj.v_max)
+    if margin_time_to_noise * carObj.a_max + carObj.v_x > carObj.v_max:
+        delta_t_to_max_speed = (carObj.v_max - carObj.v_x) / carObj.a_max
         return {"distance": carObj.v_x * delta_t_to_max_speed + 0.5 * carObj.a_max * delta_t_to_max_speed ** 2 +
-                carObj.max_speed * (margin_time_to_noise - delta_t_to_max_speed), "v_end": carObj.max_speed}
+                carObj.v_max * (margin_time_to_noise - delta_t_to_max_speed), "v_end": carObj.v_max}
 
     # 最大限加速しても最大スピードに乗らない場合
     return {"distance": carObj.v_x * margin_time_to_noise + 0.5 * carObj.a_max * margin_time_to_noise ** 2,
             "v_end": carObj.v_x + margin_time_to_noise * carObj.a_max}
 
 
-"""
-関数: solve_minimum_required_acc
-
-最後 v_maxで終わってもいいけどとりあえずノイズを避けるための最小化速度を計算する
-"""
+def calc_earliest_time(carObj, noise_end_poisition, current_time):
+    """
+    先頭の車が最速でノイズに到着可能な時間を返す.
+    この時、一旦アクセルベタ踏みにしておく. 
+    """
+    distance_to_noise_end = noise_end_poisition - carObj.xcor
+    v = carObj.v_x
+    # そもそもトップスピードまでいかない場合
+    if distance_to_noise_end < (carObj.v_max**2 - v**2)/2/carObj.a_max:
+        return ((v**2 + 2*carObj.a_max*distance_to_noise_end)**0.5 - v) / carObj.a_max + current_time
+    return
 
 
 def solve_minimum_required_acc(a_max, v_max, v_0, margin_time_to_noise, delta_x):
+    """
+    関数: solve_minimum_required_acc
+    最後 v_maxで終わってもいいけどとりあえずノイズを避けるための最小加速度を計算する
+    """
     delta_t = margin_time_to_noise
     delta_v = v_max - v_0
     S = delta_x - v_0 * delta_t  # 加速度運動でカバーするべき面積
@@ -90,34 +167,58 @@ def solve_minimum_required_acc(a_max, v_max, v_0, margin_time_to_noise, delta_x)
     # ベタ踏みしてもv_maxに行かないとき
     if a_max * delta_t < delta_v:
         a_min = 2 * S / delta_t ** 2
-        # print(f"CASE A: 1/2*{a_min}*{delta_t}**2={S}")
+        print(f"CASE A: 1/2*{a_min}*{delta_t}**2={S}")
         return a_min
 
     # v_maxに届くだけの時間がある場合はv_maxを出す必要があるかどうかで場合わけ.
     # v_maxで走る必要がある場合
     if S > 0.5 * delta_v * delta_t:
-        a_min = delta_t ** 2/(2 * v_max * delta_t - S)
-        t = {2 * v_max * delta_t - S}
-        # print(f"t= {t}")
-        # print(f"CASE B: 1/2*{a_min}*{t}**2 + {v_max}*({delta_t}-{t})")
+        print(delta_v, delta_t, S)
+        t = (delta_v * delta_t - S) * 2 / (delta_v)
+        a_min = delta_v / t
+        print(f"t= {t}")
+        print(f"CASE B: 1/2*{a_min}*{t}**2 + {v_max}*({delta_t}-{t})")
 
-        return delta_t ** 2/(2 * v_max * delta_t - S)
+        return a_min
 
     a_min = 2 * S / delta_t ** 2
-    # print(f"CASE C: 1/2*{a_min}*{delta_t}**2={S}")
+    print(f"CASE C: 1/2*{a_min}*{delta_t}**2={S}")
     return a_min
+
+
+def prepare_car():
+     acc_itinerary = [{"t_start": 0, "acc": 3}, {"t_start": 4, "acc": -1}]
+     return Cars(
+        v_mean=20, acc_itinerary=acc_itinerary, a_max=2,a_dec=2, v_max=30)
+
+def test_solve_minimum_required_acc():
+    carObj = prepare_car()
+    noise = {"t": [10, 13], "x": [160, 170]}
+    current_time = 0
+    max_cover_distance = calc_max_cover_distance(noise["t"][0] - current_time, carObj)
+    print(f"到達可能距離:{max_cover_distance}")
+
+    result = solve_minimum_required_acc(carObj.a_max,  # a_max
+        carObj.v_max,  # v_max
+        carObj.v_x,  # v_0
+        noise["t"][0] - current_time,  # margin_time_to_noise
+        noise["x"][1]- carObj.xcor)  # delta_x)
+    print(result) 
 
 
 def test():
     print("============TEST START============")
-    current_time = 0
-    noise = {"t": [10, 13], "x": [220, 240]}
-    acc_itinerary_1 = [{"start": 0, "acc": 3}, {"start": 4, "acc": -1}]
-    acc_itinerary_2 = [{"start": 4, "acc": 0}]
-    carObj = Cars(
-        v_x=20, acc_itinerary=acc_itinerary_1, a_max=3, max_speed=30)
-    result = calc_early_avoid_acc(noise, current_time, carObj)
-    print(f"result:{result}")
+    current_time = 1
+    # table=[]
+    noise = {"t": [14, 16], "x": [300, 340]}
+    
+    carObj = prepare_car()
+    print(carObj.v_x, carObj.xcor)
+
+    # result = calc_early_avoid_acc(noise, current_time, carObj, table)
+    # print(f"result:{result}")
+
+    solve_acc_itinerary(noise["t"][1]-2,carObj,current_time,noise)
 
 
 if __name__ == "__main__":

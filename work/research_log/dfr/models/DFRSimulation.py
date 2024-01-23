@@ -26,6 +26,11 @@ class DFRSimulation:
         current_noise = []
         cars_on_road = []
         next_car_idx = 0
+        previous_state = {
+            "noiseList":[],
+            "influenced_by_noise_cars":[],
+            "influenced_by_eta_cars":[]
+        }
         for i in range(self.total_steps):
             next_car = self.CARS[next_car_idx]
             time = i * self.TIME_STEP
@@ -50,6 +55,7 @@ class DFRSimulation:
             if i % self.ONE_SEC_STEP == 0 and len(current_noise) < 1:
                 new_noise = self.create_noise(time)
                 current_noise.append(new_noise)
+                event_flg = True
 
             if len(cars_on_road) < 1:
                 continue
@@ -57,7 +63,13 @@ class DFRSimulation:
             """
             STEP 2. ノイズの影響を受ける車と、ノイズによって影響を受けた他の車の影響を受けた車をリスト化
             """
-            influenced_by_noise_cars = self.find_noise_influenced_cars(cars_on_road, current_noise)
+            influenced_by_noise_cars = []
+            if event_flg:
+                # 新しいノイズが来るか新しい車が到着したら誰が該当するかの判定をする. 
+                influenced_by_noise_cars = self.find_noise_influenced_cars(cars_on_road, current_noise)
+                for car in cars_on_road:
+                    car.get_noise_eta(current_noise)
+
             influenced_by_eta_cars = self.find_ETA_influenced_cars(cars_on_road)
             influenced_cars = list(set(influenced_by_noise_cars + influenced_by_eta_cars))
 
