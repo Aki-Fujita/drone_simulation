@@ -17,18 +17,16 @@ def validate_with_ttc(eta_reservation_table, car_plan, TTC):
         return True
 
     for idx, waypoint_info in enumerate(car_plan):
-        print(f"idx={idx}")
         if idx == 0:
             continue
-
-        target_waypoint = waypoint_info["waypoint_idx"]
-        filtered_df = df[df["waypoint_idx"] == target_waypoint]
+        target_waypoint_x = waypoint_info["x"]
+        filtered_df = df[df["x"] == target_waypoint_x]
         # print(f"len(wpts)={len(filtered_df)}")
         last_entry_time = filtered_df["eta"].max()
         if waypoint_info["eta"] > last_entry_time + TTC:
             continue
         else:
-            print(f"wp_idx={idx}")
+            print(f"wp_x=", waypoint_info["x"])
             print("INVALID")
             is_valid = False
             break

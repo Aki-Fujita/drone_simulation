@@ -1,6 +1,7 @@
 import sys
 sys.path.append("..")
-from utils import calc_early_avoid_acc, validate_with_ttc, create_itinerary_from_acc, calc_eta_from_acc
+from utils import calc_early_avoid_acc, calc_late_avoid, \
+  validate_with_ttc, create_itinerary_from_acc, calc_eta_from_acc
 import pandas as pd
 from .ReservationTable import ReservationTable
 
@@ -75,14 +76,14 @@ class Cars:
         # (a)の場合をまずは検討. 
         temp_acc_itinerary = calc_early_avoid_acc(noise_to_avoid, current_time, self, table)
         if not temp_acc_itinerary:
-            temp_acc_itinerary = self.calc_decel_eta(noise_to_avoid, current_time)
+            temp_acc_itinerary = calc_late_avoid(noise_to_avoid, current_time, self, table)
         
         """この時点でtemp_acc_itineraryは早いものか遅いものが何かしら入っている
             ただし、いずれの場合も未認証. 
         """
         print(f"acc_itinerary:{temp_acc_itinerary}")
 
-        ideal_eta = create_itinerary_from_acc(car_obj=self, current_time=current_time )
+        ideal_eta = create_itinerary_from_acc(car_obj=self, current_time=current_time, acc_itinerary=temp_acc_itinerary )
 
         if validate_with_ttc(table.eta_table, ideal_eta, table.global_params.DESIRED_TTC):
             self.itinerary = ideal_eta
@@ -90,52 +91,17 @@ class Cars:
             return ideal_eta
 
         # (b)の場合
-        print("遅い側で避ける")
+        print("古いコードの残り")
         noise_to_avoid = noiseList[required_speeds.index(min(required_speeds))]
         ideal_eta = self.calc_decel_eta(noise_to_avoid, current_time)
         self.itinerary = ideal_eta
 
         return ideal_eta
 
-    # ノイズを避けるために加速する経路.
-    def calc_accel_eta(self, noise_to_avoid, current_time):
-        """
-        (a) すでに通り過ぎたところのetaは変えない
-        (b) これから行く場所に対して、それがノイズより手前なら最大スピードで超えに行く
-        (c) ノイズより後ならノイズまで最大速度で走ってその後通常スピードへ
-        """
-        previous_plan = self.itinerary
-        new_eta = []
-        noise_end = noise_to_avoid["x"][1]
-        for _, row in enumerate(previous_plan):
-            if self.xcor >= row["x"]:  # その場所を通り過ぎていたら
-                new_eta.append(row)
-            elif self.xcor < row["x"] and row["x"] <= noise_end:
-                next_waypoint_eta = current_time + \
-                    (row["x"] - self.xcor)/self.max_speed
-                new_plan = {**row, "eta": next_waypoint_eta}
-                new_eta.append(new_plan)
-            elif self.xcor < row["x"] and row["x"] > noise_end:
-                next_waypoint_eta = current_time + \
-                    (noise_end - self.xcor)/self.max_speed + \
-                    (row["x"] - noise_end)/self.v_mean
-                new_plan = {**row, "eta": next_waypoint_eta}
-                new_eta.append(new_plan)
-            else:
-                print(f"car_id: {self.index}, waypoint={row}")
-                raise ValueError("こんなケースはないはず！")
-
-        return new_eta
-
     # ノイズを避けるために減速する経路.
     def calc_decel_eta(self, noise_to_avoid, current_time):
-        """
-        まずはspeed_itineraryを更新する. 
-        (1) current_timeより昔の履歴は残す
-        (2) current_time以降のものはdecel_etaで計算されたものを適用.
-        """
-        new_speed_itinerary = [
-            item for item in self.speed_itinerary if item["start"] < current_time]
+        print("遅い側で避ける")
+        new_acc_itinerary = [ item for item in self.acc_itinerary if item["t_start"] < current_time]
 
         """
         (a) すでに通り過ぎたところのetaは変えない
@@ -192,10 +158,8 @@ class Cars:
         for noise in noiselist:
             noise_x_coors.append(noise["x"][0])
             noise_x_coors.append(noise["x"][1])
-        print(noise_x_coors)
         for noise_x_coor in noise_x_coors:
             eta_at_noise = calc_eta_from_acc(noise_x_coor, self.acc_itinerary)
-            print(f"noise_x:{noise_x_coor}, eta:{eta_at_noise}")
             current_itinerary.append({"eta": eta_at_noise, "car_idx": self.car_idx, "type":"noise", "x":noise_x_coor})
 
     def decide_speed(self, current_time):

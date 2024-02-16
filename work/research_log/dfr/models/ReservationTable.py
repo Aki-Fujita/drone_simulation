@@ -76,7 +76,7 @@ class ReservationTable:
         car_idx = request.get("car_idx")
         new_eta = request.get("new_eta")
         print(f"car_idx={car_idx}")
-        print(f"new_eta={new_eta}")
+        # print(f"new_eta={new_eta}")
         if car_idx == None or new_eta == None:
             raise ValueError(
                 "car_idx and new_eta must be specified in the request")

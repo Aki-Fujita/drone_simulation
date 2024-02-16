@@ -65,18 +65,18 @@ class DFRSimulation:
             """
             influenced_by_noise_cars = []
             if event_flg:
+                print()
+                print(f"t={time}, next_car={next_car_idx}, current_noise= {current_noise}")
                 # 新しいノイズが来るか新しい車が到着したら誰が該当するかの判定をする. 
                 influenced_by_noise_cars = self.find_noise_influenced_cars(cars_on_road, current_noise)
                 for car in cars_on_road:
                     car.get_noise_eta(current_noise)
+                    self.reservation_table.update_with_request(car_idx=car.car_idx, new_eta=car.itinerary)
 
             influenced_by_eta_cars = self.find_ETA_influenced_cars(cars_on_road)
             influenced_cars = list(set(influenced_by_noise_cars + influenced_by_eta_cars))
 
             if event_flg or len(influenced_cars) > 0:
-                print()
-                print(f"t={time}, next_car={next_car_idx}")
-                print(f"current_noise= {current_noise}")
                 print(f"直接ノイズの影響を受けるもの: {influenced_by_noise_cars}")
                 print(f"他の車の影響: {influenced_by_eta_cars}")
                 print(f"対象車: {influenced_cars}")
@@ -94,6 +94,8 @@ class DFRSimulation:
                 if not car_to_action_id in [influenced_by_eta_cars]:
                     new_eta = car_to_action.avoid_noise(
                         noiseList=current_noise, table=self.reservation_table, current_time=time)
+                    print(f"car_id:{car_to_action_id}")
+                    print(f"new_eta:\n{new_eta}")
                 else:
                     new_eta = car_to_action.consider_others(
                         table=self.reservation_table)
