@@ -2,17 +2,16 @@ from scipy.optimize import minimize
 import numpy as np
 import matplotlib.pyplot as plt
 
-# 問題のパラメータを定義
-# 加速度の最大値と最小値
-a_max = 4.0  # 例としての加速度の最大値
-a_min = -4.0  # 例としての加速度の最小値
-
-
+"""
+t = 0からスタートすることに注意！
+"""
 def conduct_fuel_optimization(**kwargs):
     x0 = kwargs.get("x0", 0)
     v0 = kwargs.get("v0", 0)
     xe = kwargs.get("xe", 0)
     te = kwargs.get("te", 0)
+    a_max = kwargs.get("a_max", 0)
+    a_min = kwargs.get("a_min", 0) # 許容減速度、正の数が来ることに注意！
     
     """
     燃料消費量の目的関数
@@ -45,7 +44,7 @@ def conduct_fuel_optimization(**kwargs):
         return fuel_cost + penalty + v_e_bonus
 
 
-    for N in range(5, 9):
+    for N in range(5, 40):
         a_initial = np.zeros(N)
         bounds = [(a_min, a_max) for _ in range(N)]
         dt = te / N
@@ -75,10 +74,12 @@ def calc_distance_from_a(a_optimized, x0, v0, dt, N):
     return x[N]
 
 if __name__ == "__main__":
-    xe = 100  # 終了時の位置
+    xe = 200  # 終了時の位置
     x0 = 10
     v0 = 12  # 初期速度
-    te = 13  # 終了時刻
+    te = 14  # 終了時刻
+    a_max=4
+    a_min=-4
 
     # 最適化の実行
     # result = minimize(fuel_consumption, a_initial, method='SLSQP', bounds=bounds)
@@ -87,7 +88,9 @@ if __name__ == "__main__":
         x0=x0,
         v0=v0,
         xe=xe,
-        te=te
+        te=te,
+        a_max=a_max,
+        a_min = a_min
     )
 
     v = np.zeros(N+1)

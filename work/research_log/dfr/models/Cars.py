@@ -13,7 +13,7 @@ class Cars:
         self.v_mean = kwagrs.get("v_mean")
         self.v_max = kwagrs.get("v_max")
         self.a_max = kwagrs.get("a_max")
-        self.a_dec = kwagrs.get("a_dec") #許容可能な減速度
+        self.a_min = kwagrs.get("a_min") # 許容可能な減速度
         self.xcor = 0
         self.xcorList = [0]
         self.timeLog = []

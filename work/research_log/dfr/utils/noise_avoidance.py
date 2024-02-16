@@ -2,7 +2,7 @@ import sys
 sys.path.append("..")
 import random
 from models import ReservationTable , Cars
-
+from .conduct_optimization import conduct_fuel_optimization
 
 
 """
@@ -38,14 +38,65 @@ def calc_early_avoid_acc(noise, current_time, carObj, table ):
 
     earliest_time = calc_earliest_time(carObj, noise_end_poisition, current_time)
     if len(ETA_of_front_car) > 0:
-        earliest_time = ETA_of_front_car[ETA_of_front_car["x"] == noise_end_poisition] + TTC
+        earliest_time = ETA_of_front_car[ETA_of_front_car["x"] == noise_end_poisition]["eta"].iloc[0] + TTC
+        print(earliest_time)
+        print(ETA_of_front_car[ETA_of_front_car["x"] == noise_end_poisition])
     
     ratio = random.uniform(0, 1) # このパラメタが急ぎ度に相当.
     eta_of_noise_end = ratio * earliest_time + (1-ratio) * noise_start_time
     print(f"eta: {eta_of_noise_end}, 最速:{earliest_time}, late:{noise_start_time}")
+
+    if earliest_time > noise_start_time:
+        return False
+    
     # 続いてこのETAを満たすacc_itineraryを求める. 
     acc_itinerary = solve_acc_itinerary(eta_of_noise_end, carObj, current_time, noise)        
 
+    return acc_itinerary
+
+def calc_late_avoid(noise, current_time, carObj, table):
+    noise_end_time = noise["t"][1]
+    noise_start_poisition = noise["x"][0]
+    """
+    TODO: 簡単のため一旦以下のように実装するが、ここは通しが終わったら修正すること. 
+    1. 到着時間はEarliest time（固定）
+    2. 減速時の加速度は一旦max_decとする（ここは渋滞に効きそうなのでパラメータ化するなりしたい）
+    3. 減速開始のタイミングをどこにするか問題が難しい. できるだけ後ろが良い？
+    """
+    # 一旦今すぐに減速を開始するとする。
+    print(carObj.a_min)
+    a_optimized, dt, N = conduct_fuel_optimization(
+        x0=carObj.xcor,
+        v0=carObj.v_x,
+        xe=noise_start_poisition,
+        te=noise_end_time - current_time,
+        a_max=carObj.a_max,
+        a_min = carObj.a_min * -1
+    ) # ここで最適化計算を実行
+    print("========")
+    print(a_optimized)
+    print("========")
+
+    acc_itinerary = crt_itinerary_from_a_optimized(a_optimized, dt, carObj, current_time, noise_end_time)
+
+    return acc_itinerary
+
+def crt_itinerary_from_a_optimized(a_optimized, dt, carObj, current_time, noise_end_time):
+    acc_itinerary = [accObj for accObj in carObj.acc_itinerary if accObj["t_start"] < current_time]
+    previous_speed = acc_itinerary[-1]["v_0"] if len(acc_itinerary)>0 else carObj.v_x
+    for idx, a in enumerate(a_optimized):
+        acc_itinerary.append({
+            "acc": a, 
+            "t_start":current_time + idx * dt,
+            "v_0": previous_speed
+        })
+        previous_speed += dt * a
+
+    acc_itinerary.append({
+         "acc": 0, 
+         "t_start": noise_end_time,
+         "v_0": previous_speed
+    })
     return acc_itinerary
 
 
@@ -64,7 +115,7 @@ def solve_acc_itinerary(eta_of_noise_end, carObj, current_time, noise):
     delta_v = carObj.v_max - carObj.v_x
     delta_v_mean = carObj.v_max - carObj.v_mean
     time_to_v_max = delta_v / carObj.a_max
-    time_to_v_mean = delta_v_mean / carObj.a_dec # 一旦加速度と同じ減速度にする. 
+    time_to_v_mean = delta_v_mean / carObj.a_min # 一旦加速度と同じ減速度にする. 
     coast_time = delta_t - time_to_v_max - time_to_v_mean
     print(f"delta_t:{delta_t}, time_to_v_max:{time_to_v_max}")
     print(f"v_e条件のもと行ける距離:{max_cover_distance}. \nノイズとの距離: {S}, 定常走行時間:{coast_time} ")
@@ -72,14 +123,15 @@ def solve_acc_itinerary(eta_of_noise_end, carObj, current_time, noise):
     # まずは最後にv_meanで終了可能な場合
     if S <= max_cover_distance and coast_time > 0:
         v_m = binary_search_for_v(carObj, S, delta_t)
+        print(f"v_m: {v_m}")
         if(v_m != -1):
             
             t_1 = (v_m - carObj.v_x)/carObj.a_max
-            t_3 = (v_m - carObj.v_mean)/carObj.a_dec
+            t_3 = (v_m - carObj.v_mean)/carObj.a_min
             t_2 = delta_t - t_1 - t_3
             acc_itinerary.append({"t_start":current_time, "acc":carObj.a_max, "v_0":carObj.v_x})
             acc_itinerary.append({"t_start":current_time + t_1, "acc":0, "v_0":v_m})
-            acc_itinerary.append({"t_start":current_time+ t_1 + t_2, "acc":-1*(carObj.a_dec), "v_0":v_m})
+            acc_itinerary.append({"t_start":current_time+ t_1 + t_2, "acc":-1*(carObj.a_min), "v_0":v_m})
             acc_itinerary.append({"t_start":eta_of_noise_end, "acc":0, "v_0":carObj.v_mean})
             return acc_itinerary
     
@@ -88,11 +140,11 @@ def solve_acc_itinerary(eta_of_noise_end, carObj, current_time, noise):
     t_1 = (carObj.v_max- carObj.v_x)/carObj.a_max
     S_dash = S - (carObj.v_max**2- carObj.v_x**2) / 2 / carObj.a_max
     t_rem = delta_t - t_1 #区間2,3の時間和
-    t_3 = ((carObj.v_max + t_rem - S_dash)*2/carObj.a_dec) ** 0.5
+    t_3 = ((carObj.v_max + t_rem - S_dash)*2/carObj.a_min) ** 0.5
     t_2 = t_rem - t_3
     acc_itinerary.append({"t_start":current_time, "acc":carObj.a_max, "v_0":carObj.v_x})
     acc_itinerary.append({"t_start":current_time + t_1, "acc":0, "v_0":carObj.v_max})
-    acc_itinerary.append({"t_start":current_time + t_1 + t_2, "acc":carObj.a_dec, "v_0":carObj.v_max})
+    acc_itinerary.append({"t_start":current_time + t_1 + t_2, "acc":carObj.a_min, "v_0":carObj.v_max})
     acc_itinerary.append({"t_start":eta_of_noise_end, "acc":0, "v_0":carObj.v_max})
 
     
@@ -100,11 +152,11 @@ def solve_acc_itinerary(eta_of_noise_end, carObj, current_time, noise):
 
 def calc_cover_distance(v, carObj, delta_t):
     t_1 = (v - carObj.v_x)/carObj.a_max
-    t_2 = (v - carObj.v_mean)/carObj.a_dec
+    t_2 = (v - carObj.v_mean)/carObj.a_min
     coast_time =  delta_t - t_1 - t_2
     S1 = (v**2 - carObj.v_x ** 2) / carObj.a_max / 2
     S2 = coast_time * v
-    S3 =  (v**2 - carObj.v_mean ** 2) / carObj.a_dec / 2
+    S3 =  (v**2 - carObj.v_mean ** 2) / carObj.a_min / 2
     return S1 + S2 + S3
 
 def binary_search_for_v(carObj, S, delta_t, epsilon=1e-3):
@@ -116,14 +168,13 @@ def binary_search_for_v(carObj, S, delta_t, epsilon=1e-3):
     while low <= high and count < 100:
         mid = (low + high) / 2
         distance = calc_cover_distance(mid, carObj, delta_t)
-        print(count, mid, distance, S)        
         if abs(distance - S) < epsilon:  # epsilonで許容誤差を設定
             print(count, mid, distance, S)
             return mid  # Sに十分近い値が見つかった場合
         elif distance < S:
-            low = mid + epsilon
+            low = mid 
         else:
-            high = mid - epsilon
+            high = mid 
         count += 1
     
     return -1  # 解が見つからなかった場合
@@ -155,55 +206,10 @@ def calc_earliest_time(carObj, noise_end_poisition, current_time):
     return
 
 
-def solve_minimum_required_acc(a_max, v_max, v_0, margin_time_to_noise, delta_x):
-    """
-    関数: solve_minimum_required_acc
-    最後 v_maxで終わってもいいけどとりあえずノイズを避けるための最小加速度を計算する
-    """
-    delta_t = margin_time_to_noise
-    delta_v = v_max - v_0
-    S = delta_x - v_0 * delta_t  # 加速度運動でカバーするべき面積
-    # print(f"delta_t:{delta_t}, delta_v:{delta_v}, S:{S}")
-    # ベタ踏みしてもv_maxに行かないとき
-    if a_max * delta_t < delta_v:
-        a_min = 2 * S / delta_t ** 2
-        print(f"CASE A: 1/2*{a_min}*{delta_t}**2={S}")
-        return a_min
-
-    # v_maxに届くだけの時間がある場合はv_maxを出す必要があるかどうかで場合わけ.
-    # v_maxで走る必要がある場合
-    if S > 0.5 * delta_v * delta_t:
-        print(delta_v, delta_t, S)
-        t = (delta_v * delta_t - S) * 2 / (delta_v)
-        a_min = delta_v / t
-        print(f"t= {t}")
-        print(f"CASE B: 1/2*{a_min}*{t}**2 + {v_max}*({delta_t}-{t})")
-
-        return a_min
-
-    a_min = 2 * S / delta_t ** 2
-    print(f"CASE C: 1/2*{a_min}*{delta_t}**2={S}")
-    return a_min
-
-
 def prepare_car():
      acc_itinerary = [{"t_start": 0, "acc": 3}, {"t_start": 4, "acc": -1}]
      return Cars(
-        v_mean=20, acc_itinerary=acc_itinerary, a_max=2,a_dec=2, v_max=30)
-
-def test_solve_minimum_required_acc():
-    carObj = prepare_car()
-    noise = {"t": [10, 13], "x": [160, 170]}
-    current_time = 0
-    max_cover_distance = calc_max_cover_distance(noise["t"][0] - current_time, carObj)
-    print(f"到達可能距離:{max_cover_distance}")
-
-    result = solve_minimum_required_acc(carObj.a_max,  # a_max
-        carObj.v_max,  # v_max
-        carObj.v_x,  # v_0
-        noise["t"][0] - current_time,  # margin_time_to_noise
-        noise["x"][1]- carObj.xcor)  # delta_x)
-    print(result) 
+        v_mean=20, acc_itinerary=acc_itinerary, a_max=2,a_min=2, v_max=30)
 
 
 def test():
