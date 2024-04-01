@@ -3,3 +3,4 @@ from .eta_validator import validate_with_ttc
 from .noise_avoidance import calc_early_avoid_acc, calc_late_avoid
 from .create_eta_from_acc import create_itinerary_from_acc, calc_eta_from_acc
 from .conduct_optimization import conduct_fuel_optimization
+from .optimizer_for_follower import optimizer_for_follower

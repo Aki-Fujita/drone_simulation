@@ -3,7 +3,7 @@ sys.path.append("..")
 import random
 from models import ReservationTable , Cars
 from .conduct_optimization import conduct_fuel_optimization
-
+from .optimizer_for_follower import optimizer_for_follower
 
 """
 noiseを早避けするためのacc_itineraryを計算する関数 
@@ -54,34 +54,52 @@ def calc_early_avoid_acc(noise, current_time, carObj, table ):
 
     return acc_itinerary
 
-def calc_late_avoid(noise, current_time, carObj, table):
+def calc_late_avoid(noise, current_time, carObj, table, leader):
     noise_end_time = noise["t"][1]
     noise_start_poisition = noise["x"][0]
-    """
-    TODO: 簡単のため一旦以下のように実装するが、ここは通しが終わったら修正すること. 
-    1. 到着時間はEarliest time（固定）
-    2. 減速時の加速度は一旦max_decとする（ここは渋滞に効きそうなのでパラメータ化するなりしたい）
-    3. 減速開始のタイミングをどこにするか問題が難しい. できるだけ後ろが良い？
-    """
-    # 一旦今すぐに減速を開始するとする。
-    print(carObj.a_min)
-    a_optimized, dt, N = conduct_fuel_optimization(
-        x0=carObj.xcor,
-        v0=carObj.v_x,
-        xe=noise_start_poisition,
-        te=noise_end_time - current_time,
-        a_max=carObj.a_max,
-        a_min = carObj.a_min * -1
-    ) # ここで最適化計算を実行
+    reservation = table.eta_table
+    front_car_etas = reservation[reservation["car_idx"] == carObj.car_idx -1]
+    te_by_ttc = front_car_etas[front_car_etas["x"] == noise_start_poisition]["eta"].iloc[0] + table.global_params.DESIRED_TTC
+    target_time = max(te_by_ttc, noise_end_time)
+    print(f"target_time: {target_time}")
+
+    if te_by_ttc < noise_end_time:
+        """
+        これは自分がノイズの後ろの1台目の車の場合, なのでノイズを避けることだけ考えれば良い. 
+        """
+        a_optimized, dt, N = conduct_fuel_optimization(
+            x0=carObj.xcor,
+            v0=carObj.v_x,
+            xe=noise_start_poisition,
+            te= target_time - current_time,
+            a_max=carObj.a_max,
+            a_min = carObj.a_min * -1
+        ) # ここで最適化計算を実行
+    else:
+        """
+        これは自分の前に同じくnoiseを避けた車がいる時, 
+        この場合はその車に衝突しないように経路設計をする必要がある, 
+        """
+        a_optimized, dt, N = optimizer_for_follower(
+            x0=carObj.xcor,
+            v0=carObj.v_x,
+            xe=noise_start_poisition,
+            target_time=target_time,
+            a_max=carObj.a_max,
+            a_min = carObj.a_min * -1,
+            eta_of_leader = front_car_etas,
+            leader = leader,
+            current_time=current_time
+        ) # ここで最適化計算を実行
     print("========")
     print(a_optimized)
     print("========")
 
-    acc_itinerary = crt_itinerary_from_a_optimized(a_optimized, dt, carObj, current_time, noise_end_time)
+    acc_itinerary = crt_itinerary_from_a_optimized(a_optimized, dt, carObj, current_time, target_time)
 
     return acc_itinerary
 
-def crt_itinerary_from_a_optimized(a_optimized, dt, carObj, current_time, noise_end_time):
+def crt_itinerary_from_a_optimized(a_optimized, dt, carObj, current_time, target_time):
     acc_itinerary = [accObj for accObj in carObj.acc_itinerary if accObj["t_start"] < current_time]
     previous_speed = acc_itinerary[-1]["v_0"] if len(acc_itinerary)>0 else carObj.v_x
     for idx, a in enumerate(a_optimized):
@@ -94,7 +112,7 @@ def crt_itinerary_from_a_optimized(a_optimized, dt, carObj, current_time, noise_
 
     acc_itinerary.append({
          "acc": 0, 
-         "t_start": noise_end_time,
+         "t_start": target_time,
          "v_0": previous_speed
     })
     return acc_itinerary

@@ -11,7 +11,6 @@ def create_itinerary_from_acc(**kwagrs):
         else:
             eta = calc_eta_from_acc(item["x"], acc_itinerary)
             new_itinerary.append({**item, "eta":eta})
-    print(new_itinerary)
     return new_itinerary
 
 def calc_eta_from_acc(x_cor, acc_itinerary):

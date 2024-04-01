@@ -12,6 +12,7 @@ def conduct_fuel_optimization(**kwargs):
     te = kwargs.get("te", 0)
     a_max = kwargs.get("a_max", 0)
     a_min = kwargs.get("a_min", 0) # 許容減速度、正の数が来ることに注意！
+    print(f"x0:{x0}, v0:{v0}, xe:{xe}, te:{te}")
     
     """
     燃料消費量の目的関数
@@ -24,7 +25,7 @@ def conduct_fuel_optimization(**kwargs):
         k0 = 1  # 燃料消費関数の定数
         k1 = 0.1  # 燃料消費関数の速度に依存する定数
         k2 = 0.1  # 燃料消費関数の速度に依存する定数
-        k3 = -1 # 最後の速度をなるべく大きくするために入れている
+        k3 = -0.5 # 最後の速度をなるべく大きくするために入れている
         # 時間ステップの大きさ
         v = np.zeros(N+1)
         x = np.zeros(N+1)
@@ -37,7 +38,7 @@ def conduct_fuel_optimization(**kwargs):
             x[i] = x[i-1] + v[i-1] * dt + 0.5 * a[i-1] * dt**2
             fuel_cruise = k0 + k1 * v[i-1]**2
             fuel_acc = abs(k2 * a[i-1] * v[i-1])
-            fuel_cost += (fuel_acc + fuel_cruise) * dt
+            fuel_cost += (fuel_acc + fuel_cruise) * dt # これだと厳密には積分になってない. 
         # 終了時の位置が目標値に一致するように大きなペナルティを追加
         penalty = 1e4 * (x[-1] - xe)**2
         v_e_bonus = k3 * v[-1]
@@ -55,8 +56,6 @@ def conduct_fuel_optimization(**kwargs):
         print("=====")
         if abs(calc_distance_from_a(result.x, x0,v0, dt, N) - xe) < 1e-3:
             break
-
-    print(result)
     a_optimized = result.x
     dt = te/N
     return a_optimized, dt, N
@@ -73,13 +72,14 @@ def calc_distance_from_a(a_optimized, x0, v0, dt, N):
         x[i] = x[i-1] + v[i-1] * dt + 0.5 * a_optimized[i-1] * dt**2
     return x[N]
 
+    
 if __name__ == "__main__":
-    xe = 200  # 終了時の位置
-    x0 = 10
-    v0 = 12  # 初期速度
-    te = 14  # 終了時刻
-    a_max=4
-    a_min=-4
+    xe = 610  # 終了時の位置
+    x0 = 0
+    v0 = 20  # 初期速度
+    te = 42  # 終了時刻
+    a_max=3
+    a_min=-3
 
     # 最適化の実行
     # result = minimize(fuel_consumption, a_initial, method='SLSQP', bounds=bounds)

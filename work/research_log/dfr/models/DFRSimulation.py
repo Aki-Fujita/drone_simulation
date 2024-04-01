@@ -93,7 +93,7 @@ class DFRSimulation:
                 # 先頭車がノイズの影響だけを受けている場合
                 if not car_to_action_id in [influenced_by_eta_cars]:
                     new_eta = car_to_action.avoid_noise(
-                        noiseList=current_noise, table=self.reservation_table, current_time=time)
+                        noiseList=current_noise, table=self.reservation_table, current_time=time, leader=self.CARS[car_to_action_id-1])
                     print(f"car_id:{car_to_action_id}")
                     print(f"new_eta:\n{new_eta}")
                 else:
@@ -106,8 +106,12 @@ class DFRSimulation:
             STEP 4. 全員前進. 
             """
             for car in cars_on_road:
-                car.decide_speed(time)
+                car.decide_speed(time, self.TIME_STEP)
                 car.proceed(self.TIME_STEP, time)
+            
+            if time >= 8:
+                
+                print(time, [car.v_x for car in cars_on_road])
 
             if should_plot:
                 self.plot_history_by_time(current_noise, time)
