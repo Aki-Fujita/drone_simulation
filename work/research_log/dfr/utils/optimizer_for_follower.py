@@ -23,7 +23,7 @@ def get_acc_for_time(data, t):
     :return: 条件を満たす acc の値。該当するものがなければ None を返す。
     """
     # t_start が t 以下の要素のみをフィルタリングし、t_start で降順にソート
-    valid_items = sorted([item for item in data if item['t_start'] <= t], key=lambda x: x['t_start'], reverse=True)
+    valid_items = sorted([item for item in data if item['t_start'] < t], key=lambda x: x['t_start'], reverse=True)
     # 条件を満たす最初の要素の acc を返す
     return valid_items[0]['acc'] if valid_items else None 
 
@@ -52,7 +52,7 @@ def optimizer_for_follower(**kwargs):
     print(target_time, current_time, leader_acc_itinerary)
     # 続いてleader_potisionsとleader_acc_itineraryを元にleaderの位置と速度を計算する
     for time in time_array:
-        leader_acc = get_acc_for_time(leader_acc_itinerary, current_time + time)
+        leader_acc = get_acc_for_time(leader_acc_itinerary, current_time + time) # ある瞬間の速度を計算するためには、その速度より一瞬だけ前の加速度が必要！
         leader_speed = leader_speeds[-1]
         leader_speeds.append(leader_speed + leader_acc * time_step)
         leader_positions.append(leader_positions[-1] + leader_speed * time_step + 0.5 * leader_acc * time_step**2)
