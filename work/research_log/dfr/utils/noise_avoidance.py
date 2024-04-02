@@ -81,11 +81,9 @@ def calc_late_avoid(noise, current_time, carObj, table, leader):
         この場合はその車に衝突しないように経路設計をする必要がある, 
         """
         a_optimized, dt, N = optimizer_for_follower(
-            x0=carObj.xcor,
-            v0=carObj.v_x,
+            follower=carObj,
             xe=noise_start_poisition,
             target_time=target_time,
-            a_max=carObj.a_max,
             a_min = carObj.a_min * -1,
             eta_of_leader = front_car_etas,
             leader = leader,
