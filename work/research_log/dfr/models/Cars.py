@@ -16,7 +16,7 @@ class Cars:
         self.a_min = kwagrs.get("a_min") # 許容可能な減速度
         self.xcor = 0
         self.xcorList = [0]
-        self.timeLog = []
+        self.timeLog = [self.arrival_time]
         self.v_x = kwagrs.get("v_mean")
         self.itinerary = []  # 自分のETA予定表のこと
         self.acc_itinerary = [{"acc": 0, "t_start": self.arrival_time, "v_0": self.v_x}]

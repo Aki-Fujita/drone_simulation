@@ -113,7 +113,7 @@ class DFRSimulation:
                 
                 print(time, [car.v_x for car in cars_on_road])
 
-            if should_plot:
+            if should_plot and time%2==0:
                 self.plot_history_by_time(current_noise, time)
 
     def find_noise_influenced_cars(self, cars_on_road, noiseList):
@@ -136,24 +136,35 @@ class DFRSimulation:
         各車のETAの変更履歴、座標、ノイズの有無をプロットする。
         """
         color_list = ["orange", "pink", "blue", "brown", "red", "green"]
-        car_idx_list = [car.car_idx for car in self.CARS]
+        car_idx_list_on_road = [car.car_idx for car in self.CARS if car.arrival_time <= current_time ]
         eta_table = self.reservation_table.eta_table
-        waypoints = eta_table["x"].unique()
 
         plt.figure(figsize=(6, 6))
         ax = plt.gca()
 
-        # 既存のプロットロジック
+        # 全車のETAのプロット
+        car_idx_list = [car.car_idx for car in self.CARS]
+        _df = eta_table
         for car_idx in car_idx_list:
-            _df = eta_table
-            df_by_car = _df[_df["car_idx"] == car_idx]
+            df_by_car = _df[(_df["car_idx"] == car_idx)&(_df["type"]=="waypoint")]
             plt.plot(df_by_car["x"], df_by_car["eta"],
-                     color=color_list[car_idx % 6], linewidth=1, linestyle='--')
+                     color=color_list[car_idx % 6], linewidth=1, linestyle='--', alpha=0.1)
+            plt.scatter(df_by_car["x"], df_by_car["eta"],
+                        color=color_list[car_idx % 6], alpha=0.2, s=20)
+
+
+        # 現在道路に入った車に対するプロット
+        for car_idx in car_idx_list_on_road:
+            df_by_car = _df[(_df["car_idx"] == car_idx)&(_df["type"]=="waypoint")]
+            plt.plot(df_by_car["x"], df_by_car["eta"],
+                     color=color_list[car_idx % 6], linewidth=1, linestyle='--', alpha=0.1)
             plt.scatter(df_by_car["x"], df_by_car["eta"],
                         color=color_list[car_idx % 6], alpha=0.2, s=20)
             car = self.CARS[car_idx]
             plt.plot(car.xcorList, car.timeLog,
                      color=color_list[car_idx % 6], linewidth=1)
+            plt.scatter([car.xcor], [current_time],
+                    color=color_list[car_idx % 6], s=40, zorder=5)
 
         # ノイズ領域の描画
         for noise in noise_list:
@@ -168,7 +179,12 @@ class DFRSimulation:
         plt.title(f"t={current_time}")
 
         # x軸の目盛り
-        plt.xticks(waypoints)
+        wpts = _df[_df["type"] == "waypoint"]["x"].unique()
+        wpts.sort()  # xの値を昇順に並べ替える（必要に応じて）
+        plt.xticks(wpts)
+
+        plt.xlim(0, 1200)  # x軸の範囲を0から1200に設定
+        plt.ylim(0, 140)   # y軸の範囲を0から140に設定
 
         # 罫線を引く
         plt.grid()
@@ -176,9 +192,7 @@ class DFRSimulation:
         plt.ylabel('ETA')
 
         # 保存
-        plt.savefig(f"dfr_simulation_t={current_time}")
-
-        plt.show()
+        plt.savefig(f"images/dfr_simulation_t={current_time}.png")
 
 
 def test():

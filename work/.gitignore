@@ -5,3 +5,4 @@ __pycache__/
 *.mp4
 **/.ipynb_checkpoints/
 .DS_Store
+/research_log/dfr/notebooks/images/
