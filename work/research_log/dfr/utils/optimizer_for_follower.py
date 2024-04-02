@@ -49,7 +49,6 @@ def optimizer_for_follower(**kwargs):
     time_step = 0.5
     steps = int(total_time / time_step)
     time_array = np.arange(time_step, total_time + time_step, time_step)
-    print(target_time, current_time, leader_acc_itinerary)
     # 続いてleader_potisionsとleader_acc_itineraryを元にleaderの位置と速度を計算する
     for time in time_array:
         leader_acc = get_acc_for_time(leader_acc_itinerary, current_time + time) # ある瞬間の速度を計算するためには、その速度より一瞬だけ前の加速度が必要！
@@ -57,17 +56,12 @@ def optimizer_for_follower(**kwargs):
         leader_speeds.append(leader_speed + leader_acc * time_step)
         leader_positions.append(leader_positions[-1] + leader_speed * time_step + 0.5 * leader_acc * time_step**2)
         # この時点でのleaderの情報を表示（その時間で動画を止めた時の位置などが出力される）
-        print(current_time +time, leader_acc, leader_speeds[-1], leader_positions[-1])
+        # print(current_time +time, leader_acc, leader_speeds[-1], leader_positions[-1])
     
-
-    print("Leader Positions = \n",leader_positions)
-    print("Leader Speeds = \n",leader_speeds)
-
     ttc = 2.5
 
     # 先頭車のパラメータ (一定速度)
     print("acc")
-    print(leader.acc_itinerary)
     # 後続車のパラメータ
     follower_speed = follower.v_x  # 初期速度 (m/s)
     follower_acc = follower_acc_solver(follower, leader_positions, time_step, time_array,ttc, leader_speeds)
@@ -92,7 +86,6 @@ def follower_acc_solver(follower, leader_positions, time_step, time_array, ttc, 
                 follower_acc[idx] = -2
         follower_positions = [follower.xcor]  # 後続車の位置のリスト
         follower_speeds = [follower.v_x]  # 後続車の速度のリスト
-        print(follower_acc)
 
 
         for i, time in enumerate(time_array):
@@ -103,7 +96,7 @@ def follower_acc_solver(follower, leader_positions, time_step, time_array, ttc, 
             # 安全距離 (先頭車の速度にTTCを掛けた値)
             safe_distance = follower_speed * ttc
             if distance < safe_distance: # 安全距離よりも近い場合
-                print(f"count={count}, i={i},time={time},distance={distance}, follower_pos={follower_positions[-1]}, ttc={distance/follower_speed}")
+                # print(f"count={count}, i={i},time={time},distance={distance}, follower_pos={follower_positions[-1]}, ttc={distance/follower_speed}")
                 safe_distance_met = False
                 break
                  
@@ -113,18 +106,12 @@ def follower_acc_solver(follower, leader_positions, time_step, time_array, ttc, 
             follower_positions.append(next_position)
 
         if safe_distance_met:
-            print(f"count={count}, i={i},time={time},distance={distance}, follower_pos={follower_positions[-1]}, ttc={distance/follower_speed}")
+            # print(f"count={count}, i={i},time={time},distance={distance}, follower_pos={follower_positions[-1]}, ttc={distance/follower_speed}")
             break
     
     # ここまでで最低限の加速度を担保
     # ここからは最大の加速度を保証していく. 
-    print(follower_acc)
-    print(follower_positions)
 
-    print("===SPEED====")
-    print(leader_speeds)
-    print(follower_speeds)
-    print(len(time_array))
     solution = []
     
     for count in range(len(time_array)): # 何番目の加速度をいじるか. 
@@ -134,8 +121,6 @@ def follower_acc_solver(follower, leader_positions, time_step, time_array, ttc, 
                 follower_acc[len(follower_acc)- 1 - idx] = 2
         follower_positions = [follower.xcor]  # 後続車の位置のリスト
         follower_speeds = [follower.v_x]  # 後続車の速度のリスト
-        print(follower_acc, follower_acc.count(2))
-
         for i, time in enumerate(time_array):
             # 先頭車と後続車の間の距離
             distance = leader_positions[i] - follower_positions[i] # ここはあえてindexを合わせておく. 
@@ -145,7 +130,7 @@ def follower_acc_solver(follower, leader_positions, time_step, time_array, ttc, 
             safe_distance = follower_speed * ttc
             if distance < safe_distance: # 安全距離よりも近い場合加速しすぎなのでbreak. 
                 is_safety_distance_met = False
-                print(f"count={count}, i={i},time={time},distance={distance}, follower_pos={follower_positions[-1]}, ttc={distance/follower_speed}")
+                # print(f"count={count}, i={i},time={time},distance={distance}, follower_pos={follower_positions[-1]}, ttc={distance/follower_speed}")
                 break
                  
             next_speed = follower_speed + follower_acc[i] * time_step
