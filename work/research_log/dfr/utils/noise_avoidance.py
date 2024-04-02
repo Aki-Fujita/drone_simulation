@@ -34,7 +34,6 @@ def calc_early_avoid_acc(noise, current_time, carObj, table ):
     print(f"reservation:{reservation}")
     TTC = table.global_params.DESIRED_TTC
     ETA_of_front_car = reservation[reservation["car_idx"] == carObj.car_idx -1]
-    print(f"前の車の予定表:{ETA_of_front_car}")
 
     earliest_time = calc_earliest_time(carObj, noise_end_poisition, current_time)
     if len(ETA_of_front_car) > 0:
@@ -113,7 +112,18 @@ def crt_itinerary_from_a_optimized(a_optimized, dt, carObj, current_time, target
          "t_start": target_time,
          "v_0": previous_speed
     })
-    return acc_itinerary
+
+    # 続いて、acc_itineraryに対して、全く同じ加速度が続いたらそれを束ねる処理
+    retList = []
+    for idx, acc in enumerate(acc_itinerary):
+        if idx == 0:
+            retList.append(acc)
+            continue
+        if acc["acc"] == retList[-1]["acc"]:
+            continue
+        else:
+            retList.append(acc)
+    return retList
 
 
 def solve_acc_itinerary(eta_of_noise_end, carObj, current_time, noise):
