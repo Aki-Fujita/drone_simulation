@@ -1,6 +1,6 @@
 
-def check_multiple_noise_effect(noiseList, eta_table):
-    return any([check_single_noise_effect(noise, eta_table) for noise in noiseList])
+def check_multiple_noise_effect(noiseList, eta_table, time):
+    return any([check_single_noise_effect(noise, eta_table, time) for noise in noiseList])
 
 
 """
@@ -12,16 +12,16 @@ noiseにあたっていないと判断するには以下の (a) or (b)
 """
 
 
-def check_single_noise_effect(noise, carObj):
+def check_single_noise_effect(noise, carObj, current_time):
     noise_start_time = noise["t"][0]
     noise_end_time = noise["t"][1]
 
     x_at_noise_start = calc_x_at_pointed_time(
-        noise_start_time, carObj.acc_itinerary, carObj.xcor, carObj.v_x)
+        noise_start_time, carObj, current_time)
     x_at_noise_end = calc_x_at_pointed_time(
-        noise_end_time, carObj.acc_itinerary, carObj.xcor, carObj.v_x)
+        noise_start_time, carObj, current_time)
 
-    # print(f"carID: {carObj.car_idx}, Start:{x_at_noise_start}, End:{x_at_noise_end}")
+    print(f"carID: {carObj.car_idx}, Start:{x_at_noise_start}, End:{x_at_noise_end}")
     will_avoid_noise_early = x_at_noise_start > noise["x"][1]
     will_avoid_noise_late = x_at_noise_end < noise["x"][0]
     # print(f"Early:{will_avoid_noise_early}, Late:{will_avoid_noise_late}")
@@ -29,38 +29,61 @@ def check_single_noise_effect(noise, carObj):
 
 
 # 加速度のログから X を算出する.
-def calc_x_at_pointed_time(pointed_time, acc_itinerary, initial_x, initial_v):
-    acc_itinerary = acc_itinerary
-    car_x = initial_x
-    v_0 = initial_v
+def calc_x_at_pointed_time(pointed_time, carObj, current_time):
+    acc_itinerary = carObj.acc_itinerary
+    car_x = carObj.xcor
+    v_0 = carObj.v_x
+    acc_itinerary_with_tend = add_t_end_to_acc_itinerary(acc_itinerary, current_time)
+    print("==============")
+    print(acc_itinerary)
+    print(acc_itinerary_with_tend)
+    print("==============")
 
-    for idx, accObj in enumerate(acc_itinerary):
-        # 一番最後の要素だった場合はendTime = noise_start_time
-
-        if idx == len(acc_itinerary) - 1:
-            delta_t = pointed_time - accObj["t_start"]
-            delta_x = v_0 * delta_t + 0.5 * accObj["acc"] * delta_t**2
-            car_x += delta_x
-            # print(f"A. 持続時間:{delta_t}, この区間で進む距離{delta_x}")
-
-            break
-        # 次のitineraryがあるけどそれより前にnoiseが来る時.
-        elif acc_itinerary[idx+1]["t_start"] > pointed_time:
-            delta_t = pointed_time - accObj["t_start"]
-            delta_x = v_0 * delta_t + 0.5 * accObj["acc"] * delta_t**2
-            car_x += delta_x
-            # print(f"B. 持続時間:{delta_t}, この区間で進む距離{delta_x}")
-            break
+    if len(acc_itinerary_with_tend) < 1:
+        raise ValueError("acc_itinerary is empty")
+    if len(acc_itinerary_with_tend) == 1:
+        delta_t = pointed_time - current_time
+        delta_x = v_0 * delta_t + 0.5 * acc_itinerary_with_tend[0]["acc"] * delta_t**2 + car_x
+        return delta_x
+    
+    # 長さ2以上の場合
+    for idx, accObj in enumerate(acc_itinerary_with_tend):
+        if accObj["t_end"] < current_time:
+            continue
 
         # この区間を全うできる場合.
-        else:
-            delta_t = acc_itinerary[idx+1]["t_start"] - accObj["t_start"]
+        elif accObj["t_end"] < pointed_time:
+            delta_t = accObj["t_end"] - accObj["t_start"]
+            if accObj["t_start"] < current_time:
+                delta_t = accObj["t_end"] - current_time
             delta_x = v_0 * delta_t + 0.5 * accObj["acc"] * delta_t**2
             car_x += delta_x
             v_0 += delta_t * accObj["acc"]
-            # print(f"C. 持続時間:{delta_t}, この区間で進む距離{delta_x}")
+
+        # 一番最後の区間の場合
+        elif idx == len(acc_itinerary) - 1 or accObj["t_end"] > pointed_time:
+            delta_t = pointed_time - accObj["t_start"]
+            if accObj["t_start"] < current_time:
+                delta_t = accObj["t_end"] - current_time
+            delta_x = v_0 * delta_t + 0.5 * accObj["acc"] * delta_t**2
+            car_x += delta_x
+            break
+        else:
+            print(accObj, current_time, pointed_time)
+            raise ValueError("Something wrong")
 
     return car_x
+
+def add_t_end_to_acc_itinerary(acc_itinerary, current_time):
+    result = []
+    for idx, accObj in enumerate(acc_itinerary):
+        if idx < len(acc_itinerary) - 1:
+            accObj["t_end"] = acc_itinerary[idx+1]["t_start"]
+            result.append(accObj)
+        else:
+            accObj["t_end"] = 1e7
+            result.append(accObj)
+    return result            
 
 
 class Cars:
