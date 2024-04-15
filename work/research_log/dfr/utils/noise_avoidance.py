@@ -31,7 +31,6 @@ def calc_early_avoid_acc(noise, current_time, carObj, table ):
         return False
     
     reservation = table.eta_table
-    print(f"reservation:{reservation}")
     TTC = table.global_params.DESIRED_TTC
     ETA_of_front_car = reservation[reservation["car_idx"] == carObj.car_idx -1]
 
@@ -40,7 +39,7 @@ def calc_early_avoid_acc(noise, current_time, carObj, table ):
         earliest_time = ETA_of_front_car[ETA_of_front_car["x"] == noise_end_poisition]["eta"].iloc[0] + TTC
         print(earliest_time)
         print(ETA_of_front_car[ETA_of_front_car["x"] == noise_end_poisition])
-    
+    print(f"earliest_time: {earliest_time}, noise_start_time: {noise_start_time}")
     ratio = random.uniform(0, 1) # このパラメタが急ぎ度に相当.
     eta_of_noise_end = ratio * earliest_time + (1-ratio) * noise_start_time
     print(f"eta: {eta_of_noise_end}, 最速:{earliest_time}, late:{noise_start_time}")
@@ -49,10 +48,12 @@ def calc_early_avoid_acc(noise, current_time, carObj, table ):
         return False
     
     # 続いてこのETAを満たすacc_itineraryを求める. 
+    
     acc_itinerary = solve_acc_itinerary(eta_of_noise_end, carObj, current_time, noise)        
 
     return acc_itinerary
 
+# 遅く避けるときはノイズを気にする！！
 def calc_late_avoid(noise, current_time, carObj, table, leader):
     noise_end_time = noise["t"][1]
     noise_start_poisition = noise["x"][0]
@@ -64,7 +65,8 @@ def calc_late_avoid(noise, current_time, carObj, table, leader):
 
     if te_by_ttc < noise_end_time:
         """
-        これは自分がノイズの後ろの1台目の車の場合, なのでノイズを避けることだけ考えれば良い. 
+        これは自分がノイズの後ろの1台目の車の場合, なのでノイズを避けることだけ考えれば良い.
+        20240415時点では、遅く避ける場合の一台目に限り、燃費の最適化を行う.  
         """
         a_optimized, dt, N = conduct_fuel_optimization(
             x0=carObj.xcor,
@@ -86,7 +88,8 @@ def calc_late_avoid(noise, current_time, carObj, table, leader):
             a_min = carObj.a_min * -1,
             eta_of_leader = front_car_etas,
             leader = leader,
-            current_time=current_time
+            current_time=current_time,
+            ttc = table.global_params.DESIRED_TTC
         ) # ここで最適化計算を実行
     print("========")
     print(a_optimized)
@@ -226,10 +229,14 @@ def calc_earliest_time(carObj, noise_end_poisition, current_time):
     """
     distance_to_noise_end = noise_end_poisition - carObj.xcor
     v = carObj.v_x
+    distance_to_v_max = (carObj.v_max**2 - v**2)/2/carObj.a_max
     # そもそもトップスピードまでいかない場合
-    if distance_to_noise_end < (carObj.v_max**2 - v**2)/2/carObj.a_max:
+    if distance_to_noise_end < distance_to_v_max:
         return ((v**2 + 2*carObj.a_max*distance_to_noise_end)**0.5 - v) / carObj.a_max + current_time
-    return
+    
+    # トップスピードまでいく場合
+    t_to_noise_end = (distance_to_noise_end - distance_to_v_max) / carObj.v_max + (carObj.v_max - v) / carObj.a_max
+    return t_to_noise_end + current_time
 
 
 def prepare_car():

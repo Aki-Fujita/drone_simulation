@@ -37,12 +37,16 @@ def optimizer_for_follower(**kwargs):
     target_time = kwargs.get("target_time", 0)
     a_max = kwargs.get("a_max", 0)
     a_min = kwargs.get("a_min", 0) # 許容減速度、正の数が来ることに注意！
+    ttc = kwargs.get("ttc", 0)
     leader = kwargs.get("leader", 0) # 先行車のオブジェクト
     current_time = kwargs.get("current_time", [])
     leader_acc_itinerary = leader.acc_itinerary
     leader_positions = [leader.xcor]
     leader_speeds = [leader.v_x] # ここは計算しないといけない！！
     print(leader.v_x, leader.xcor)
+    if ttc < 1:
+        print("ttc:", ttc)
+        raise ValueError("ttc is too small")
 
     # シミュレーションのパラメータ
     total_time = target_time - current_time
@@ -57,9 +61,7 @@ def optimizer_for_follower(**kwargs):
         leader_positions.append(leader_positions[-1] + leader_speed * time_step + 0.5 * leader_acc * time_step**2)
         # この時点でのleaderの情報を表示（その時間で動画を止めた時の位置などが出力される）
         # print(current_time +time, leader_acc, leader_speeds[-1], leader_positions[-1])
-    
-    ttc = 2.5
-
+  
     # 先頭車のパラメータ (一定速度)
     print("acc")
     # 後続車のパラメータ

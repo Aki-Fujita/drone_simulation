@@ -68,7 +68,7 @@ class DFRSimulation:
                 print()
                 print(f"t={time}, next_car={next_car_idx}, current_noise= {current_noise}")
                 # 新しいノイズが来るか新しい車が到着したら誰が該当するかの判定をする. 
-                influenced_by_noise_cars = self.find_noise_influenced_cars(cars_on_road, current_noise)
+                influenced_by_noise_cars = self.find_noise_influenced_cars(cars_on_road, current_noise, time)
                 for car in cars_on_road:
                     car.get_noise_eta(current_noise)
                     self.reservation_table.update_with_request(car_idx=car.car_idx, new_eta=car.itinerary)
@@ -116,9 +116,9 @@ class DFRSimulation:
             if should_plot and time%2==0:
                 self.plot_history_by_time(current_noise, time)
 
-    def find_noise_influenced_cars(self, cars_on_road, noiseList):
+    def find_noise_influenced_cars(self, cars_on_road, noiseList, time):
         car_list = [car.car_idx for idx, car in enumerate(
-            cars_on_road) if check_multiple_noise_effect(noiseList, car)]
+            cars_on_road) if check_multiple_noise_effect(noiseList, car, time)]
         return car_list
 
     def find_ETA_influenced_cars(self, cars_on_road):

@@ -50,10 +50,10 @@ def conduct_fuel_optimization(**kwargs):
         bounds = [(a_min, a_max) for _ in range(N)]
         dt = te / N
         result = minimize(fuel_consumption, a_initial, dt, method='SLSQP', bounds=bounds)
-        print("=====")
-        print(f"x_e = {xe},", calc_distance_from_a(result.x, x0, v0, dt, N))
-        print(f"N = {N},", calc_distance_from_a(result.x, x0, v0, dt, N))
-        print("=====")
+        # print("=====")
+        # print(f"x_e = {xe},", calc_distance_from_a(result.x, x0, v0, dt, N))
+        # print(f"N = {N},", calc_distance_from_a(result.x, x0, v0, dt, N))
+        # print("=====")
         if abs(calc_distance_from_a(result.x, x0,v0, dt, N) - xe) < 1e-3:
             break
     a_optimized = result.x
