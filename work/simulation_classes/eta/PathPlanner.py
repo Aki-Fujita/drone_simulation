@@ -36,11 +36,11 @@ class PathPlanner:
         v_lim = self.car_spec["v_max"]
         v_exit = self.ideal_params_at_end["ideal_speed"]
         a_max = self.car_spec["max_acc"]
-        a_dec = self.car_spec["max_dec"]
+        a_min = self.car_spec["max_dec"]
         t_0 = self.initial_params["time"]
         t_end = self.ideal_params_at_end["ideal_arrive_time"]
         params_dict = {"v_0": v_0, "v_lim": v_lim, "v_exit": v_exit,
-                       "a_max": a_max, "a_dec": a_dec, "t_0": t_0, "t_end": t_end, "length": self.COURSE_LENGTH}
+                       "a_max": a_max, "a_min": a_min, "t_0": t_0, "t_end": t_end, "length": self.COURSE_LENGTH}
         return params_dict
 
     # 限られ時間と距離でそもそもVeまで到達するかを判定
@@ -91,13 +91,13 @@ class PathPlanner:
         減速区間 m3[s]
         のとき必要な距離を計算する関数
         """
-        m3 = (m1 * params["a_max"] - params["delta_v"]) / params["a_dec"]  # 最後にv_3になるという制約
+        m3 = (m1 * params["a_max"] - params["delta_v"]) / params["a_min"]  # 最後にv_3になるという制約
         m2 = params["time_limit"] - m3 - m1  # 総和が time_limitであるという制約
 
         if profile in ["ACD", "ADC", "CAD"]:
             v_max = params["v_0"] + params["a_max"] * m1
             D1 = (v_max ** 2 - params["v_0"]**2) / params["a_max"] * 0.5  # 加速区間に進む距離
-            D3 = (v_max ** 2 - params["v_exit"]**2) / params["a_dec"] * 0.5  # 減速区間で進む距離
+            D3 = (v_max ** 2 - params["v_exit"]**2) / params["a_min"] * 0.5  # 減速区間で進む距離
 
             if profile == "ACD":
                 D2 = v_max * m2
@@ -111,9 +111,9 @@ class PathPlanner:
             return D1 + D2 + D3
 
         if profile in ["CDA", "DAC", "DCA"]:
-            v_min = params["v_0"] - params["a_dec"] * m3
+            v_min = params["v_0"] - params["a_min"] * m3
             D1 = (params["v_exit"] ** 2 - v_min**2) / params["a_max"] * 0.5  # 加速区間に進む距離
-            D3 = (params["v_0"]**2 - v_min**2) / params["a_dec"] * 0.5  # 減速区間で進む距離
+            D3 = (params["v_0"]**2 - v_min**2) / params["a_min"] * 0.5  # 減速区間で進む距離
 
             if profile == "CDA":
                 D2 = params["v_0"] * m2
@@ -161,19 +161,19 @@ class PathPlanner:
             action_3 = {"ACC": 0, "duration": t_third, "initial_speed": params["v_exit"]}
 
         if profile == "ACD":
-            t_third = (params["a_max"] * m1 - params["delta_v"]) / params["a_dec"]
+            t_third = (params["a_max"] * m1 - params["delta_v"]) / params["a_min"]
             t_second = params["time_limit"] - m1 - t_third
             v_max = params["a_max"] * m1 + params["v_0"]
             action_1 = {"ACC": params["a_max"], "duration": m1, "initial_speed": params["v_0"]}
             action_2 = {"ACC": 0, "duration": t_second, "initial_speed": v_max}
-            action_3 = {"ACC": params["a_dec"] * (-1), "duration": t_third, "initial_speed": v_max}
+            action_3 = {"ACC": params["a_min"] * (-1), "duration": t_third, "initial_speed": v_max}
 
         if profile == "DCA":
             t_third = m1
             v_min = params["v_exit"] - m1 * params["a_max"]
-            t_first = (params["v_0"] - v_min) / params["a_dec"]
+            t_first = (params["v_0"] - v_min) / params["a_min"]
             t_second = params["time_limit"] - t_first - t_third
-            action_1 = {"ACC": params["a_dec"] * (-1), "duration": t_first, "initial_speed": params["v_0"]}
+            action_1 = {"ACC": params["a_min"] * (-1), "duration": t_first, "initial_speed": params["v_0"]}
             action_2 = {"ACC": 0, "duration": t_second, "initial_speed": v_min}
             action_3 = {"ACC": params["a_max"], "duration": t_third, "initial_speed": v_min}
 
@@ -190,22 +190,22 @@ class PathPlanner:
 
         # まずはACDを仮定して一番進んだ場合の距離を計算
         t1 = (params["v_lim"] - params["v_0"]) / params["a_max"]
-        t3 = (params["v_lim"] - params["v_exit"]) / params["a_dec"]
+        t3 = (params["v_lim"] - params["v_exit"]) / params["a_min"]
         d1 = params["v_0"] * t1 + 0.5 * params["a_max"] * t1 ** 2
         d3 = params["v_lim"] * t3 - 0.5 * params["v_exit"] * t3 ** 2
         if params["length"] >= d1 + d3:  # v_limまで加速して良い場合
             t2 = (params["length"] - d1 - d3) / params["v_lim"]
             return [{"ACC": params["a_max"], "duration": t1, "initial_speed":params["v_0"]},
                     {"ACC": 0, "duration": t2, "initial_speed": params["v_lim"]},
-                    {"ACC": params["a_dec"] * -1, "duration": t3, "initial_speed":params["v_lim"]}]
+                    {"ACC": params["a_min"] * -1, "duration": t3, "initial_speed":params["v_lim"]}]
 
         # ここに入るのはv_limまで加速すると距離をオーバーする場合 => AD確定
         print("CASE: AD")
-        left_hand = (params["v_0"] ** 2 / 2 / params["a_max"]) + (params["v_lim"] ** 2 / 2 / params["a_dec"]) + params["length"]
-        v_max = (2 * left_hand / (1 / params["a_max"] + 1 / params["a_dec"])) ** 0.5
+        left_hand = (params["v_0"] ** 2 / 2 / params["a_max"]) + (params["v_lim"] ** 2 / 2 / params["a_min"]) + params["length"]
+        v_max = (2 * left_hand / (1 / params["a_max"] + 1 / params["a_min"])) ** 0.5
 
         return [{"ACC": params["a_max"], "duration": (v_max - params["v_0"]) / params["a_max"], "initial_speed":params["v_0"]},
-                {"ACC": params["a_dec"] * -1, "duration": (v_max - params["v_exit"]) / params["a_dec"], "initial_speed":params["v_lim"]}]
+                {"ACC": params["a_min"] * -1, "duration": (v_max - params["v_exit"]) / params["a_min"], "initial_speed":params["v_lim"]}]
 
     def solve_path(self, priority="speed"):
         """
@@ -241,22 +241,22 @@ class PathPlanner:
         if is_accelerated_profile:
             # 加速型だった場合の解は CAC か ACD のいずれかになるので CAC_MAXとの比較をしてどっちに入るかを判断する
             m1_min_for_acd = delta_v / params["a_max"]
-            m1_max_for_acd_by_time = (time_limit - m1_min_for_acd) / (params["a_max"] + params["a_dec"]) * params["a_dec"] + m1_min_for_acd
+            m1_max_for_acd_by_time = (time_limit - m1_min_for_acd) / (params["a_max"] + params["a_min"]) * params["a_min"] + m1_min_for_acd
             m1_max_for_acd_by_speed_limit = (params["v_lim"] - params["v_0"]) / params["a_max"]
             m1_max_for_acd = min(m1_max_for_acd_by_time, m1_max_for_acd_by_speed_limit)
             # ここでACDの最大距離を計算する。もしもACDの最大を超えていたら Impossileの場合の処理をreturn
             max_acd_distance = self.calc_distance_by_profile(m1_max_for_acd, "ACD", params)
             if self.COURSE_LENGTH > max_acd_distance:
-                m3 = (params["v_lim"] - params["v_exit"]) / params["a_dec"]  # 最後にv_3になるという制約
+                m3 = (params["v_lim"] - params["v_exit"]) / params["a_min"]  # 最後にv_3になるという制約
                 m2 = params["time_limit"] - m3 - m1_max_for_acd  # 総和が time_limitであるという制約
                 if m1_max_for_acd_by_speed_limit < m1_max_for_acd_by_time:
                     return [{"ACC": params["a_max"], "duration": m1_max_for_acd_by_speed_limit, "initial_speed":params["v_0"]},
                             {"ACC": 0, "duration": m2, "initial_speed": params["v_lim"]},
-                            {"ACC": params["a_dec"] * (-1), "duration": m3, "initial_speed":params["v_lim"]},]
+                            {"ACC": params["a_min"] * (-1), "duration": m3, "initial_speed":params["v_lim"]},]
                 else:
                     m2 = time_limit - m1_max_for_acd_by_time
                     return [{"ACC": params["a_max"], "duration": m1_max_for_acd_by_time, "initial_speed":params["v_0"]},
-                            {"ACC": params["a_dec"] * (-1), "duration": m2, "initial_speed":params["v_exit"] + m2 * params["a_dec"]}]
+                            {"ACC": params["a_min"] * (-1), "duration": m2, "initial_speed":params["v_exit"] + m2 * params["a_min"]}]
 
             m1_min_for_cac = 0
             m1_max_for_cac = time_limit - delta_v / params["a_max"]
@@ -277,10 +277,10 @@ class PathPlanner:
             m1_min = delta_v / params["a_max"]  # つまりは m3 = 0 の状態
 
             # 以下 m1_maxの計算。
-            max_dec_period_by_v0 = params["v_0"] / params["a_dec"]
-            max_dec_period_by_time = (time_limit - m1_min) / (params["a_max"] + params["a_dec"]) * params["a_max"]
+            max_dec_period_by_v0 = params["v_0"] / params["a_min"]
+            max_dec_period_by_time = (time_limit - m1_min) / (params["a_max"] + params["a_min"]) * params["a_max"]
             m3_max = min(max_dec_period_by_time, max_dec_period_by_v0)
-            m1_max = (m3_max * params["a_dec"] + delta_v) / params["a_max"]
+            m1_max = (m3_max * params["a_min"] + delta_v) / params["a_max"]
 
             min_x, max_x = m1_min, m1_max
             binary_search_params = {"profile": profile, "params": params, "min_x": min_x,
@@ -381,7 +381,7 @@ class PathPlanner:
             CAD_MIN = self.calc_distance_by_profile(m1_min, profile, params)
 
             # 続いてCADの場合の最大値を計算
-            m1_max = (time_limit - m1_min) / (params["a_max"] + params["a_dec"]) * params["a_dec"] + m1_min
+            m1_max = (time_limit - m1_min) / (params["a_max"] + params["a_min"]) * params["a_min"] + m1_min
             CAD_MAX = self.calc_distance_by_profile(m1_max, profile, params)
 
         # ここからはCACのケース
@@ -401,10 +401,10 @@ class PathPlanner:
             CAD_MIN = self.calc_distance_by_profile(m1_min, profile, params)
 
             # 続いて減速型の場合の最小値を計算、この場合m3が最大値を取っているはず。m3の最大値はv0による律速か時間による律速
-            max_dec_period_by_v0 = params["v_0"] / params["a_dec"]
-            max_dec_period_by_time = (time_limit - m1_min) / (params["a_max"] + params["a_dec"]) * params["a_max"]
+            max_dec_period_by_v0 = params["v_0"] / params["a_min"]
+            max_dec_period_by_time = (time_limit - m1_min) / (params["a_max"] + params["a_min"]) * params["a_max"]
             m3_max = min(max_dec_period_by_time, max_dec_period_by_v0)
-            m1_max = (m3_max * params["a_dec"] + delta_v) / params["a_max"]
+            m1_max = (m3_max * params["a_min"] + delta_v) / params["a_max"]
             CAD_MAX = self.calc_distance_by_profile(m1_max, profile, params)
             print("Profile=", profile)
             print("最長の場合: 加速秒数:{m1:.2f} 秒, 距離:{distance:.2f} m".format(m1=m1_min, distance=CAD_MIN))
