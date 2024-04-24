@@ -19,7 +19,7 @@ def check_single_noise_effect(noise, carObj, current_time):
     x_at_noise_start = calc_x_at_pointed_time(
         noise_start_time, carObj, current_time)
     x_at_noise_end = calc_x_at_pointed_time(
-        noise_start_time, carObj, current_time)
+        noise_end_time, carObj, current_time)
 
     print(f"carID: {carObj.car_idx}, Start:{x_at_noise_start}, End:{x_at_noise_end}")
     will_avoid_noise_early = x_at_noise_start > noise["x"][1]
@@ -34,10 +34,7 @@ def calc_x_at_pointed_time(pointed_time, carObj, current_time):
     car_x = carObj.xcor
     v_0 = carObj.v_x
     acc_itinerary_with_tend = add_t_end_to_acc_itinerary(acc_itinerary, current_time)
-    print("==============")
-    print(acc_itinerary)
-    print(acc_itinerary_with_tend)
-    print("==============")
+    print(f"carId: {carObj.car_idx}, acc_itinerary: {acc_itinerary_with_tend}")
 
     if len(acc_itinerary_with_tend) < 1:
         raise ValueError("acc_itinerary is empty")
@@ -52,7 +49,7 @@ def calc_x_at_pointed_time(pointed_time, carObj, current_time):
             continue
 
         # この区間を全うできる場合.
-        elif accObj["t_end"] < pointed_time:
+        elif accObj["t_end"] <= pointed_time:
             delta_t = accObj["t_end"] - accObj["t_start"]
             if accObj["t_start"] < current_time:
                 delta_t = accObj["t_end"] - current_time
@@ -69,7 +66,7 @@ def calc_x_at_pointed_time(pointed_time, carObj, current_time):
             car_x += delta_x
             break
         else:
-            print(accObj, current_time, pointed_time)
+            print(accObj, current_time, pointed_time, carObj.car_idx)
             raise ValueError("Something wrong")
 
     return car_x

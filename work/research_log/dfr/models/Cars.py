@@ -1,7 +1,7 @@
 import sys
 sys.path.append("..")
 from utils import calc_early_avoid_acc, calc_late_avoid, \
-  validate_with_ttc, create_itinerary_from_acc, calc_eta_from_acc
+  validate_with_ttc, create_itinerary_from_acc, calc_eta_from_acc, optimizer_for_follower, crt_itinerary_from_a_optimized
 import pandas as pd
 from .ReservationTable import ReservationTable
 
@@ -19,7 +19,7 @@ class Cars:
         self.timeLog = [self.arrival_time]
         self.v_x = kwagrs.get("v_mean")
         self.itinerary = []  # 自分のETA予定表のこと
-        self.acc_itinerary = [{"acc": 0, "t_start": self.arrival_time, "v_0": self.v_x}]
+        self.acc_itinerary = [{"acc": 0, "t_start": self.arrival_time, "v_0": self.v_x, "t_end": 1e7}]
         if self.a_max == None or self.v_max== None:
             raise ValueError("入力されていない項目があります。")
 
@@ -31,7 +31,7 @@ class Cars:
         self.itinerary = way_points_with_eta
         return way_points_with_eta
 
-    def consider_others(self, table):
+    def get_noise_eta_others(self, table):
         """
         Step1. 自分の一つ前の車のETA情報を取得. 
         Step2. その車とTTCを空けるようにコースを決める
@@ -81,7 +81,7 @@ class Cars:
         """この時点でtemp_acc_itineraryは早いものか遅いものが何かしら入っている
             ただし、いずれの場合も未認証. 
         """
-        print(f"acc_itinerary:{temp_acc_itinerary}")
+        print(f"acc_itinerary:\n{temp_acc_itinerary}")
 
         ideal_eta = create_itinerary_from_acc(car_obj=self, current_time=current_time, acc_itinerary=temp_acc_itinerary )
         print(ideal_eta)
@@ -95,18 +95,25 @@ class Cars:
         # (b)の場合
         print("Value Error 基本的にここには来ないはず")
         noise_to_avoid = noiseList[required_speeds.index(min(required_speeds))]
-        ideal_eta = self.calc_decel_eta(noise_to_avoid, current_time)
-        self.itinerary = ideal_eta
-
-        return ideal_eta
+        raise ValueError("ノイズを避けることができませんでした。")
     
-    def get_noise_eta(self, noiselist):
+    def add_noise_eta(self, noiselist):
+        """
+        この関数はノイズをETAに新規追加するだけでPUTは行わないことにする. 
+        """
         current_itinerary = self.itinerary
         noise_x_coors = []
-        for noise in noiselist:
+        x_in_itinerary = [point["x"] for point in self.itinerary]
+        for noise in noiselist:            
             noise_x_coors.append(noise["x"][0])
             noise_x_coors.append(noise["x"][1])
+      
         for noise_x_coor in noise_x_coors:
+            """
+            noise_x_coorsがすでにETAリストにあったらスキップ
+            """
+            if noise_x_coor in x_in_itinerary:
+                continue
             eta_at_noise = calc_eta_from_acc(noise_x_coor, self.acc_itinerary)
             current_itinerary.append({"eta": eta_at_noise, "car_idx": self.car_idx, "type":"noise", "x":noise_x_coor})
 
@@ -115,6 +122,7 @@ class Cars:
         この関数は自分のacc_itineraryをもとに自分のスピードを決める. 
         """
         acc = self.get_acc_for_time(current_time)
+        print(self.car_idx, self.acc_itinerary, current_time, acc)
         next_speed = self.v_x + acc * time_step
         self.v_x = next_speed
 

@@ -34,16 +34,18 @@ def optimizer_for_follower(**kwargs):
     follower=kwargs.get("follower")
     x0 = follower.xcor
     xe = kwargs.get("xe", 0)
-    target_time = kwargs.get("target_time", 0)
+    target_time = kwargs.get("target_time", 0) 
     a_max = kwargs.get("a_max", 0)
     a_min = kwargs.get("a_min", 0) # 許容減速度、正の数が来ることに注意！
     ttc = kwargs.get("ttc", 0)
+    ttc += 0.5 # 一旦これで応急処置
     leader = kwargs.get("leader", 0) # 先行車のオブジェクト
     current_time = kwargs.get("current_time", [])
     leader_acc_itinerary = leader.acc_itinerary
+    leader_itinerary = leader.itinerary
     leader_positions = [leader.xcor]
     leader_speeds = [leader.v_x] # ここは計算しないといけない！！
-    print(leader.v_x, leader.xcor)
+    print(f"target_time: {target_time}")
     if ttc < 1:
         print("ttc:", ttc)
         raise ValueError("ttc is too small")
@@ -52,21 +54,20 @@ def optimizer_for_follower(**kwargs):
     total_time = target_time - current_time
     time_step = 0.5
     steps = int(total_time / time_step)
-    time_array = np.arange(time_step, total_time + time_step, time_step)
+    time_array = np.arange(current_time + time_step, target_time + time_step, time_step)
     # 続いてleader_potisionsとleader_acc_itineraryを元にleaderの位置と速度を計算する
     for time in time_array:
-        leader_acc = get_acc_for_time(leader_acc_itinerary, current_time + time) # ある瞬間の速度を計算するためには、その速度より一瞬だけ前の加速度が必要！
+        leader_acc = get_acc_for_time(leader_acc_itinerary, time) # ここ、加速度の時間幅の違いによってはバグの温床になるので注意！
         leader_speed = leader_speeds[-1]
         leader_speeds.append(leader_speed + leader_acc * time_step)
         leader_positions.append(leader_positions[-1] + leader_speed * time_step + 0.5 * leader_acc * time_step**2)
         # この時点でのleaderの情報を表示（その時間で動画を止めた時の位置などが出力される）
         # print(current_time +time, leader_acc, leader_speeds[-1], leader_positions[-1])
   
-    # 先頭車のパラメータ (一定速度)
-    print("acc")
     # 後続車のパラメータ
-    follower_speed = follower.v_x  # 初期速度 (m/s)
     follower_acc = follower_acc_solver(follower, leader_positions, time_step, time_array,ttc, leader_speeds)
+    print(leader_acc_itinerary)
+    print(follower_acc)
     return follower_acc, time_step, steps
 
 def follower_acc_solver(follower, leader_positions, time_step, time_array, ttc, leader_speeds):
@@ -115,8 +116,10 @@ def follower_acc_solver(follower, leader_positions, time_step, time_array, ttc, 
     # ここからは最大の加速度を保証していく. 
 
     solution = []
+    detail_result = []
     
     for count in range(len(time_array)): # 何番目の加速度をいじるか. 
+        detailList = []
         is_safety_distance_met = True
         if count > 0:
             for idx in range(count):
@@ -139,21 +142,24 @@ def follower_acc_solver(follower, leader_positions, time_step, time_array, ttc, 
             follower_speeds.append(next_speed)
             next_position = follower_positions[i] + follower_speed * time_step + 0.5 * follower_acc[i] * time_step**2
             follower_positions.append(next_position)
+            detailList.append({"time":time, "distance":distance, "follower_pos":follower_positions[-1], "leader_pos":leader_positions[i], "follower_speed":follower_speed, "ttc":distance/follower_speed})
             
-        print(count)
         if not is_safety_distance_met:
             print("加速上限到達")  
-            print(f"count={count}, i={i},time={time},distance={distance}, follower_pos={follower_positions[-1]}, ttc={distance/follower_speed}")
+            print(f"count={count}, i={i},time={time},distance={distance}, follower_pos={follower_positions[-1]}, leaderPos={leader_positions[i]}, follower_speed={follower_speed}, ttc={distance/follower_speed}")
             break
         else:
-            print(follower_acc.count(2), solution.count(2))
-            print("sol 更新")
+            # print("sol 更新")
             solution = follower_acc.copy()
+            detail_result = detailList.copy()
 
             
     print("===RESULT====")
     print("sol: ",solution)
     print("acc: ",follower_acc)    
+    print("===DETAIL====")
+    print(detail_result)
+    print("===========")
 
     return solution
     

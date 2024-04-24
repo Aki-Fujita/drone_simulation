@@ -1,6 +1,6 @@
 import pandas as pd
 
-def validate_with_ttc(eta_reservation_table, car_plan, TTC):
+def validate_with_ttc(eta_reservation_table, car_plans, TTC):
     """
     eta_reservation_table: 全体のスケジュール. DataFrame型を想定. 
     car_plan: 申し込もうとしてるもの. 
@@ -9,28 +9,27 @@ def validate_with_ttc(eta_reservation_table, car_plan, TTC):
     """
     ERT = eta_reservation_table
     is_valid = True
-    car_idx = car_plan[0]["car_idx"]
+    car_idx = car_plans[0]["car_idx"]
     df = ERT[ERT["car_idx"] < car_idx]  # 追い抜きがないので自分より前にいる車 = indexが若い車
-    # print(f"Len(filtered_df) = {len(df)}")
 
     if df.shape[0] < 1:
         return True
 
-    for idx, waypoint_info in enumerate(car_plan):
+    for idx, car_plan_by_x in enumerate(car_plans):
         if idx == 0:
             continue
-        target_waypoint_x = waypoint_info["x"]
+        target_waypoint_x = car_plan_by_x["x"]
         filtered_df = df[df["x"] == target_waypoint_x]
         # print(f"len(wpts)={len(filtered_df)}")
         last_entry_time = filtered_df["eta"].max()
-        if waypoint_info["eta"] > last_entry_time + TTC:
+        if car_plan_by_x["eta"] > last_entry_time + TTC:
             continue
         else:
             print(ERT[ERT["car_idx"] <= car_idx])
             print(ERT[ERT["x"] < 150])
-            print(waypoint_info)
+            print(car_plan_by_x)
             print(last_entry_time, TTC, car_idx)
-            print(f"wp_x=", waypoint_info["x"])
+            print(f"wp_x={car_plan_by_x["x"]}, TTC={car_plan_by_x["eta"] - last_entry_time}")
             print("INVALID")
             is_valid = False
             break

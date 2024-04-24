@@ -70,7 +70,8 @@ class DFRSimulation:
                 # 新しいノイズが来るか新しい車が到着したら誰が該当するかの判定をする. 
                 influenced_by_noise_cars = self.find_noise_influenced_cars(cars_on_road, current_noise, time)
                 for car in cars_on_road:
-                    car.get_noise_eta(current_noise)
+                    # noiseを通るETAを計算する（これはノイズに引っ掛かろうがそうでなかろうが全員必須。）
+                    car.add_noise_eta(current_noise)
                     self.reservation_table.update_with_request(car_idx=car.car_idx, new_eta=car.itinerary)
 
             influenced_by_eta_cars = self.find_ETA_influenced_cars(cars_on_road)
@@ -91,16 +92,17 @@ class DFRSimulation:
                 car_to_action_id = min(influenced_cars)
                 car_to_action = self.CARS[car_to_action_id]
                 # 先頭車がノイズの影響だけを受けている場合
-                if not car_to_action_id in [influenced_by_eta_cars]:
+                if not car_to_action_id in influenced_by_eta_cars:
+                    print(f"car_id:{car_to_action_id} avoiding noise.")
                     new_eta = car_to_action.avoid_noise(
                         noiseList=current_noise, table=self.reservation_table, current_time=time, leader=self.CARS[car_to_action_id-1])
-                    print(f"car_id:{car_to_action_id}")
-                    print(f"new_eta:\n{new_eta}")
                 else:
-                    new_eta = car_to_action.consider_others(
-                        table=self.reservation_table)
+                    print(f"car_id:{car_to_action_id} changed by leading car.")
+                    new_eta = car_to_action.avoid_noise(
+                        noiseList=current_noise, table=self.reservation_table, current_time=time, leader=self.CARS[car_to_action_id-1])
                 self.reservation_table.update_with_request(
                     car_idx=car_to_action_id, new_eta=new_eta)
+                print(f"new_eta:\n{new_eta}")
 
             """
             STEP 4. 全員前進. 
@@ -109,9 +111,6 @@ class DFRSimulation:
                 car.decide_speed(time, self.TIME_STEP)
                 car.proceed(self.TIME_STEP, time)
             
-            if time >= 8:
-                
-                print(time, [car.v_x for car in cars_on_road])
 
             if should_plot and time%2==0:
                 self.plot_history_by_time(current_noise, time)
@@ -129,6 +128,7 @@ class DFRSimulation:
         return car_list
 
     def create_noise(self, current_time):
+        print("noise created!")
         return {"x": [610, 730], "t": [40, 50]}
 
     def plot_history_by_time(self, noise_list, current_time):

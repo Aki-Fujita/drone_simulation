@@ -78,7 +78,7 @@ def calc_late_avoid(noise, current_time, carObj, table, leader):
         ) # ここで最適化計算を実行
     else:
         """
-        これは自分の前に同じくnoiseを避けた車がいる時, 
+        これは自分の前に1台目としてnoiseを避けた車がいる時, 
         この場合はその車に衝突しないように経路設計をする必要がある, 
         """
         a_optimized, dt, N = optimizer_for_follower(
