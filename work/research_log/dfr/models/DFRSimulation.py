@@ -94,11 +94,11 @@ class DFRSimulation:
                 # 先頭車がノイズの影響だけを受けている場合
                 if not car_to_action_id in influenced_by_eta_cars:
                     print(f"car_id:{car_to_action_id} avoiding noise.")
-                    new_eta = car_to_action.avoid_noise(
+                    new_eta = car_to_action.modify_eta(
                         noiseList=current_noise, table=self.reservation_table, current_time=time, leader=self.CARS[car_to_action_id-1])
                 else:
                     print(f"car_id:{car_to_action_id} changed by leading car.")
-                    new_eta = car_to_action.avoid_noise(
+                    new_eta = car_to_action.modify_eta(
                         noiseList=current_noise, table=self.reservation_table, current_time=time, leader=self.CARS[car_to_action_id-1])
                 self.reservation_table.update_with_request(
                     car_idx=car_to_action_id, new_eta=new_eta)

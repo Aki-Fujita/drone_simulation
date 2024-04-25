@@ -63,7 +63,7 @@ class Cars:
         return noise_to_avoid, required_speeds
 
 
-    def avoid_noise(self, noiseList, current_time, table, leader):
+    def modify_eta(self, noiseList, current_time, table, leader):
         """
         Step1. 各ノイズに対して加速してやり過ごせないかを検討する（x-t線図で言う左下を目指す）. 
         (a) もしもノイズの右端を横切れてかつ、それで他の車にも影響がない場合はそれを新たな経路にする. 
@@ -160,7 +160,7 @@ def test():
     sample_table = ReservationTable( waypoints=[],
         global_params={"DESIRED_TTC":3}
     )
-    carObj.avoid_noise(noiseList=[noise], current_time=current_time, table=sample_table)
+    carObj.modify_eta(noiseList=[noise], current_time=current_time, table=sample_table)
 
 
 if __name__ == "__main__":
