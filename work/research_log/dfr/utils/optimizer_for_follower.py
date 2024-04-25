@@ -38,7 +38,6 @@ def optimizer_for_follower(**kwargs):
     a_max = kwargs.get("a_max", 0)
     a_min = kwargs.get("a_min", 0) # 許容減速度、正の数が来ることに注意！
     ttc = kwargs.get("ttc", 0)
-    ttc += 0.5 # 一旦これで応急処置
     leader = kwargs.get("leader", 0) # 先行車のオブジェクト
     current_time = kwargs.get("current_time", [])
     leader_acc_itinerary = leader.acc_itinerary
@@ -54,7 +53,8 @@ def optimizer_for_follower(**kwargs):
     total_time = target_time - current_time
     time_step = 0.5
     steps = int(total_time / time_step)
-    time_array = np.arange(current_time + time_step, target_time + time_step, time_step)
+    time_array = np.arange(current_time, target_time + time_step, time_step)
+    print(f"XE: {xe}")
     # 続いてleader_potisionsとleader_acc_itineraryを元にleaderの位置と速度を計算する
     for time in time_array:
         leader_acc = get_acc_for_time(leader_acc_itinerary, time) # ここ、加速度の時間幅の違いによってはバグの温床になるので注意！
@@ -65,12 +65,13 @@ def optimizer_for_follower(**kwargs):
         # print(current_time +time, leader_acc, leader_speeds[-1], leader_positions[-1])
   
     # 後続車のパラメータ
-    follower_acc = follower_acc_solver(follower, leader_positions, time_step, time_array,ttc, leader_speeds)
+    follower_acc = follower_acc_solver(follower, leader_positions, time_step, time_array,ttc, leader_speeds, xe)
     print(leader_acc_itinerary)
     print(follower_acc)
     return follower_acc, time_step, steps
 
-def follower_acc_solver(follower, leader_positions, time_step, time_array, ttc, leader_speeds):
+# こいつがノイズに早く着きすぎないように修正する必要あり. 
+def follower_acc_solver(follower, leader_positions, time_step, time_array, ttc, leader_speeds, xe):
     """
     follower: 後続車のオブジェクト
     leader_positions: 先頭車の位置のリスト
@@ -99,28 +100,39 @@ def follower_acc_solver(follower, leader_positions, time_step, time_array, ttc, 
             # 安全距離 (先頭車の速度にTTCを掛けた値)
             safe_distance = follower_speed * ttc
             if distance < safe_distance: # 安全距離よりも近い場合
-                # print(f"count={count}, i={i},time={time},distance={distance}, follower_pos={follower_positions[-1]}, ttc={distance/follower_speed}")
-                safe_distance_met = False
-                break
+                # ここでRSS距離を交えた計算をする
+                if not isRssOK(distance, leader_speeds[i], follower_speed):
+                    print(count, i, time, distance, leader_positions[i], follower_positions[i], follower_speed, ttc)
+                    print(follower_acc)
+                    print("failed because of RSS")
+                    safe_distance_met = False
+                    break
                  
             next_speed = follower_speed + follower_acc[i] * time_step
             follower_speeds.append(next_speed)
             next_position = follower_positions[i] + follower_speed * time_step + 0.5 * follower_acc[i] * time_step**2
             follower_positions.append(next_position)
 
-        if safe_distance_met:
-            # print(f"count={count}, i={i},time={time},distance={distance}, follower_pos={follower_positions[-1]}, ttc={distance/follower_speed}")
+        if safe_distance_met and follower_positions[-1] < xe:
+            print("XE condition OK")
+            print(follower_acc)
             break
     
     # ここまでで最低限の加速度を担保
-    # ここからは最大の加速度を保証していく. 
+    # ここからは最大の加速度を保証していく
+    print(f"Solution of first loop: {follower_acc}")
+    print("=======Start Second Loop=======")  
 
     solution = []
     detail_result = []
-    
-    for count in range(len(time_array)): # 何番目の加速度をいじるか. 
+    is_safety_distance_met = True
+    for count in range(len(time_array)): # 何番目の加速度をいじるか.
+        if not is_safety_distance_met:
+            print("加速上限到達")  
+            print(f"count={count}, i={i},time={time},distance={distance}, follower_pos={follower_positions[-1]}, leaderPos={leader_positions[i]}, follower_speed={follower_speed}, ttc={distance/follower_speed}")
+            break
+        
         detailList = []
-        is_safety_distance_met = True
         if count > 0:
             for idx in range(count):
                 follower_acc[len(follower_acc)- 1 - idx] = 2
@@ -133,21 +145,22 @@ def follower_acc_solver(follower, leader_positions, time_step, time_array, ttc, 
 
             # 安全距離 (先頭車の速度にTTCを掛けた値)
             safe_distance = follower_speed * ttc
-            if distance < safe_distance: # 安全距離よりも近い場合加速しすぎなのでbreak. 
-                is_safety_distance_met = False
-                # print(f"count={count}, i={i},time={time},distance={distance}, follower_pos={follower_positions[-1]}, ttc={distance/follower_speed}")
-                break
+            if distance < safe_distance: # 安全距離よりも近い場合加速しすぎなのでbreak.
+                # print("isRSSOK: ",isRssOK(distance, leader_speeds[i], follower_speed))
+                if not isRssOK(distance, leader_speeds[i], follower_speed):
+                    print("RSS Failed",count)
+                    is_safety_distance_met = False
+                    break
                  
             next_speed = follower_speed + follower_acc[i] * time_step
             follower_speeds.append(next_speed)
             next_position = follower_positions[i] + follower_speed * time_step + 0.5 * follower_acc[i] * time_step**2
             follower_positions.append(next_position)
             detailList.append({"time":time, "distance":distance, "follower_pos":follower_positions[-1], "leader_pos":leader_positions[i], "follower_speed":follower_speed, "ttc":distance/follower_speed})
+            if follower_positions[-1] > xe:
+                print("ETA at noise failed.")
+                break
             
-        if not is_safety_distance_met:
-            print("加速上限到達")  
-            print(f"count={count}, i={i},time={time},distance={distance}, follower_pos={follower_positions[-1]}, leaderPos={leader_positions[i]}, follower_speed={follower_speed}, ttc={distance/follower_speed}")
-            break
         else:
             # print("sol 更新")
             solution = follower_acc.copy()
@@ -158,10 +171,22 @@ def follower_acc_solver(follower, leader_positions, time_step, time_array, ttc, 
     print("sol: ",solution)
     print("acc: ",follower_acc)    
     print("===DETAIL====")
-    print(detail_result)
+    # print(detail_result)
     print("===========")
 
     return solution
+
+def isRssOK(distance, leader_speed, follower_speed):
+    leader_blake_max = 3
+    follower_blake_max = 3
+    leader_blake_distance = leader_speed ** 2 / (2 * leader_blake_max) # ここは一旦ブレーキの最大加速度を3としている
+    follower_blake_distance = follower_speed ** 2 / (2 * follower_blake_max)
+    if distance + leader_blake_distance < follower_blake_distance:
+        print("===FAIL DETAIL===")
+        print(distance, leader_blake_distance, follower_blake_distance, "leader speed:", leader_speed, "follower speed:", follower_speed)
+        print("=================")
+    return distance + leader_blake_distance > follower_blake_distance
+
     
     
     
