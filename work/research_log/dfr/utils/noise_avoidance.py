@@ -84,7 +84,7 @@ def calc_late_avoid(noise, current_time, carObj, table, leader):
         a_optimized, dt, N = optimizer_for_follower(
             follower=carObj,
             xe=noise_start_poisition,
-            target_time=target_time,
+            noise_pass_time=te_by_ttc,
             a_min = carObj.a_min * -1,
             eta_of_leader = front_car_etas,
             leader = leader,

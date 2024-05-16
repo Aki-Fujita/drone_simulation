@@ -102,7 +102,7 @@ class DFRSimulation:
                         noiseList=current_noise, table=self.reservation_table, current_time=time, leader=self.CARS[car_to_action_id-1])
                 self.reservation_table.update_with_request(
                     car_idx=car_to_action_id, new_eta=new_eta)
-                print(f"new_eta:\n{new_eta}")
+                # print(f"new_eta:\n{new_eta}")
 
             """
             STEP 4. 全員前進. 

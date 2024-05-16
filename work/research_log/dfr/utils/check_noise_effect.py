@@ -34,7 +34,7 @@ def calc_x_at_pointed_time(pointed_time, carObj, current_time):
     car_x = carObj.xcor
     v_0 = carObj.v_x
     acc_itinerary_with_tend = add_t_end_to_acc_itinerary(acc_itinerary, current_time)
-    print(f"carId: {carObj.car_idx}, acc_itinerary: {acc_itinerary_with_tend}")
+    # print(f"carId: {carObj.car_idx}, acc_itinerary: {acc_itinerary_with_tend}")
 
     if len(acc_itinerary_with_tend) < 1:
         raise ValueError("acc_itinerary is empty")

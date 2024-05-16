@@ -71,7 +71,7 @@ class Cars:
         """
         print(f"avoidance by idx={self.car_idx}")
         noise_to_avoid, required_speeds = self.select_closest_noise(noiseList, current_time)
-        print(required_speeds, self.v_max)
+        print(f"Required_speeds:{required_speeds}, V_MAX:{self.v_max}")
 
         # (a)の場合をまずは検討. 
         temp_acc_itinerary = calc_early_avoid_acc(noise_to_avoid, current_time, self, table)
@@ -122,7 +122,7 @@ class Cars:
         この関数は自分のacc_itineraryをもとに自分のスピードを決める. 
         """
         acc = self.get_acc_for_time(current_time)
-        print(self.car_idx, self.acc_itinerary, current_time, acc)
+        # print("decide_speed: "self.car_idx, self.acc_itinerary, current_time, acc)
         next_speed = self.v_x + acc * time_step
         self.v_x = next_speed
 

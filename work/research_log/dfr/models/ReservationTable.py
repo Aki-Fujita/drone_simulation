@@ -71,11 +71,11 @@ class ReservationTable:
         self.eta_table = combined_df
 
     def update_with_request(self, **request):
-        print("======update occured!=======")
+        car_idx = request.get("car_idx")
+        print(f"======update by ID:{car_idx}!=======")
         df = self.eta_table
         car_idx = request.get("car_idx")
         new_eta = request.get("new_eta")
-        print(f"car_idx={car_idx}")
         # print(f"new_eta={new_eta}")
         if car_idx == None or new_eta == None:
             raise ValueError(
