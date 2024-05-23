@@ -4,3 +4,4 @@ from .noise_avoidance import calc_early_avoid_acc, calc_late_avoid, crt_itinerar
 from .create_eta_from_acc import create_itinerary_from_acc, calc_eta_from_acc
 from .conduct_optimization import conduct_fuel_optimization
 from .optimizer_for_follower import optimizer_for_follower
+from .calc_distance_from_acc_itinerary import calc_distance_from_acc_itinerary
