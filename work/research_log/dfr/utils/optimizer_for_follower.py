@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import math
 # from calc_distance_from_acc_itinerary import calc_distance_from_acc_itinerary #単体テスト実行時はこっち
 from .calc_distance_from_acc_itinerary import calc_distance_from_acc_itinerary #親ファイルから呼ぶときはこっち
+import copy
 
 """
 メモ: 全車の最大減速度は揃えた方が良い（そうでないと破綻するルールもある）
@@ -254,20 +255,26 @@ def update_acc_itinerary_with_accel(acc_itinerary, start_params, upcoming_wps, c
         「upcoming_waypointsに対して、全て時間内に行ける」ならまだ加速できるのでwhile続行
         無理ならば、その時点でのacc_itineraryを返す.
     """
+    print("original acc_itinerary1",acc_itinerary)
     count = 0
     step_size = 0.25
-    xe = upcoming_wps[0]["xe"]
+    xe = upcoming_wps[0]["xe"] # この区間のゴール
     te = upcoming_wps[0]["te"] #この時刻より早くxeに到達してはいけない. 
-    result = acc_itinerary
-    result_sp = start_params
+    x_current = start_params["x0"] # この区間のスタート
+    v_current = start_params["v0"]
+    t_current = start_params["t0"]
+    result_sp = {**start_params, "x0":xe, "t0": (xe -x_current) / v_current + t_current}
+    result = copy.deepcopy(acc_itinerary)
+    result[-1]["t_end"] = result_sp["t0"]
     
     while count < 100:
         count += 1
-        updated_acc_itinerary = acc_itinerary.copy()
+        updated_acc_itinerary = copy.deepcopy(acc_itinerary)
         acc_period = count * step_size
         acc_segment = {"t_start":acc_itinerary[-1]["t_end"], "acc":car_params["acc"], "v_0":acc_itinerary[-1]["v_0"], "t_end":acc_itinerary[-1]["t_end"] + acc_period}
         updated_acc_itinerary.append(acc_segment)
         acc_segment_end = calc_distance_from_acc_itinerary(updated_acc_itinerary, acc_segment["t_end"]) 
+        print(count, acc_segment_end, xe, te, acc_segment["t_end"])
         if acc_segment_end > xe:
             return result, result_sp
         cruise_segment = {"t_start":acc_segment["t_end"], "acc":0, "v_0":acc_segment["v_0"] + car_params["acc"] * acc_period, "t_end":(xe - acc_segment_end) / acc_segment["v_0"]+ acc_segment["t_end"]}
