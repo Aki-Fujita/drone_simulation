@@ -113,7 +113,8 @@ def follower_acc_solver(follower, eta_of_leader, TTC, current_time):
             if all([not should_brake(**start_params, **eta_plan) for eta_plan in upcoming_wps]):
                 print("これだとだいぶ余裕があるので加速する")
                 new_itinerary, sp = update_acc_itinerary_with_accel(current_itinerary, start_params, upcoming_wps, car_params={**car_params, "acc":2})
-                print("====After Update====",a)
+
+                print("====After Update====",new_itinerary)
                 # 今のacc_itineraryだとこの先にブレーキが必要ないので、どこかしらに当たるまで加速する.
                 current_itinerary = update_acc_itinerary(current_itinerary, new_itinerary)
                 start_params = sp
@@ -129,7 +130,7 @@ def follower_acc_solver(follower, eta_of_leader, TTC, current_time):
             a, eta = crt_acc_itinerary_for_decel_area(**start_params, **eta_plan, ve=None, car_params=car_params, step_size=0.5)
             v = a[-1]["v_0"] # 必ず等速区間で終わるため
             start_params = {"v0":v, "x0":eta_plan["xe"], "t0":eta}
-            print("この区間のacc_itinerary",a)
+            print("この区間のacc_itinerary",a, "ETA=", eta)
             current_itinerary = update_acc_itinerary(current_itinerary, a)
             continue
 
@@ -215,8 +216,8 @@ def crt_acc_itinerary_for_decel_area(v0, x0, t0, ve, xe, te, car_params, step_si
         loop_count += 1
         # まずは加速度を変更してみる
         decel_period = loop_count * step_size
-        acc_itinerary = [{"t_start":t0, "acc":decel, "v_0":v0, "t_end":t0+decel_period}]
-        acc_itinerary.append({"t_start":t0+ decel_period, "acc":0, "v_0":v0 + decel * decel_period, "t_end":te})
+        acc_itinerary = [{"t_start":t0, "acc":decel, "v_0":v0, "t_end":t0+decel_period}] # 減速区間分
+        acc_itinerary.append({"t_start":t0+ decel_period, "acc":0, "v_0":v0 + decel * decel_period, "t_end":te}) # 減速後の等速区間分
         # acc_itineraryからt=teでの位置を計算する
         print(acc_itinerary)
         cover_distance = calc_distance_from_acc_itinerary(acc_itinerary, te)
@@ -224,6 +225,9 @@ def crt_acc_itinerary_for_decel_area(v0, x0, t0, ve, xe, te, car_params, step_si
             # acc_itineraryを元に次のwaypointのETAを計算する. 
             last_v = acc_itinerary[-1]["v_0"]
             eta = (delta_x - cover_distance) / last_v + te
+            acc_info_to_append = acc_itinerary[-1].copy()
+            acc_info_to_append["t_end"] = eta
+            acc_itinerary[-1] = acc_info_to_append
             return acc_itinerary, eta
         
     return {}, False
