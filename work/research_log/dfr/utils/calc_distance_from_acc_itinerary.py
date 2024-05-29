@@ -5,20 +5,27 @@ acc_itineraryは以下のような形式
 """
 def calc_distance_from_acc_itinerary(acc_itinerary, te):
     cover_distance = 0
-    v_log = acc_itinerary[0]["v_0"] # acc_itineraryの方があっているか確認用
+    v_last = acc_itinerary[0]["v_0"] # acc_itineraryの方があっているか確認用
     for idx, acc_info in enumerate(acc_itinerary):
         delta_t = acc_info["t_end"] - acc_info["t_start"]
+        v0 = acc_info["v_0"]
         if te < acc_info["t_end"]:
             delta_t = te - acc_info["t_start"]
-        v0 = acc_info["v_0"]
-        if abs(v_log-v0)  > 0.1:
-            print(acc_itinerary)
-            raise ValueError(f"acc_itinerary is wrong, v0={v0}, v_log={v_log}")
-        cover_distance += v0 * delta_t + 0.5 * acc_info["acc"] * delta_t**2
-        print(f"i={idx}, cover_distance={cover_distance}")
+            cover_distance += v0 * delta_t + 0.5 * acc_info["acc"] * delta_t**2
+            return cover_distance
 
-        # 次の区間に行く前にv_logを更新
-        v_log += delta_t * acc_info["acc"]
+        # print(f"v0={v0}, v_log={v_last}, te={te}, t_end={acc_info['t_end']}")
+        if abs(v_last-v0)  > 0.1:
+            print(f"id={idx}",acc_itinerary, v0, v_last, acc_info)
+            raise ValueError(f"acc_itinerary is wrong, v0={v0}, v_log={v_last}")
+        cover_distance += v0 * delta_t + 0.5 * acc_info["acc"] * delta_t**2
+        # print(f"i={idx}, cover_distance={cover_distance}")
+        v_last += acc_info["acc"] * delta_t
+
+    # 最後の区間が終わった後の時刻を指定されたら、最後の区間のt_end時点から等速で進んだものとして計算. 
+    if te > acc_itinerary[-1]["t_end"]:
+        delta_t = te - acc_itinerary[-1]["t_end"]
+        cover_distance += v_last * delta_t
     return cover_distance
 
 def test():

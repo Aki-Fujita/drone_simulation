@@ -76,12 +76,13 @@ def calc_late_avoid(noise, current_time, carObj, table, leader):
             a_max=carObj.a_max,
             a_min = carObj.a_min * -1
         ) # ここで最適化計算を実行
+        acc_itinerary = crt_itinerary_from_a_optimized(a_optimized, dt, carObj, current_time, target_time)
     else:
         """
         これは自分の前に1台目としてnoiseを避けた車がいる時, 
         この場合はその車に衝突しないように経路設計をする必要がある, 
         """
-        a_optimized, dt, N = optimizer_for_follower(
+        acc_itinerary, dt, N = optimizer_for_follower(
             follower=carObj,
             xe=noise_start_poisition,
             noise_pass_time=te_by_ttc,
@@ -91,11 +92,6 @@ def calc_late_avoid(noise, current_time, carObj, table, leader):
             current_time=current_time,
             ttc = table.global_params.DESIRED_TTC
         ) # ここで最適化計算を実行
-    print("========")
-    print(a_optimized)
-    print("========")
-
-    acc_itinerary = crt_itinerary_from_a_optimized(a_optimized, dt, carObj, current_time, target_time)
 
     return acc_itinerary
 
