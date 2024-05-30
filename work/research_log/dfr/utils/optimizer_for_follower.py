@@ -120,10 +120,8 @@ def follower_acc_solver(follower, eta_of_leader, TTC, current_time):
                 current_itinerary = update_acc_itinerary(current_itinerary, new_itinerary)
                 start_params = sp
             else:
-                # ブレーキをかけずに走ることが確定しているのでnew_itineraryのt_endを更新する
-                new_itinerary = [{"t_start":start_params["t0"], "acc":0, "v_0":start_params["v0"], "t_end":(eta_plan["xe"]-start_params["x0"]) / start_params["v0"] + start_params["t0"]}]
-                print(new_itinerary)
-                current_itinerary = update_acc_itinerary(current_itinerary, new_itinerary)
+                # ブレーキをかけずに走ることが確定しているが、次の区間でブレーキを踏む可能性がまだある. 
+                
                 continue
             continue
         if can_reach_after_designated_eta(**start_params, **eta_plan, car_params=car_params):

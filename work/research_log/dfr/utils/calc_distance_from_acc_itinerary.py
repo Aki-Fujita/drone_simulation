@@ -30,8 +30,8 @@ def calc_distance_from_acc_itinerary(acc_itinerary, te):
 
 def test():
     print("TEST START: calc_distance_from_acc_itinerary.py")
-    acc_itinerary = [{'t_start': 4.0, 'acc': 3, 'v_0': 10, "t_end": 6}, {"t_start": 14, "acc": 0, "v_0": 16.0, "t_end": 20}]
-    te = 15
+    acc_itinerary = [{'t_start': 20.6, 'acc': -3, 'v_0': 20, 't_end': 21.1}, {'t_start': 21.1, 'acc': 0, 'v_0': 18.5, 't_end': 31.39054054054054}, {'t_start': 25.98513513513514, 'acc': -3, 'v_0': 18.5, 't_end': 27.48513513513514}, {'t_start': 27.48513513513514, 'acc': 0, 'v_0': 14.0, 't_end': 47.17263513513514}]
+    te = 45.776057781919846
     distance = calc_distance_from_acc_itinerary(acc_itinerary, te)
     print(distance)
 
