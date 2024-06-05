@@ -1,20 +1,24 @@
 
 def check_multiple_noise_effect(noiseList, eta_table, time):
-    return any([check_single_noise_effect(noise, eta_table, time) for noise in noiseList])
+    return any([not will_avoid_single_noise(noise, eta_table, time) for noise in noiseList])
 
 
 """
+Input: noise, carObj, current_time
+Output: bool, 当たっていたらFalse, そうでなければTrue
 speed_logとnoiseの情報から判断する
 noiseにあたっていないと判断するには以下の (a) or (b)
 (a) noise開始時刻にすでにnoiseの終端座標を過ぎている、
 (b) noise終了時刻にまだnoiseに到達していない
 速度または加速度のログからノイズとの衝突を判定する
 """
-
-
-def check_single_noise_effect(noise, carObj, current_time):
+def will_avoid_single_noise(noise, carObj, current_time):
     noise_start_time = noise["t"][0]
     noise_end_time = noise["t"][1]
+    if noise_end_time < current_time:
+        return True
+    if carObj.car_idx == 2:
+         print(carObj.acc_itinerary, noise_start_time, noise_end_time, current_time, carObj.xcor)
 
     x_at_noise_start = calc_x_at_pointed_time(
         noise_start_time, carObj, current_time)
@@ -25,13 +29,14 @@ def check_single_noise_effect(noise, carObj, current_time):
     will_avoid_noise_early = x_at_noise_start > noise["x"][1]
     will_avoid_noise_late = x_at_noise_end < noise["x"][0]
     # print(f"Early:{will_avoid_noise_early}, Late:{will_avoid_noise_late}")
-    return not (will_avoid_noise_early or will_avoid_noise_late)
+    return (will_avoid_noise_early or will_avoid_noise_late)
 
 
 # 加速度のログから X を算出する.
 def calc_x_at_pointed_time(pointed_time, carObj, current_time):
     acc_itinerary = carObj.acc_itinerary
     car_x = carObj.xcor
+    print(carObj.xcor, carObj.acc_itinerary)
     v_0 = carObj.v_x
     acc_itinerary_with_tend = add_t_end_to_acc_itinerary(acc_itinerary, current_time)
     # print(f"carId: {carObj.car_idx}, acc_itinerary: {acc_itinerary_with_tend}")
@@ -86,7 +91,7 @@ def add_t_end_to_acc_itinerary(acc_itinerary, current_time):
 class Cars:
     def __init__(self, **kwagrs):
         self.arrival_time = kwagrs.get("arrival_time", 0)
-        self.xcor = 0
+        self.xcor = kwagrs.get("xcor", 0)
         self.v_x = kwagrs.get("v_x")
         self.speed_itinerary = [
             {"speed": self.v_x, "start": self.arrival_time}]  # 速度の更新予定表
@@ -95,14 +100,10 @@ class Cars:
 
 def test():
     print("TEST START")
-    current_time = 3
-    noise = {"t": [3, 5], "x": [18, 20]}
-    acc_itinerary_1 = [{"t_start": 0, "acc": 3}]
-    acc_itinerary_2 = [{"t_start": 0, "acc": 0}]
-    carObj = Cars(v_x=3, acc_itinerary=acc_itinerary_1)
-
-    result = check_single_noise_effect(noise, carObj)
-    print(result)
+    acc_itinerary = [{'acc': 0, 't_start': 18.619840967701887, 'v_0': 20, 't_end': 18.8}, {'acc': -0.6151827854343851, 't_start': 18.8, 'v_0': 20, 't_end': 24.0}, {'acc': -0.0004957099016997256, 't_start': 24.0, 'v_0': 16.801049515741198, 't_end': 29.200000000000003}, {'acc': -2.2373518901647887e-06, 't_start': 29.200000000000003, 'v_0': 16.79847182425236, 't_end': 34.400000000000006}, {'acc': -0.00031615631758539396, 't_start': 34.400000000000006, 'v_0': 16.79846019002253, 't_end': 39.6}, {'acc': 0.9125191519907546, 't_start': 39.6, 'v_0': 16.796816177171088, 't_end': 44.8}, {'acc': 2.999999999990938, 't_start': 44.8, 'v_0': 21.54191576752301, 't_end': 50}, {'acc': 0, 't_start': 50, 'v_0': 37.14191576747589, 't_end': 10000000.0}]
+    car = Cars(v_x=32.341978551, acc_itinerary=acc_itinerary, xcor=555.647896385811)
+    res = calc_x_at_pointed_time(50, car, 48.4)
+    print(res)
 
 
 if __name__ == "__main__":

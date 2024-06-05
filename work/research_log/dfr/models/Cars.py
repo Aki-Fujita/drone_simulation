@@ -14,6 +14,7 @@ class Cars:
         self.v_max = kwagrs.get("v_max")
         self.a_max = kwagrs.get("a_max")
         self.a_min = kwagrs.get("a_min") # 許容可能な減速度
+        self.my_etas = []
         self.xcor = 0
         self.xcorList = [0]
         self.timeLog = [self.arrival_time]
@@ -63,7 +64,7 @@ class Cars:
         return noise_to_avoid, required_speeds
 
 
-    def modify_eta(self, noiseList, current_time, table, leader):
+    def modify_eta(self, noiseList, current_time, table, leader=None):
         """
         Step1. 各ノイズに対して加速してやり過ごせないかを検討する（x-t線図で言う左下を目指す）. 
         (a) もしもノイズの右端を横切れてかつ、それで他の車にも影響がない場合はそれを新たな経路にする. 
@@ -73,7 +74,7 @@ class Cars:
         noise_to_avoid, required_speeds = self.select_closest_noise(noiseList, current_time)
         print(f"Required_speeds:{required_speeds}, V_MAX:{self.v_max}")
 
-        # (a)の場合をまずは検討. 
+        # (a)の場合: early_avoidをまずは検討. 
         temp_acc_itinerary = calc_early_avoid_acc(noise_to_avoid, current_time, self, table)
         if not temp_acc_itinerary:
             temp_acc_itinerary = calc_late_avoid(noise_to_avoid, current_time, self, table, leader)

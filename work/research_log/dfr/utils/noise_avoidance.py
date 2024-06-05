@@ -4,6 +4,8 @@ import random
 from models import ReservationTable , Cars
 from .conduct_optimization import conduct_fuel_optimization
 from .optimizer_for_follower import optimizer_for_follower
+from .calc_noise_avoid_without_leader_eta import calc_noise_avoid_without_leader_eta
+from .solve_acc_itinerary_early_avoid import solve_acc_itinerary_early_avoid
 
 """
 noiseを早避けするためのacc_itineraryを計算する関数 
@@ -22,10 +24,11 @@ b. (1) 続いて、今から一定加速度で加速してnoiseを避ける場�
 def calc_early_avoid_acc(noise, current_time, carObj, table ):
     noise_start_time = noise["t"][0]
     noise_end_poisition = noise["x"][1]
+    waypoints = table.waypoints
 
     margin_time_to_noise = noise_start_time - current_time
     max_cover_distance = calc_max_cover_distance(margin_time_to_noise, carObj)
-    print(f"delta_t={margin_time_to_noise}, \n 到達可能距離:{max_cover_distance}")
+    # print(f"delta_t={margin_time_to_noise}, \n 到達可能距離:{max_cover_distance}")
     distance_to_noise_end = noise_end_poisition - carObj.xcor
     if distance_to_noise_end > max_cover_distance["distance"]:
         return False
@@ -37,19 +40,25 @@ def calc_early_avoid_acc(noise, current_time, carObj, table ):
     earliest_time = calc_earliest_time(carObj, noise_end_poisition, current_time)
     if len(ETA_of_front_car) > 0:
         earliest_time = ETA_of_front_car[ETA_of_front_car["x"] == noise_end_poisition]["eta"].iloc[0] + TTC
-        print(earliest_time)
-        print(ETA_of_front_car[ETA_of_front_car["x"] == noise_end_poisition])
-    print(f"earliest_time: {earliest_time}, noise_start_time: {noise_start_time}")
+        # print(earliest_time)
+        # print(ETA_of_front_car[ETA_of_front_car["x"] == noise_end_poisition])
+    # print(f"earliest_time: {earliest_time}, noise_start_time: {noise_start_time}")
+    """
+    ↓のような決め方もあったが、計算にランダムネスが生じるので一旦やめた
     ratio = random.uniform(0, 1) # このパラメタが急ぎ度に相当.
     eta_of_noise_end = ratio * earliest_time + (1-ratio) * noise_start_time
+    """
+    eta_of_noise_end = earliest_time + 0.1
     print(f"eta: {eta_of_noise_end}, 最速:{earliest_time}, late:{noise_start_time}")
 
     if earliest_time > noise_start_time:
         return False
     
     # 続いてこのETAを満たすacc_itineraryを求める. 
+    acc_itinerary = solve_acc_itinerary_early_avoid(car=carObj, current_time=current_time, 
+                                        leader_eta=ETA_of_front_car, xe=noise_end_poisition, ttc=TTC, waypoints=waypoints, noise_start_time=noise_start_time)
     
-    acc_itinerary = solve_acc_itinerary(eta_of_noise_end, carObj, current_time, noise)        
+    # acc_itinerary = solve_acc_itinerary(eta_of_noise_end, carObj, current_time, noise)        
 
     return acc_itinerary
 
@@ -59,6 +68,7 @@ def calc_late_avoid(noise, current_time, carObj, table, leader):
     noise_start_poisition = noise["x"][0]
     reservation = table.eta_table
     front_car_etas = reservation[reservation["car_idx"] == carObj.car_idx -1]
+    my_etas = reservation[reservation["car_idx"] == carObj.car_idx]
     te_by_ttc = front_car_etas[front_car_etas["x"] == noise_start_poisition]["eta"].iloc[0] + table.global_params.DESIRED_TTC
     target_time = max(te_by_ttc, noise_end_time)
     print(f"target_time: {target_time}")
@@ -66,17 +76,27 @@ def calc_late_avoid(noise, current_time, carObj, table, leader):
     if te_by_ttc < noise_end_time:
         """
         これは自分がノイズの後ろの1台目の車の場合, なのでノイズを避けることだけ考えれば良い.
-        20240415時点では、遅く避ける場合の一台目に限り、燃費の最適化を行う.  
+        20240415時点では、遅く避ける場合の一台目に限り、燃費の最適化を行う. 
         """
-        a_optimized, dt, N = conduct_fuel_optimization(
-            x0=carObj.xcor,
-            v0=carObj.v_x,
+        # a_optimized, dt, N = conduct_fuel_optimization(
+        #     x0=carObj.xcor,
+        #     v0=carObj.v_x,
+        #     xe=noise_start_poisition,
+        #     te= target_time - current_time,
+        #     a_max=carObj.a_max,
+        #     a_min = carObj.a_min * -1
+        # ) # ここで最適化計算を実行
+        # acc_itinerary = crt_itinerary_from_a_optimized(a_optimized, dt, carObj, current_time, target_time)
+        """
+        リーダーを気にしないので自分のETAのみ参照する. 
+        """
+        acc_itinerary = calc_noise_avoid_without_leader_eta(
+            car=carObj,
             xe=noise_start_poisition,
-            te= target_time - current_time,
-            a_max=carObj.a_max,
-            a_min = carObj.a_min * -1
-        ) # ここで最適化計算を実行
-        acc_itinerary = crt_itinerary_from_a_optimized(a_optimized, dt, carObj, current_time, target_time)
+            te=noise_end_time + 0.1,
+            etas = my_etas,
+            current_time=current_time,
+        ) 
     else:
         """
         これは自分の前に1台目としてnoiseを避けた車がいる時, 
@@ -142,8 +162,8 @@ def solve_acc_itinerary(eta_of_noise_end, carObj, current_time, noise):
     time_to_v_max = delta_v / carObj.a_max
     time_to_v_mean = delta_v_mean / carObj.a_min # 一旦加速度と同じ減速度にする. 
     coast_time = delta_t - time_to_v_max - time_to_v_mean
-    print(f"delta_t:{delta_t}, time_to_v_max:{time_to_v_max}")
-    print(f"v_e条件のもと行ける距離:{max_cover_distance}. \nノイズとの距離: {S}, 定常走行時間:{coast_time} ")
+    # print(f"delta_t:{delta_t}, time_to_v_max:{time_to_v_max}")
+    # print(f"v_e条件のもと行ける距離:{max_cover_distance}. \nノイズとの距離: {S}, 定常走行時間:{coast_time} ")
  
     # まずは最後にv_meanで終了可能な場合
     if S <= max_cover_distance and coast_time > 0:

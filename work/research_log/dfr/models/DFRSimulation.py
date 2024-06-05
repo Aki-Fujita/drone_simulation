@@ -21,6 +21,7 @@ class DFRSimulation:
         self.FUTURE_SCOPE = kwargs.get("FUTURE_SCOPE")
         # だいたい何秒先のノイズならわかるか、に相当する数字.
         self.MEAN_NOISE_PERIOD = kwargs.get("MEAN_NOISE_PERIOD")
+        self.state = {}
 
     def conduct_simulation(self, should_plot=False):
         current_noise = []
@@ -34,7 +35,11 @@ class DFRSimulation:
         for i in range(self.total_steps):
             next_car = self.CARS[next_car_idx]
             time = i * self.TIME_STEP
-            event_flg = False
+            event_flg = None
+            self.state = {
+                "time": time,
+                "next_car": next_car_idx,
+            }
 
             """
             STEP 0. 到着する車がいれば到着
@@ -42,7 +47,7 @@ class DFRSimulation:
             if time >= next_car.arrival_time:
                 cars_on_road.append(next_car)
                 next_car_idx = cars_on_road[-1].car_idx + 1
-                event_flg = True
+                event_flg = "arrival"
 
             """
             STEP 1. ノイズが来るかを判定
@@ -55,7 +60,7 @@ class DFRSimulation:
             if i % self.ONE_SEC_STEP == 0 and len(current_noise) < 1:
                 new_noise = self.create_noise(time)
                 current_noise.append(new_noise)
-                event_flg = True
+                event_flg = "noise created"
 
             if len(cars_on_road) < 1:
                 continue
@@ -66,7 +71,7 @@ class DFRSimulation:
             influenced_by_noise_cars = []
             if event_flg:
                 print()
-                print(f"t={time}, next_car={next_car_idx}, current_noise= {current_noise}")
+                print(f"t={time}, next_car={next_car_idx}, current_noise= {current_noise}, event_flg={event_flg}")
                 # 新しいノイズが来るか新しい車が到着したら誰が該当するかの判定をする. 
                 influenced_by_noise_cars = self.find_noise_influenced_cars(cars_on_road, current_noise, time)
                 for car in cars_on_road:
@@ -95,13 +100,14 @@ class DFRSimulation:
                 if not car_to_action_id in influenced_by_eta_cars:
                     print(f"car_id:{car_to_action_id} avoiding noise.")
                     new_eta = car_to_action.modify_eta(
-                        noiseList=current_noise, table=self.reservation_table, current_time=time, leader=self.CARS[car_to_action_id-1])
+                        noiseList=current_noise, table=self.reservation_table, current_time=time, leader=self.CARS[car_to_action_id-1]) # 先頭車がノイズの影響受けたら car_to_action_id-1がバグりそう.
                 else:
                     print(f"car_id:{car_to_action_id} changed by leading car.")
                     new_eta = car_to_action.modify_eta(
                         noiseList=current_noise, table=self.reservation_table, current_time=time, leader=self.CARS[car_to_action_id-1])
                 self.reservation_table.update_with_request(
                     car_idx=car_to_action_id, new_eta=new_eta)
+                car_to_action.my_etas = new_eta
                 # print(f"new_eta:\n{new_eta}")
 
             """
@@ -112,8 +118,11 @@ class DFRSimulation:
                 car.proceed(self.TIME_STEP, time)
             
 
-            if should_plot and time%2==0:
+            if should_plot and i%5==0:
                 self.plot_history_by_time(current_noise, time)
+            if time % 10 == 0:
+                for car in cars_on_road:
+                    print(f"t={time}, car_id:{car.car_idx}, xcor:{car.xcor}, speed:{car.v_x}")
 
     def find_noise_influenced_cars(self, cars_on_road, noiseList, time):
         car_list = [car.car_idx for idx, car in enumerate(
@@ -184,7 +193,11 @@ class DFRSimulation:
         plt.xticks(wpts)
 
         plt.xlim(0, 1200)  # x軸の範囲を0から1200に設定
-        plt.ylim(0, 140)   # y軸の範囲を0から140に設定
+        if current_time > 20:
+            plt.ylim(current_time-10, 140+current_time-10)   # y軸の範囲を0から140に設定
+
+        else:
+            plt.ylim(0, 140)   # y軸の範囲を0から140に設定
 
         # 罫線を引く
         plt.grid()
@@ -193,6 +206,7 @@ class DFRSimulation:
 
         # 保存
         plt.savefig(f"images/dfr_simulation_t={current_time}.png")
+        plt.close()
 
 
 def test():
