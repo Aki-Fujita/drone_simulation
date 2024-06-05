@@ -115,7 +115,7 @@ def follower_acc_solver(follower, eta_of_leader, TTC, current_time):
                 # print("これだとだいぶ余裕があるので加速する")
                 new_itinerary, sp = update_acc_itinerary_with_accel(current_itinerary, start_params, upcoming_wps, car_params={**car_params, "acc":2})
 
-                print("====After Update====",new_itinerary)
+                # print("====After Update====",new_itinerary)
                 # 今のacc_itineraryだとこの先にブレーキが必要ないので、どこかしらに当たるまで加速する.
                 current_itinerary = update_acc_itinerary(current_itinerary, new_itinerary)
                 start_params = sp

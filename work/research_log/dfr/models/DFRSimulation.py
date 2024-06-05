@@ -2,6 +2,7 @@ from utils import check_multiple_noise_effect, validate_with_ttc
 import sys
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+from tqdm.notebook import tnrange
 
 
 class DFRSimulation:
@@ -32,7 +33,7 @@ class DFRSimulation:
             "influenced_by_noise_cars":[],
             "influenced_by_eta_cars":[]
         }
-        for i in range(self.total_steps):
+        for i in tnrange(self.total_steps, desc="Simulation Progress"):
             next_car = self.CARS[next_car_idx]
             time = i * self.TIME_STEP
             event_flg = None
@@ -61,6 +62,7 @@ class DFRSimulation:
                 new_noise = self.create_noise(time)
                 current_noise.append(new_noise)
                 event_flg = "noise created"
+            current_noise = [ noise for noise in current_noise if noise["t"][1] >= time]  # 新規に追加したノイズに対しても一応フィルター
 
             if len(cars_on_road) < 1:
                 continue

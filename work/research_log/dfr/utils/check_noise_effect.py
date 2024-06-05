@@ -36,7 +36,7 @@ def will_avoid_single_noise(noise, carObj, current_time):
 def calc_x_at_pointed_time(pointed_time, carObj, current_time):
     acc_itinerary = carObj.acc_itinerary
     car_x = carObj.xcor
-    print(carObj.xcor, carObj.acc_itinerary)
+    # print(carObj.xcor, carObj.acc_itinerary)
     v_0 = carObj.v_x
     acc_itinerary_with_tend = add_t_end_to_acc_itinerary(acc_itinerary, current_time)
     # print(f"carId: {carObj.car_idx}, acc_itinerary: {acc_itinerary_with_tend}")
