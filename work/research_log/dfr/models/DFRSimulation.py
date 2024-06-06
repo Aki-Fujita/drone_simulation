@@ -79,7 +79,7 @@ class DFRSimulation:
                 for car in cars_on_road:
                     # noiseを通るETAを計算する（これはノイズに引っ掛かろうがそうでなかろうが全員必須。）
                     car.add_noise_eta(current_noise)
-                    self.reservation_table.update_with_request(car_idx=car.car_idx, new_eta=car.itinerary)
+                    self.reservation_table.update_with_request(car_idx=car.car_idx, new_eta=car.my_etas)
 
             influenced_by_eta_cars = self.find_ETA_influenced_cars(cars_on_road)
             influenced_cars = list(set(influenced_by_noise_cars + influenced_by_eta_cars))
@@ -135,7 +135,7 @@ class DFRSimulation:
         eta_reservation_table = self.reservation_table.eta_table
         TTC = self.reservation_table.global_params.DESIRED_TTC
         car_list = [car.car_idx for car_id, car in enumerate(cars_on_road) if not validate_with_ttc(
-            eta_reservation_table, car.itinerary, TTC)]
+            eta_reservation_table, car.my_etas, TTC)]
         return car_list
 
     def create_noise(self, current_time):

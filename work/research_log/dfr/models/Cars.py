@@ -4,6 +4,7 @@ from utils import calc_early_avoid_acc, calc_late_avoid, \
   validate_with_ttc, create_itinerary_from_acc, calc_eta_from_acc, optimizer_for_follower, crt_itinerary_from_a_optimized
 import pandas as pd
 from .ReservationTable import ReservationTable
+import copy
 
 
 class Cars:
@@ -14,12 +15,11 @@ class Cars:
         self.v_max = kwagrs.get("v_max")
         self.a_max = kwagrs.get("a_max")
         self.a_min = kwagrs.get("a_min") # 許容可能な減速度
-        self.my_etas = []
         self.xcor = 0
         self.xcorList = [0]
         self.timeLog = [self.arrival_time]
         self.v_x = kwagrs.get("v_mean")
-        self.itinerary = []  # 自分のETA予定表のこと
+        self.my_etas = []  # 自分のETA予定表のこと
         self.acc_itinerary = [{"acc": 0, "t_start": self.arrival_time, "v_0": self.v_x, "t_end": 1e7}]
         if self.a_max == None or self.v_max== None:
             raise ValueError("入力されていない項目があります。")
@@ -29,7 +29,7 @@ class Cars:
             estimated_time_of_arrival = way_points["x"] / self.v_mean + self.arrival_time
             return {**way_points, "eta": estimated_time_of_arrival, "car_idx": self.car_idx, "type":"waypoint"}
         way_points_with_eta = list(map(calc_eta, way_points))
-        self.itinerary = way_points_with_eta
+        self.my_etas = way_points_with_eta
         return way_points_with_eta
 
     def get_noise_eta_others(self, table):
@@ -41,14 +41,14 @@ class Cars:
 
         df = table.eta_table
         TTC = table.global_params.DESIRED_TTC
-        previous_plan = self.itinerary.copy()
+        previous_plan = copy.deepcopy(self.my_etas)
         ETAs_for_leading_car = df[df["car_idx"] == int(self.index-1)]
         new_eta = []
         for idx, row in enumerate(ETAs_for_leading_car):
             if row["eta"] + TTC > previous_plan[idx]["eta"]:
                 previous_plan[idx]["eta"] = row["eta"] + TTC
             new_eta.append(previous_plan[idx])
-        self.itinerary = new_eta
+        self.my_etas = new_eta
         return new_eta
     
     def select_noise_for_early_avoid(self, noiseList, current_time):
@@ -121,7 +121,7 @@ class Cars:
 
         # 普通に計画すると前の車にぶつかることがあり得る。
         if validate_with_ttc(table.eta_table, ideal_eta, table.global_params.DESIRED_TTC):
-            self.itinerary = ideal_eta
+            self.my_etas = ideal_eta
             self.acc_itinerary = temp_acc_itinerary
             return ideal_eta
 
@@ -141,9 +141,9 @@ class Cars:
         """
         この関数はノイズをETAに新規追加するだけでPUTは行わないことにする. 
         """
-        current_itinerary = self.itinerary
+        current_itinerary = self.my_etas
         noise_x_coors = []
-        x_in_itinerary = [point["x"] for point in self.itinerary]
+        x_in_itinerary = [point["x"] for point in self.my_etas]
         for noise in noiselist:            
             noise_x_coors.append(noise["x"][0])
             noise_x_coors.append(noise["x"][1])
