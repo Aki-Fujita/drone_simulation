@@ -51,17 +51,39 @@ class Cars:
         self.itinerary = new_eta
         return new_eta
     
-    def select_closest_noise(self, noiseList, current_time):
+    def select_noise_for_early_avoid(self, noiseList, current_time):
+        """
+        ノイズが複数個あった時に一番優先的に避けるべきノイズを返す（なお、早避け前提）.
+        """
         required_speeds = []
         for noise in noiseList:
             margin_time = noise["t"][0] - current_time
-            noise_end = noise["x"][1]
-            required_speed = noise_end / margin_time
-            required_speeds.append(required_speed)
             if margin_time < 0:
-                raise ValueError("margin time is Negative! Something's wrong!")
+                continue
+            noise_end = noise["x"][1]
+            required_speed = (noise_end - self.xcor) / margin_time
+            required_speeds.append(required_speed)
+        
+        if len(required_speeds) == 0:
+            print("早避けすべきノイズがない")
+            return None, False
         noise_to_avoid = noiseList[required_speeds.index( max(required_speeds))]
-        return noise_to_avoid, required_speeds
+        return noise_to_avoid, True
+    
+    def select_noise_for_late_avoid(self, noiseList, current_time):
+        """
+        ノイズが複数個あった時に一番優先的に避けるべきノイズを返す（なお、late_avoid前提）.
+        """
+        required_speeds = []
+        for noise in noiseList:
+            margin_time = noise["t"][1] - current_time
+            if margin_time < 0:
+                raise ValueError("消滅したノイズなはず、何かおかしい")
+            noise_end = noise["x"][0] 
+            required_speed = (noise_end - self.xcor) / margin_time
+            required_speeds.append(required_speed)
+        noise_to_avoid = noiseList[required_speeds.index( min(required_speeds))]
+        return noise_to_avoid
 
 
     def modify_eta(self, noiseList, current_time, table, leader=None):
@@ -71,18 +93,23 @@ class Cars:
         (b) 上記の達成が不可能な場合はおとなしく左上を目指す. 
         """
         print(f"avoidance by idx={self.car_idx}")
-        noise_to_avoid, required_speeds = self.select_closest_noise(noiseList, current_time)
-        print(f"Required_speeds:{required_speeds}, V_MAX:{self.v_max}")
+        can_early_avoid = True
+        noise_to_avoid, can_early_avoid = self.select_noise_for_early_avoid(noiseList, current_time)
+        print(noise_to_avoid, can_early_avoid)
 
         # (a)の場合: early_avoidをまずは検討. 
-        temp_acc_itinerary = calc_early_avoid_acc(noise_to_avoid, current_time, self, table)
-        if not temp_acc_itinerary:
+        if can_early_avoid:
+            temp_acc_itinerary = calc_early_avoid_acc(noise_to_avoid, current_time, self, table)
+            if not temp_acc_itinerary:
+                can_early_avoid = False
+        if not can_early_avoid:
+            noise_to_avoid = self.select_noise_for_late_avoid(noiseList, current_time)
+            print("Early avoid 不可")
             temp_acc_itinerary = calc_late_avoid(noise_to_avoid, current_time, self, table, leader)
         
         """この時点でtemp_acc_itineraryは早いものか遅いものが何かしら入っている
             ただし、いずれの場合も未認証. 
         """
-        print(f"acc_itinerary:\n{temp_acc_itinerary}")
 
         ideal_eta = create_itinerary_from_acc(car_obj=self, current_time=current_time, acc_itinerary=temp_acc_itinerary )
         print(ideal_eta)
@@ -95,8 +122,15 @@ class Cars:
 
         # (b)の場合
         print("Value Error 基本的にここには来ないはず")
-        noise_to_avoid = noiseList[required_speeds.index(min(required_speeds))]
         raise ValueError("ノイズを避けることができませんでした。")
+    
+    def modify_eta_with_leading_car(self, noiseList, current_time, table, leader):
+        print(f"modify by idx={self.car_idx}")
+        noise_to_avoid = self.select_noise_for_late_avoid(noiseList, current_time)
+        temp_acc_itinerary = calc_late_avoid(noise_to_avoid, current_time, self, table, leader)
+        ideal_eta = create_itinerary_from_acc(car_obj=self, current_time=current_time, acc_itinerary=temp_acc_itinerary )
+        return ideal_eta
+        
     
     def add_noise_eta(self, noiselist):
         """

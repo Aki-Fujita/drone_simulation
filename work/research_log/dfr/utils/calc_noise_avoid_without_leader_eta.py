@@ -2,7 +2,6 @@ from .optimizer_for_follower import should_brake, update_acc_itinerary_with_acce
 import copy
 
 def calc_noise_avoid_without_leader_eta(**kwargs):
-    print("発火")
     car = kwargs.get("car")
     xe = kwargs.get("xe") # noiseの発生位置
     te = kwargs.get("te") # noiseを通過する時刻（ノイズ終了時刻くらい）
@@ -10,8 +9,7 @@ def calc_noise_avoid_without_leader_eta(**kwargs):
     my_etas = kwargs.get("etas")
     earliest_etas = insert_noise_eta(my_etas, xe, te)
     acc_itinerary = acc_solver(earliest_etas=earliest_etas, car=car, current_time=current_time)
-    print("etas: ",earliest_etas, "\n acc:",acc_itinerary)
-    
+    print(" acc:",acc_itinerary)
 
     return acc_itinerary
 
@@ -36,6 +34,7 @@ def acc_solver(earliest_etas, car, current_time):
     car_params = {"decel":car.a_min, "accel":car.a_max}
     start_params = copy.deepcopy(initial_params)
     current_itinerary = [{"t_start":current_time, "acc":0, "v_0":car.v_x, "t_end":earliest_etas[0]["eta"]}]
+    print("Earliest ETAs: ",earliest_etas)
     for wp_idx, earliest_eta in enumerate(earliest_etas):
         eta_plan = {"xe":earliest_eta["x"], "te":earliest_eta["eta"]}
         if not should_brake(**start_params, **eta_plan):
@@ -48,7 +47,7 @@ def acc_solver(earliest_etas, car, current_time):
                 continue
             continue
         if can_reach_after_designated_eta(**start_params, **eta_plan, car_params=car_params):
-            a, eta = crt_acc_itinerary_for_decel_area(**start_params, **eta_plan, ve=None, car_params=car_params, step_size=0.5)
+            a, eta = crt_acc_itinerary_for_decel_area(**start_params, **eta_plan, ve=None, car_params=car_params, step_size=0.5) # FIXME: 加速度計算の時のstep_sizeは論点
             v = a[-1]["v_0"]
             start_params = {"v0":v, "x0":eta_plan["xe"], "t0":eta}
             current_itinerary = update_acc_itinerary(current_itinerary, a)
