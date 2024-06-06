@@ -43,7 +43,6 @@ def get_acc_for_time(data, t):
 """
 def optimizer_for_follower(**kwargs):
     follower=kwargs.get("follower")
-    xe = kwargs.get("xe", 0) # noise発生位置
     ttc = kwargs.get("ttc", 0)
     leader = kwargs.get("leader", 0) # 先行車のオブジェクト
     current_time = kwargs.get("current_time", [])
@@ -57,12 +56,10 @@ def optimizer_for_follower(**kwargs):
     total_time = leader_finish_time - current_time
     time_step = 0.5
     steps = int(total_time / time_step)
-    print(f"XE: {xe}")
   
     # 後続車のパラメータ
     follower_acc = follower_acc_solver(follower, eta_of_leader, ttc, current_time)
-    # print(leader_acc_itinerary)
-    # print(follower_acc)
+
     return follower_acc, time_step, steps
 
 def follower_acc_solver(follower, eta_of_leader, TTC, current_time):

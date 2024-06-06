@@ -43,10 +43,10 @@ def solve_acc_itinerary_early_avoid(**kwargs):
     initial_params = {"v0":car.v_x, "x0":car.xcor, "t0":current_time}
     start_params = copy.deepcopy(initial_params) # 各区間をスタートするときのパラメータ
     for idx, fastest_eta in enumerate(earliest_etas):
-        print()
-        print("====now testing: ",fastest_eta, "====")
-        print("===start_params: ",start_params, "===")
-        print("===acc_itinerary: ",acc_itinerary, "===")
+        # print()
+        # print("====now testing: ",fastest_eta, "====")
+        # print("===start_params: ",start_params, "===")
+        # print("===acc_itinerary: ",acc_itinerary, "===")
         x_start = fastest_eta["x"]
         next_goal_x = earliest_etas[idx+1]["x"] if idx < len(earliest_etas)-1 else None
 
@@ -61,7 +61,7 @@ def solve_acc_itinerary_early_avoid(**kwargs):
                 next_start_params = copy.copy(start_params)
 
                 while arrival_time > fastest_eta["eta"]:
-                    print("early avoid loop. Count", count)
+                    # print("early avoid loop. Count", count)
                     count += 1
                     if count > 100:
                         raise ValueError("Something wrong")
@@ -94,7 +94,7 @@ def solve_acc_itinerary_early_avoid(**kwargs):
                     
                     # 上の条件に該当しなかった場合はまだ加速して良いということなので、今の結果を保存しループを続ける. 
                     _acc_itinerary = [acc_period, cruise_after_accel]
-                    print(_acc_itinerary)
+                    # print(_acc_itinerary)
                     acc_itinerary = update_acc_itinerary(acc_itinerary, _acc_itinerary)
 
                     # 次のループのための初期値（スタート時のパラメータ）を更新
@@ -147,7 +147,7 @@ def update_acc_itinerary(current_itinerary, new_itinerary):
     itineraryのappend処理をする
     加速度が同じだったら区間を繋げる
     """
-    print("acc_itinerary updates:",current_itinerary, new_itinerary)
+    # print("acc_itinerary updates:",current_itinerary, new_itinerary)
     result = copy.deepcopy(current_itinerary)
     # そもそもnew_itineraryの方が前から始まっていたらnew_itineraryで完全にreplaceする. 
     if new_itinerary[0]["t_start"] == current_itinerary[0]["t_start"]:
