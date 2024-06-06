@@ -59,6 +59,7 @@ class Cars:
         for noise in noiseList:
             margin_time = noise["t"][0] - current_time
             if margin_time < 0:
+                required_speeds.append(-1)
                 continue
             noise_end = noise["x"][1]
             required_speed = (noise_end - self.xcor) / margin_time
@@ -74,14 +75,17 @@ class Cars:
         """
         ノイズが複数個あった時に一番優先的に避けるべきノイズを返す（なお、late_avoid前提）.
         """
+        if len(noiseList) == 0:
+            return None
         required_speeds = []
         for noise in noiseList:
             margin_time = noise["t"][1] - current_time
             if margin_time < 0:
                 raise ValueError("消滅したノイズなはず、何かおかしい")
-            noise_end = noise["x"][0] 
-            required_speed = (noise_end - self.xcor) / margin_time
+            noise_start = noise["x"][0] 
+            required_speed = (noise_start - self.xcor) / margin_time
             required_speeds.append(required_speed)
+        print(noiseList, required_speeds)
         noise_to_avoid = noiseList[required_speeds.index( min(required_speeds))]
         return noise_to_avoid
 
@@ -91,6 +95,7 @@ class Cars:
         Step1. 各ノイズに対して加速してやり過ごせないかを検討する（x-t線図で言う左下を目指す）. 
         (a) もしもノイズの右端を横切れてかつ、それで他の車にも影響がない場合はそれを新たな経路にする. 
         (b) 上記の達成が不可能な場合はおとなしく左上を目指す. 
+        (c) もし避けるべきノイズがない場合(これは前の車の進路変更だけを気にすれば良い)
         """
         print(f"avoidance by idx={self.car_idx}")
         can_early_avoid = True
