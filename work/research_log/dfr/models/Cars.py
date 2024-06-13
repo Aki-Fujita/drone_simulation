@@ -58,7 +58,7 @@ class Cars:
         required_speeds = []
         for noise in noiseList:
             margin_time = noise["t"][0] - current_time
-            if margin_time < 0:
+            if margin_time <= 0:
                 required_speeds.append(-1)
                 continue
             noise_end = noise["x"][1]
