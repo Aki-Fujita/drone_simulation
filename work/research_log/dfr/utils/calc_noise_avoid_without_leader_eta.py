@@ -37,6 +37,9 @@ def acc_solver(earliest_etas, car, current_time):
     print("Earliest ETAs: ",earliest_etas)
     for wp_idx, earliest_eta in enumerate(earliest_etas):
         eta_plan = {"xe":earliest_eta["x"], "te":earliest_eta["eta"]}
+        print(eta_plan, start_params, should_brake(**start_params, **eta_plan))
+        if start_params["x0"] == eta_plan["xe"]:
+            continue
         if not should_brake(**start_params, **eta_plan):
             upcoming_wps = [{"xe":e["x"], "te":e["eta"]} for i, e in enumerate(earliest_etas) if i >= wp_idx]
             if all([not should_brake(**start_params, **eta_plan) for eta_plan in upcoming_wps]):

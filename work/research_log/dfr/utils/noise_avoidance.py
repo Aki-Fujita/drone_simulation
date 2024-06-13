@@ -49,9 +49,9 @@ def calc_early_avoid_acc(noise, current_time, carObj, table ):
     eta_of_noise_end = ratio * earliest_time + (1-ratio) * noise_start_time
     """
     eta_of_noise_end = earliest_time + 0.1
-    print(f"eta: {eta_of_noise_end}, 最速:{earliest_time}, 刻限:{noise_start_time}")
+    print(f"eta: {eta_of_noise_end}, 前の車に当たらない最速の時間:{earliest_time}, ノイズ開始:{noise_start_time}")
 
-    if earliest_time > noise_start_time:
+    if earliest_time >= noise_start_time:
         return False
     
     # 続いてこのETAを満たすacc_itineraryを求める. 
