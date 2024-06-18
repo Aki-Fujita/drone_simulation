@@ -3,6 +3,7 @@ def create_itinerary_from_acc(**kwagrs):
     acc_itinerary = kwagrs.get("acc_itinerary", None)
     car_position = car_obj.xcor
     print("==== START CREATING ETA====")
+    print("acc_itinerary:", acc_itinerary)
     new_itinerary = []
     for idx, item in enumerate(car_obj.my_etas):
         if item["x"] <= car_position:
@@ -20,6 +21,7 @@ def calc_eta_from_acc(x_cor, acc_itinerary):
         t_start = acc_info["t_start"]
         acc = acc_info["acc"]
         v_0 = acc_info["v_0"]
+        # print("calc_eta_from_acc.py; L20",start_x, acc_info, delta_x)
 
         # 一番最後の場合 (必ず結果が返る)
         if idx == len(acc_itinerary) -1:

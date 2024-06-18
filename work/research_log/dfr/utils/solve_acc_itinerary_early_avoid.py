@@ -42,7 +42,12 @@ def solve_acc_itinerary_early_avoid(**kwargs):
     """
     initial_params = {"v0": car.v_x, "x0": car.xcor, "t0": current_time}
     start_params = copy.deepcopy(initial_params)  # 各区間をスタートするときのパラメータ
+    print("leader_eta", leader_eta, car.xcor)
     for idx, fastest_eta in enumerate(earliest_etas):
+        if car.xcor >= fastest_eta["x"]:
+            # ここはもう通り過ぎている.
+            print("skipped: ", fastest_eta, car.xcor)
+            continue
         print()
         print("====now testing: ", fastest_eta, "====")
         print("===start_params: ", start_params, "===")
@@ -52,7 +57,7 @@ def solve_acc_itinerary_early_avoid(**kwargs):
                                     1]["x"] if idx < len(earliest_etas)-1 else None
 
         if fastest_eta["x"] < upper_constraint["xe"]:
-            # スタートより後でかつnoiseより手前のwaypointに対する処理.
+            # noiseより手前のwaypointに対する処理.
             # この場合は可能な範囲で頑張って加速する.
             arrival_time_if_cruise = (
                 # 等速で走った時の到着時刻
@@ -82,12 +87,14 @@ def solve_acc_itinerary_early_avoid(**kwargs):
                         "t_start": start_params["t0"]+acc_period_length, "acc": 0, "v_0": v_after_acc, "t_end": eta_of_next_goal}
                     cruise_params = {"v0": v_after_acc,
                                      "x0": next_goal_x, "t0": eta_of_next_goal}
+                    print("L90:", count, cruise_params, arrival_time_if_cruise)
+                    # arrival_time = eta_of_next_goal
 
                     """
                     ループを抜ける条件
-                    ・加速終了時の速度がv_maxを超える
-                    ・加速区間終了時が次のWPを超えてしまう. 
-                    ・加速しすぎてノイズより手前のWPまでのいずれかでブレーキが必要になる. 
+                    ・加速終了時の速度がv_maxを超える（基準1）
+                    ・加速区間終了時が次のWPを超えてしまう（基準1）. 
+                    ・加速しすぎてノイズより手前のWPまでのいずれかでブレーキが必要になる（基準2）. 
                     """
                     if v_after_acc > car.v_max or acc_period_end > next_goal_x:
                         print("ループ抜ける判定基準1:", v_after_acc,
@@ -118,11 +125,11 @@ def solve_acc_itinerary_early_avoid(**kwargs):
 
         elif fastest_eta["x"] >= upper_constraint["xe"]:  # ノイズより後ろのWPsが来た場合.
             # まずはacc_itineraryからノイズの到着時間を計算
-            x_at_noise = calc_distance_from_acc_itinerary(
+            x_at_noise_start = calc_distance_from_acc_itinerary(
                 acc_itinerary, upper_constraint["te"])
-            if x_at_noise < upper_constraint["xe"]:
+            if x_at_noise_start < upper_constraint["xe"]:
                 print("最速で行ってもノイズに当たってしまうので早避け不可能")
-                print("detail:", x_at_noise,
+                print("detail:", x_at_noise_start,
                       upper_constraint["xe"], upper_constraint["te"])
 
                 return False
@@ -130,6 +137,10 @@ def solve_acc_itinerary_early_avoid(**kwargs):
             else:
                 # これは早避けが可能な場合.
                 # しっかり減速するための経路設計をすることもできるが一旦acc_itineraryを返しておく
+                print("ここに入った:", upper_constraint, fastest_eta)
+                x = fastest_eta["x"]
+                eta = calc_eta_from_acc(x, acc_itinerary)
+                print("L143: ", x, eta)
                 return acc_itinerary
 
     return acc_itinerary
@@ -198,3 +209,38 @@ def update_acc_itinerary(current_itinerary, new_itinerary):
     # 基本的にはこれ. 昔のものの末尾に新しいものを追加する.
     result = current_itinerary + new_itinerary
     return result
+
+
+def calc_eta_from_acc(x_cor, acc_itinerary):
+    start_x = 0
+    for idx, acc_info in enumerate(acc_itinerary):
+        delta_x = x_cor - start_x
+        t_start = acc_info["t_start"]
+        acc = acc_info["acc"]
+        v_0 = acc_info["v_0"]
+        # print("calc_eta_from_acc.py; L20",start_x, acc_info, delta_x)
+
+        # 一番最後の場合 (必ず結果が返る)
+        if idx == len(acc_itinerary) - 1:
+            # print(f"最後: delta_x={delta_x}, acc_info={acc_info}")
+            if acc_info["acc"] == 0:
+                # 等速の場合
+                return delta_x / v_0 + t_start
+            # 加速度のある場合
+            return ((v_0**2 + 2 * acc * delta_x)**0.5 - v_0)/acc + t_start
+
+        # 次の区間が存在する場合
+        else:
+            # print(f"次あり: delta_x={delta_x}, acc_info={acc_info}")
+            duration = acc_itinerary[int(idx+1)]["t_start"] - t_start
+            cover_distance = v_0*duration + 0.5 * acc * duration**2
+
+            if delta_x > cover_distance:
+                start_x += cover_distance
+                continue
+
+            # この区間で終わる場合.
+            if acc_info["acc"] == 0:
+                return t_start + delta_x / v_0
+            else:
+                return ((v_0**2 + 2 * acc * delta_x)**0.5 - v_0)/acc + t_start

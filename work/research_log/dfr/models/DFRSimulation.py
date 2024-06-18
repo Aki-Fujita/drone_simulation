@@ -29,9 +29,9 @@ class DFRSimulation:
         cars_on_road = []
         next_car_idx = 0
         previous_state = {
-            "noiseList":[],
-            "influenced_by_noise_cars":[],
-            "influenced_by_eta_cars":[]
+            "noiseList": [],
+            "influenced_by_noise_cars": [],
+            "influenced_by_eta_cars": []
         }
         for i in tnrange(self.total_steps, desc="Simulation Progress"):
             next_car = self.CARS[next_car_idx]
@@ -56,13 +56,17 @@ class DFRSimulation:
             NOISE_ARRIVAL_PROBに基づいてノイズを発生させる. 
             """
             current_noise = [
-                noise for noise in current_noise if noise["t"][1] >= time]  # 現在発生しているノイズ、すでに終わったものは入れない.
+                # 現在発生しているノイズ、すでに終わったものは入れない.
+                noise for noise in current_noise if noise["t"][1] >= time]
 
             if i % self.ONE_SEC_STEP == 0 and len(current_noise) < 1:
                 new_noise = self.create_noise(time)
-                current_noise.append(new_noise)
-                event_flg = "noise created"
-            current_noise = [ noise for noise in current_noise if noise["t"][1] >= time]  # 新規に追加したノイズに対しても一応フィルター
+                if new_noise:
+                    current_noise.append(new_noise)
+                    event_flg = "noise created"
+            # 新規に追加したノイズに対しても一応フィルター
+            current_noise = [
+                noise for noise in current_noise if noise["t"][1] >= time]
 
             if len(cars_on_road) < 1:
                 continue
@@ -73,21 +77,27 @@ class DFRSimulation:
             influenced_by_noise_cars = []
             if event_flg:
                 print()
-                print(f"t={time}, next_car={next_car_idx}, current_noise= {current_noise}, event_flg={event_flg}")
-                # 新しいノイズが来るか新しい車が到着したら誰が該当するかの判定をする. 
-                influenced_by_noise_cars = self.find_noise_influenced_cars(cars_on_road, current_noise, time)
+                print(f"t={time}, next_car={next_car_idx}, current_noise= {
+                      current_noise}, event_flg={event_flg}")
+                # 新しいノイズが来るか新しい車が到着したら誰が該当するかの判定をする.
+                influenced_by_noise_cars = self.find_noise_influenced_cars(
+                    cars_on_road, current_noise, time)
                 for car in cars_on_road:
                     # noiseを通るETAを計算する（これはノイズに引っ掛かろうがそうでなかろうが全員必須。）
                     car.add_noise_eta(current_noise)
-                    self.reservation_table.update_with_request(car_idx=car.car_idx, new_eta=car.my_etas)
+                    self.reservation_table.update_with_request(
+                        car_idx=car.car_idx, new_eta=car.my_etas)
 
-            influenced_by_eta_cars = self.find_ETA_influenced_cars(cars_on_road)
-            influenced_cars = list(set(influenced_by_noise_cars + influenced_by_eta_cars))
+            influenced_by_eta_cars = self.find_ETA_influenced_cars(
+                cars_on_road)
+            influenced_cars = list(
+                set(influenced_by_noise_cars + influenced_by_eta_cars))
 
             if event_flg or len(influenced_cars) > 0:
                 print(f"直接ノイズの影響を受けるもの: {influenced_by_noise_cars}")
                 print(f"他の車の影響: {influenced_by_eta_cars}")
                 print(f"対象車: {influenced_cars}")
+                event_flg = True
 
             if len(influenced_cars) > 0:  # ETA変更する車が存在した場合.
                 """
@@ -100,11 +110,14 @@ class DFRSimulation:
                 car_to_action = self.CARS[car_to_action_id]
                 # 先頭車がノイズの影響だけを受けている場合
                 if not car_to_action_id in influenced_by_eta_cars:
-                    print(f"car_id:{car_to_action_id} avoiding noise.")
+                    print(f"t={time}, car_id:{
+                          car_to_action_id} avoiding noise.")
                     new_eta = car_to_action.modify_eta(
-                        noiseList=current_noise, table=self.reservation_table, current_time=time, leader=self.CARS[car_to_action_id-1]) # 先頭車がノイズの影響受けたら car_to_action_id-1がバグりそう.
+                        # 先頭車がノイズの影響受けたら car_to_action_id-1がバグりそう.
+                        noiseList=current_noise, table=self.reservation_table, current_time=time, leader=self.CARS[car_to_action_id-1])
                 else:
-                    print(f"car_id:{car_to_action_id} changed by leading car.")
+                    print(f"t={time}, car_id:{
+                          car_to_action_id} changed by leading car.")
                     new_eta = car_to_action.modify_eta(
                         noiseList=current_noise, table=self.reservation_table, current_time=time, leader=self.CARS[car_to_action_id-1])
                 self.reservation_table.update_with_request(
@@ -118,13 +131,13 @@ class DFRSimulation:
             for car in cars_on_road:
                 car.decide_speed(time, self.TIME_STEP)
                 car.proceed(self.TIME_STEP, time)
-            
 
-            if should_plot and i%5==0:
+            if should_plot and (i % 5 == 0 or event_flg):
                 self.plot_history_by_time(current_noise, time)
             if time % 10 == 0:
                 for car in cars_on_road:
-                    print(f"t={time}, car_id:{car.car_idx}, xcor:{car.xcor}, speed:{car.v_x}")
+                    print(f"t={time}, car_id:{car.car_idx}, xcor:{
+                          car.xcor}, speed:{car.v_x}")
 
     def find_noise_influenced_cars(self, cars_on_road, noiseList, time):
         car_list = [car.car_idx for idx, car in enumerate(
@@ -140,14 +153,22 @@ class DFRSimulation:
 
     def create_noise(self, current_time):
         print("noise created!")
-        return {"x": [610, 730], "t": [40, 50]}
+        if current_time < 20:
+            return {"x": [400, 430], "t": [20, 25]}
+        else:
+            if current_time % 8 == 0:
+                # ノイズを未来に発生させる（この瞬間、だと偶然ハマる車が出てきしまう）
+                return {"x": [400, 430], "t": [current_time+5, current_time + 8]}
+        # この場合はノイズを発生させない.
+        return None
 
     def plot_history_by_time(self, noise_list, current_time):
         """
         各車のETAの変更履歴、座標、ノイズの有無をプロットする。
         """
         color_list = ["orange", "pink", "blue", "brown", "red", "green"]
-        car_idx_list_on_road = [car.car_idx for car in self.CARS if car.arrival_time <= current_time ]
+        car_idx_list_on_road = [
+            car.car_idx for car in self.CARS if car.arrival_time <= current_time]
         eta_table = self.reservation_table.eta_table
 
         plt.figure(figsize=(6, 6))
@@ -157,16 +178,17 @@ class DFRSimulation:
         car_idx_list = [car.car_idx for car in self.CARS]
         _df = eta_table
         for car_idx in car_idx_list:
-            df_by_car = _df[(_df["car_idx"] == car_idx)&(_df["type"]=="waypoint")]
+            df_by_car = _df[(_df["car_idx"] == car_idx) &
+                            (_df["type"] == "waypoint")]
             plt.plot(df_by_car["x"], df_by_car["eta"],
                      color=color_list[car_idx % 6], linewidth=1, linestyle='--', alpha=0.1)
             plt.scatter(df_by_car["x"], df_by_car["eta"],
                         color=color_list[car_idx % 6], alpha=0.2, s=20)
 
-
         # 現在道路に入った車に対するプロット
         for car_idx in car_idx_list_on_road:
-            df_by_car = _df[(_df["car_idx"] == car_idx)&(_df["type"]=="waypoint")]
+            df_by_car = _df[(_df["car_idx"] == car_idx) &
+                            (_df["type"] == "waypoint")]
             plt.plot(df_by_car["x"], df_by_car["eta"],
                      color=color_list[car_idx % 6], linewidth=1, linestyle='--', alpha=0.1)
             plt.scatter(df_by_car["x"], df_by_car["eta"],
@@ -175,7 +197,7 @@ class DFRSimulation:
             plt.plot(car.xcorList, car.timeLog,
                      color=color_list[car_idx % 6], linewidth=1)
             plt.scatter([car.xcor], [current_time],
-                    color=color_list[car_idx % 6], s=40, zorder=5)
+                        color=color_list[car_idx % 6], s=40, zorder=5)
 
         # ノイズ領域の描画
         for noise in noise_list:

@@ -7,10 +7,10 @@ def validate_with_ttc(eta_reservation_table, car_plans, TTC):
     TTC: 空けないといけない車間時間
     この関数はeta_reservation_tableを元に、送られてきたeta_planがValidかどうかを返す. 
     """
-    ERT = eta_reservation_table
+    table = eta_reservation_table
     is_valid = True
     car_idx = car_plans[0]["car_idx"]
-    df = ERT[ERT["car_idx"] < car_idx]  # 追い抜きがないので自分より前にいる車 = indexが若い車
+    df = table[table["car_idx"] < car_idx]  # 追い抜きがないので自分より前にいる車 = indexが若い車
 
     if df.shape[0] < 1:
         return True
@@ -25,12 +25,13 @@ def validate_with_ttc(eta_reservation_table, car_plans, TTC):
         if car_plan_by_x["eta"] > last_entry_time + TTC:
             continue
         else:
-            # print(ERT[ERT["car_idx"] <= car_idx])
+            print("eta_validator.py:  INVALID")
+
+            print(table[table["car_idx"] <= car_idx])
             # print(ERT[ERT["x"] < 150])
-            # print(car_plan_by_x)
-            # print(last_entry_time, TTC, car_idx)
+            print(car_plan_by_x)
+            print(last_entry_time, TTC, car_idx)
             # print(f"wp_x={car_plan_by_x["x"]}, TTC={car_plan_by_x["eta"] - last_entry_time}")
-            print("INVALID")
             is_valid = False
             break
     return is_valid
