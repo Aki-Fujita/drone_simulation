@@ -209,7 +209,7 @@ class DFRSimulation:
                 (x_range[0], t_range[0]), width, height, color='green', alpha=0.3)
             ax.add_patch(rect)
 
-        plt.title(f"t={current_time}")
+        plt.title(f"t={current_time:.1f}")
 
         # x軸の目盛り
         wpts = _df[_df["type"] == "waypoint"]["x"].unique()
@@ -229,7 +229,7 @@ class DFRSimulation:
         plt.ylabel('ETA')
 
         # 保存
-        plt.savefig(f"images/dfr_simulation_t={current_time}.png")
+        plt.savefig(f"images/dfr_simulation_t={current_time:.1f}.png")
         plt.close()
 
 

@@ -111,8 +111,8 @@ def follower_acc_solver(follower, eta_of_leader, TTC, current_time):
         # print("今のitineraryだとeariestの時刻でいる場所:", calc_distance_from_acc_itinerary(itinerary_from_now, earliest_eta["eta"]))
         # print(f"start_params: {start_params}")
         eta_boundary = {"xe": earliest_eta["x"], "te": earliest_eta["eta"]}
-        print("次のWPまでの情報: 境界条件", eta_boundary, "初期条件:", start_params,
-              "should_brake", should_brake(**start_params, **eta_boundary))
+        # print("次のWPまでの情報: 境界条件", eta_boundary, "初期条件:", start_params,
+        #       "should_brake", should_brake(**start_params, **eta_boundary))
 
         if not should_brake(**start_params, **eta_boundary):
             print(start_params, eta_boundary)
@@ -172,7 +172,6 @@ def merge_acc_itinerary(pre_itinerary, new_itinerary):
     if new_itinerary[0]["t_start"] < pre_itinerary[-1]["t_end"]:
         # これは要するにどこかの区間の途中で入ってきているということなので、new_itineraryが入ってからはそっちを正とする.
         new_itinerary_start = new_itinerary[0]["t_start"]
-        print("入った:", new_itinerary_start)
         for pre_item in pre_itinerary:
             if pre_item["t_end"] < new_itinerary_start:
                 retList.append(pre_item)
@@ -182,7 +181,7 @@ def merge_acc_itinerary(pre_itinerary, new_itinerary):
                 retList.append(fixed_pre_item)
                 break
         retList += new_itinerary
-        print("retList: ", retList)
+        # print("retList: ", retList)
         return retList
 
     return result

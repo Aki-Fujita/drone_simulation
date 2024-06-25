@@ -39,21 +39,20 @@ def insert_noise_eta(my_etas, xe, te):
 
 
 def acc_solver(earliest_etas, car, current_time):
-    initial_params = {"v0": car.v_x, "x0": car.xcor, "t0": current_time}
+    initial_params = {"v0": car.v_x, "x0": car.xcor,
+                      "t0": current_time}  # 計算開始時点での情報を保持
     car_params = {"decel": car.a_min, "accel": car.a_max}
     start_params = copy.deepcopy(initial_params)
     itinerary_from_now = [{"t_start": current_time, "acc": 0,
                            "v_0": car.v_x, "t_end": earliest_etas[0]["eta"]}]
+    print("calc_noise_avoid_without_leader_eta.py")
     print("Earliest ETAs: ", earliest_etas, itinerary_from_now)
     for wp_idx, earliest_eta in enumerate(earliest_etas):
         eta_boundary = {"xe": earliest_eta["x"], "te": earliest_eta["eta"]}
         should_brake_for_next_interval = will_collide(
             **start_params, **eta_boundary, decel=car_params["decel"])
-        print("次のWPまでの情報: 境界条件", eta_boundary, "初期条件:", start_params,
-              "should_brake", should_brake(
-                  **start_params, **eta_boundary), "will_collide:", should_brake_for_next_interval
-              )
-        if start_params["x0"] == eta_boundary["xe"]:
+        print("次のWPまでの情報: 境界条件", eta_boundary, "初期条件:", start_params)
+        if start_params["x0"] >= eta_boundary["xe"]:
             continue
         # ブレーキを踏む必要がない場合
         if not should_brake(**start_params, **eta_boundary) and not should_brake_for_next_interval:
