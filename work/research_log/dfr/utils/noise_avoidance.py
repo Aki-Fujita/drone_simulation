@@ -49,9 +49,9 @@ def calc_early_avoid_acc(noise, current_time, carObj, table ):
     eta_of_noise_end = ratio * earliest_time + (1-ratio) * noise_start_time
     """
     eta_of_noise_end = earliest_time + 0.1
-    print(f"eta: {eta_of_noise_end}, 最速:{earliest_time}, late:{noise_start_time}")
+    print(f"eta: {eta_of_noise_end}, 前の車に当たらない最速の時間:{earliest_time}, ノイズ開始:{noise_start_time}")
 
-    if earliest_time > noise_start_time:
+    if earliest_time >= noise_start_time:
         return False
     
     # 続いてこのETAを満たすacc_itineraryを求める. 
@@ -64,10 +64,21 @@ def calc_early_avoid_acc(noise, current_time, carObj, table ):
 
 # 遅く避けるときはノイズを気にする！！
 def calc_late_avoid(noise, current_time, carObj, table, leader):
-    noise_end_time = noise["t"][1]
-    noise_start_poisition = noise["x"][0]
     reservation = table.eta_table
     front_car_etas = reservation[reservation["car_idx"] == carObj.car_idx -1]
+    if noise is None:
+        acc_itinerary, dt, N = optimizer_for_follower(
+            follower=carObj,
+            a_min = abs(carObj.a_min) * -1,
+            eta_of_leader = front_car_etas,
+            leader = leader,
+            current_time=current_time,
+            ttc = table.global_params.DESIRED_TTC
+        )
+        return acc_itinerary
+    
+    noise_end_time = noise["t"][1]
+    noise_start_poisition = noise["x"][0]
     my_etas = reservation[reservation["car_idx"] == carObj.car_idx]
     te_by_ttc = front_car_etas[front_car_etas["x"] == noise_start_poisition]["eta"].iloc[0] + table.global_params.DESIRED_TTC
     target_time = max(te_by_ttc, noise_end_time)
@@ -104,8 +115,6 @@ def calc_late_avoid(noise, current_time, carObj, table, leader):
         """
         acc_itinerary, dt, N = optimizer_for_follower(
             follower=carObj,
-            xe=noise_start_poisition,
-            noise_pass_time=te_by_ttc,
             a_min = carObj.a_min * -1,
             eta_of_leader = front_car_etas,
             leader = leader,
