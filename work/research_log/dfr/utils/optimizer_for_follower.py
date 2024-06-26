@@ -113,6 +113,9 @@ def follower_acc_solver(follower, eta_of_leader, TTC, current_time):
         eta_boundary = {"xe": earliest_eta["x"], "te": earliest_eta["eta"]}
         # print("次のWPまでの情報: 境界条件", eta_boundary, "初期条件:", start_params,
         #       "should_brake", should_brake(**start_params, **eta_boundary))
+        if earliest_eta["x"] < follower.xcor:
+            # print("この区間はもう通り過ぎている")
+            continue
 
         if not should_brake(**start_params, **eta_boundary):
             print(start_params, eta_boundary)
