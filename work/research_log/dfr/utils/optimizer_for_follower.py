@@ -90,7 +90,7 @@ def follower_acc_solver(follower, eta_of_leader, TTC, current_time):
     earliest_etas = []
     for eta_info in eta_of_leader:
         earilist_eta = eta_info["eta"] + TTC + \
-            0.2  # 先頭車のETAにTTC秒以上開けた上でマージンを0.2秒とる
+            0.15  # 先頭車のETAにTTC秒以上開けた上でマージンを0.15秒とる
         earliest_etas.append(
             {**eta_info, "eta": earilist_eta, "car_idx": follower.car_idx})
 
