@@ -4,22 +4,39 @@ import pandas as pd
 from utils import calc_early_avoid_acc, calc_late_avoid, \
     validate_with_ttc, create_itinerary_from_acc, calc_eta_from_acc, optimizer_for_follower, crt_itinerary_from_a_optimized
 import sys
+from functions import helly
 sys.path.append("..")
+
+helly_params_default = {
+    "max_accel": 0.2,
+    "min_accel": 0.15,
+    "lambda_1": 0.4,
+    "lambda_2": 0.6,
+    "d": 0.5,
+    "T_des": 1.5,
+}
 
 
 class Cars:
-    def __init__(self, **kwagrs):
-        self.arrival_time = kwagrs.get("arrival_time", 0)
-        self.car_idx = kwagrs.get("index")
-        self.v_mean = kwagrs.get("v_mean")
-        self.v_max = kwagrs.get("v_max")
-        self.a_max = kwagrs.get("a_max")
-        self.a_min = kwagrs.get("a_min")  # 許容可能な減速度
+    def __init__(self, **kwargs):
+        self.arrival_time = kwargs.get("arrival_time", 0)
+        self.car_idx = kwargs.get("index")
+        self.v_mean = kwargs.get("v_mean")
+        self.v_max = kwargs.get("v_max")
+        self.a_max = kwargs.get("a_max")
+        self.a_min = kwargs.get("a_min")  # 許容可能な減速度
         self.xcor = 0
         self.xcorList = [0]
         self.timeLog = [self.arrival_time]
-        self.v_x = kwagrs.get("v_mean")
+        self.v_x = kwargs.get("v_mean")
+        self.helly_params = kwargs.get("helly_params", {
+                                       **helly_params_default, "max_accel": self.a_max, "min_accel": self.a_min, "v_max": self.v_max, "isRss": True})
         self.my_etas = []  # 自分のETA予定表のこと
+
+        # 以下はVFRのシミュレーションで利用するprops
+        self.foreseeable_distance = kwargs.get(
+            "foreseeable_distance", 180)
+        self.is_crossing = False  # 今信号を渡っている最中かどうか
         self.acc_itinerary = [
             {"acc": 0, "t_start": self.arrival_time, "v_0": self.v_x, "t_end": 1e7, "x_start": 0}]
         if self.a_max == None or self.v_max == None:
@@ -36,7 +53,7 @@ class Cars:
 
     def get_noise_eta_others(self, table):
         """
-        Step1. 自分の一つ前の車のETA情報を取得. 
+        Step1. 自分の一つ前の車のETA情報を取得.
         Step2. その車とTTCを空けるようにコースを決める
         """
         print(f"consideration by idx={self.index}")
@@ -85,7 +102,8 @@ class Cars:
             if margin_time < 0:
                 raise ValueError("消滅したノイズなはず、何かおかしい")
             noise_start = noise["x"][0]
-            required_speed = (noise_start - self.xcor) / margin_time
+            required_speed = (noise_start - self.xcor) / \
+                (margin_time + 1e-3)  # division by zeroを避けるため
             required_speeds.append(required_speed)
         print(noiseList, required_speeds)
         noise_to_avoid = noiseList[required_speeds.index(min(required_speeds))]
@@ -93,9 +111,9 @@ class Cars:
 
     def modify_eta(self, noiseList, current_time, table, leader=None):
         """
-        Step1. 各ノイズに対して加速してやり過ごせないかを検討する（x-t線図で言う左下を目指す）. 
-        (a) もしもノイズの右端を横切れてかつ、それで他の車にも影響がない場合はそれを新たな経路にする. 
-        (b) 上記の達成が不可能な場合はおとなしく左上を目指す. 
+        Step1. 各ノイズに対して加速してやり過ごせないかを検討する（x-t線図で言う左下を目指す）.
+        (a) もしもノイズの右端を横切れてかつ、それで他の車にも影響がない場合はそれを新たな経路にする.
+        (b) 上記の達成が不可能な場合はおとなしく左上を目指す.
         (c) もし避けるべきノイズがない場合(これは前の車の進路変更だけを気にすれば良い)
         """
         print(f"avoidance by idx={self.car_idx}")
@@ -118,7 +136,7 @@ class Cars:
                 noise_to_avoid, current_time, self, table, leader)
 
         """この時点でtemp_acc_itineraryは早いものか遅いものが何かしら入っている
-            ただし、いずれの場合も未認証. 
+            ただし、いずれの場合も未認証.
         """
 
         ideal_eta = create_itinerary_from_acc(
@@ -147,7 +165,7 @@ class Cars:
 
     def add_noise_eta(self, noiselist):
         """
-        この関数はノイズをETAに新規追加するだけでPUTは行わないことにする. 
+        この関数はノイズをETAに新規追加するだけでPUTは行わないことにする.
         """
         current_itinerary = self.my_etas
         noise_x_coors = []
@@ -166,9 +184,10 @@ class Cars:
             current_itinerary.append(
                 {"eta": eta_at_noise, "car_idx": self.car_idx, "type": "noise", "x": noise_x_coor})
 
+    # DFRのシミュレーション用
     def decide_speed(self, current_time, time_step):
         """
-        この関数は自分のacc_itineraryをもとに自分のスピードを決める. 
+        この関数は自分のacc_itineraryをもとに自分のスピードを決める.
         """
         acc = self.get_acc_for_time(current_time)
         # print("decide_speed: "self.car_idx, self.acc_itinerary, current_time, acc)
@@ -179,6 +198,50 @@ class Cars:
         self.xcor += self.v_x * time_step
         self.xcorList.append(self.xcor)
         self.timeLog.append(current_time)
+
+    # VFRのシミュレーション用に前の車を見ながら速度を決める関数
+    def decide_speed_helly(self, front_car, time_step):
+        if self.helly_params is None:
+            raise ValueError("ヘリーモデル用のパラメータが設定されていません")
+        """
+        この関数は自分のacc_itineraryをもとに自分のスピードを決める.
+        """
+        if front_car is None:
+            front_car_x = 1e3
+            front_car_vel = self.v_max
+        else:
+            front_car_x = front_car.xcor
+            front_car_vel = front_car.v_x
+        delta_x = front_car_x - self.xcor
+        delta_v = front_car_vel - self.v_x
+        v_n = self.v_x
+
+        if delta_x < 0:
+            print(f"Error! ID: {self.car_idx}, ")
+            raise ValueError("Overtaking happened")
+
+        next_speed = helly(delta_x, delta_v, time_step, v_n, self.helly_params)
+        if self.car_idx == 1 and v_n > next_speed:
+            print("ID 1: 減速. delta_x", delta_x, "delta_v", delta_v, "next_speed", next_speed, "v_n:", v_n,
+                  "front_car_x", front_car_x, "front_car_vel:", front_car_vel)
+        self.v_x = next_speed
+
+    def stop_at_target_x(self, target_x, current_time, time_step):
+        """
+        【停止モードに入っている時の速度と加速度を決める関数】
+        狙った場所に狙った時間より後ろで止まるように加速度を決めた上ですすむ.
+        """
+        delta_x = target_x - self.xcor
+        if self.v_x ** 2 / 2 / self.a_min > delta_x:
+            print(f"ID: {self.car_idx}, xcor={self.xcor}, v_x={self.v_x}")
+            raise ValueError("狙った場所に止まることができません！")
+
+        # 止まれる場合は必要最小限の減速度で減速する.
+        a = self.v_x ** 2 / 2 / (delta_x + 1e-2) * -1
+        acc = max(a, -1 * abs(self.a_min))
+        next_speed = self.v_x + acc * time_step
+        self.v_x = next_speed
+        print(f"t={current_time}, acc={acc}, next_speed={next_speed}")
 
     def get_acc_for_time(self, current_time):
         """
@@ -192,6 +255,39 @@ class Cars:
                              <= current_time], key=lambda x: x['t_start'], reverse=True)
         # 条件を満たす最初の要素の acc を返す
         return valid_items[0]['acc'] if valid_items else None
+
+    # 目の前のノイズを避けるかどうするかを決める関数.
+    def will_overtake_noise(self, noise, front_car, time):
+        """
+        ノイズを渡れるかどうかは2段階に分けて判断する
+        (a) そもそもノイズを渡れるかどうか
+        →ノイズ発生時刻に、ノイズ終了場所にいないといけない. 
+        (b) ノイズを渡った後に前の車にぶつからないかどうか
+        """
+        noise_start_time = noise["t"][0]
+        noise_end_x = noise["x"][1]
+
+        # まずはnoiseを渡れるかどうかを判断
+        distance_to_noise = noise_end_x - self.xcor
+        if distance_to_noise / self.v_x + time >= noise_start_time:
+            # この場合は等速ではいけない場合なので一旦Falseということにする（挙動の修正次第ではTrueになるかも）
+            return False
+
+        """
+        ここまで来た時点でノイズを渡れることが確定している.
+        あとは前の車にぶつからないかどうかを判断する.
+        """
+        if front_car is None:
+            return True
+
+        front_car_stoppping_distance = front_car.v_x ** 2 / 2 / front_car.a_min
+        distance_between_noiseEnd_frontCar = front_car.xcor - noise_end_x
+
+        my_braking_distance = self.v_x ** 2 / 2 / self.a_min
+        if distance_between_noiseEnd_frontCar + front_car_stoppping_distance > my_braking_distance:
+            return True
+
+        return False
 
 
 def prepare_test():
