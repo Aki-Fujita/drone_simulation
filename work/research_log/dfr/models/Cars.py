@@ -228,7 +228,7 @@ class Cars:
 
     def stop_at_target_x(self, target_x, current_time, time_step):
         """
-        【停止モードに入っている時の速度と加速度を決める関数】
+        【停止モードに入っている時の速度と加速度を決める関数】 
         狙った場所に狙った時間より後ろで止まるように加速度を決めた上ですすむ.
         """
         delta_x = target_x - self.xcor
@@ -238,10 +238,10 @@ class Cars:
 
         # 止まれる場合は必要最小限の減速度で減速する.
         a = self.v_x ** 2 / 2 / (delta_x + 1e-2) * -1
-        acc = max(a, -1 * abs(self.a_min))
+        acc = max(a - 0.2, -1 * abs(self.a_min))
         next_speed = self.v_x + acc * time_step
         self.v_x = next_speed
-        print(f"t={current_time}, acc={acc}, next_speed={next_speed}")
+        # print(f"t={current_time}, acc={acc}, next_speed={next_speed}")
 
     def get_acc_for_time(self, current_time):
         """

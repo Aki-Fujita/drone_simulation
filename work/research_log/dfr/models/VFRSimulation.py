@@ -215,9 +215,6 @@ class VFRSimulation:
 
                                 continue
 
-                if car.car_idx == 1:
-                    print(f"ID: 1, time={time}, xcor={car.xcor}, v={
-                          car.v_x}, front={front_car.car_idx}, front_x={front_car.xcor}")
                 car.decide_speed_helly(front_car, self.TIME_STEP)
                 car.proceed(self.TIME_STEP, time)
 
