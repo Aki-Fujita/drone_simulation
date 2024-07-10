@@ -221,9 +221,9 @@ class Cars:
             raise ValueError("Overtaking happened")
 
         next_speed = helly(delta_x, delta_v, time_step, v_n, self.helly_params)
-        if self.car_idx == 1 and v_n > next_speed:
-            print("ID 1: 減速. delta_x", delta_x, "delta_v", delta_v, "next_speed", next_speed, "v_n:", v_n,
-                  "front_car_x", front_car_x, "front_car_vel:", front_car_vel)
+        # if self.car_idx == 1 and v_n > next_speed:
+        #     print("ID 1: 減速. delta_x", delta_x, "delta_v", delta_v, "next_speed", next_speed, "v_n:", v_n,
+        #           "front_car_x", front_car_x, "front_car_vel:", front_car_vel)
         self.v_x = next_speed
 
     def stop_at_target_x(self, target_x, current_time, time_step):

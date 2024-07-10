@@ -19,6 +19,7 @@ class VFRSimulation:
     def __init__(self, **kwargs):
         self.dfr_reference = kwargs.get("dfr_reference", None)
         self.car_params = kwargs.get("car_params", {})
+        self.v_mean_log = []  # 平均速度のログ. 時間と密度も同時に格納する
         if self.dfr_reference is None:
             self.setup_without_reference(kwargs)
         else:
@@ -33,7 +34,7 @@ class VFRSimulation:
         self.TOTAL_LENGTH = reference.TOTAL_LENGTH
         self.FUTURE_SCOPE = reference.FUTURE_SCOPE
         self.create_noise = reference.create_noise  # ノイズの生成関数を揃える
-        self.CARS = self.setup_cars()
+        self.CARS = self.setup_cars()  # 元の車の情報を使って新たにインスタンスを生成.
 
     def setup_without_reference(self, kwargs):
         self.TIME_STEP = kwargs.get("TIME_STEP")
@@ -109,6 +110,68 @@ class VFRSimulation:
         車と先頭車の情報を受け取って、その車がノイズを早避けして良いか判断する
         """
         return False
+
+    def plot_v_mean_log(self):
+        v_mean_log = self.v_mean_log
+        # event_flgが"noise"のデータポイントを抽出する
+        noise_time = [entry["time"]
+                      for entry in v_mean_log if entry.get("event_flg") == "noise"]
+        noise_v_mean = [entry["v_mean"]
+                        for entry in v_mean_log if entry.get("event_flg") == "noise"]
+        noise_times = [entry["time"]
+                       for entry in v_mean_log if entry.get("event_flg") == "noise"]
+
+        # timeとv_meanをそれぞれリストに抽出する
+        time = [entry["time"] for entry in v_mean_log]
+        v_mean = [entry["v_mean"] for entry in v_mean_log]
+
+        # グラフを描画する
+        plt.figure(figsize=(10, 5))
+        plt.plot(time, v_mean,)
+
+        # ノイズのデータポイントを赤丸でプロットする
+        # plt.scatter(noise_time, noise_v_mean, color='red', label='Noise Event', zorder=5)
+
+        # ノイズ発生タイミングに赤線
+        for n in noise_times:
+            plt.axvline(x=n, color='orange', linestyle='--', alpha=0.5,
+                        linewidth=1, label='Noise Event' if n == noise_times[0] else "")
+
+        # グラフのタイトルとラベルを設定する
+        plt.title('Mean Velocity Over Time')
+        plt.xlabel('Time')
+        plt.ylabel('Mean Velocity')
+
+        # グリッドを表示する
+        plt.grid(True)
+        plt.savefig(f"images/vfr/v_mean_log.png")
+
+    # FIXME: 後々抽象化したい.
+    def record(self, time, event_flg):
+        """
+        平均速度, その時の密度を記録する
+        """
+        logObj = {
+            "time": time,
+            "v_mean": 0,
+            "density": None,
+            "event_flg": None
+        }
+        cars_on_road = [
+            car for car in self.CARS if car.xcor < self.TOTAL_LENGTH]
+        logObj["density"] = len(cars_on_road) / self.TOTAL_LENGTH
+
+        if event_flg == "noise created":
+            logObj["event_flg"] = "noise"
+
+        if len(cars_on_road) == 0:
+            logObj["v_mean"] = 0
+            self.v_mean_log.append(logObj)
+            return
+        v_mean = sum([car.v_x for car in cars_on_road]) / len(cars_on_road)
+        logObj["v_mean"] = v_mean
+        self.v_mean_log.append(logObj)
+        return
 
     def conduct_simulation(self, should_plot=False):
         current_noise = []
@@ -219,7 +282,10 @@ class VFRSimulation:
                 car.proceed(self.TIME_STEP, time)
 
             """
-            STEP 4. プロットなど
+            STEP 4. 各時刻で行なう全体に対する処理
+            ・平均速度の保存
+            ・プロット
             """
+            self.record(time, event_flg)
             if should_plot and (i % 5 == 0):
                 self.plot_cars(time, current_noise)
