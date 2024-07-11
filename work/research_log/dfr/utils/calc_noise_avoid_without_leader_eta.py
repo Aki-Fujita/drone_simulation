@@ -45,13 +45,13 @@ def acc_solver(earliest_etas, car, current_time):
     start_params = copy.deepcopy(initial_params)
     itinerary_from_now = [{"t_start": current_time, "acc": 0,
                            "v_0": car.v_x, "t_end": earliest_etas[0]["eta"]}]
-    print("calc_noise_avoid_without_leader_eta.py")
-    print("Earliest ETAs: ", earliest_etas, itinerary_from_now)
+    # print("calc_noise_avoid_without_leader_eta.py")
+    # print("Earliest ETAs: ", earliest_etas, itinerary_from_now)
     for wp_idx, earliest_eta in enumerate(earliest_etas):
         eta_boundary = {"xe": earliest_eta["x"], "te": earliest_eta["eta"]}
         should_brake_for_next_interval = will_collide(
             **start_params, **eta_boundary, decel=car_params["decel"])
-        print("次のWPまでの情報: 境界条件", eta_boundary, "初期条件:", start_params)
+        # print("次のWPまでの情報: 境界条件", eta_boundary, "初期条件:", start_params)
         if start_params["x0"] >= eta_boundary["xe"]:
             continue
         # ブレーキを踏む必要がない場合
@@ -61,8 +61,8 @@ def acc_solver(earliest_etas, car, current_time):
             if all([not should_brake(**start_params, **eta_boundary) for eta_boundary in upcoming_wps]):
                 new_itinerary, sp = update_acc_itinerary_with_accel(itinerary_from_now, start_params, upcoming_wps, car_params={
                                                                     **car_params, "acc": 2, "v_max": car.v_max}, current_x=car.xcor)
-                print("result of 'update_acc_itinerary_with_accel':  ",
-                      new_itinerary, "\n sp:", sp)
+                # print("result of 'update_acc_itinerary_with_accel':  ",
+                #       new_itinerary, "\n sp:", sp)
                 itinerary_from_now = update_acc_itinerary(
                     itinerary_from_now, new_itinerary)
                 start_params = sp
