@@ -26,11 +26,12 @@ def validate_with_ttc(eta_reservation_table, car_plans, TTC):
         if car_plan_by_x["eta"] > last_entry_time + TTC:
             continue
         else:
-            print("eta_validator.py:  INVALID")
-            print(table[table["car_idx"] == car_idx-1])
-            # print(ERT[ERT["x"] < 150])
-            print(car_plan_by_x)
-            print(last_entry_time, TTC, car_idx)
+            # print(
+            #     f"eta_validator.py:  INVALID, x={target_waypoint_x}, car_id={car_idx}")
+            # print(table[table["car_idx"] == car_idx-1])
+            # # print(ERT[ERT["x"] < 150])
+            # print(car_plan_by_x)
+            # print(last_entry_time, TTC, car_idx)
             # print(f"wp_x={car_plan_by_x["x"]}, TTC={car_plan_by_x["eta"] - last_entry_time}")
             is_valid = False
             break

@@ -72,7 +72,7 @@ class ReservationTable:
 
     def update_with_request(self, **request):
         car_idx = request.get("car_idx")
-        print(f"======update by ID:{car_idx}!=======")
+        # print(f"======update by ID:{car_idx}!=======")
         df = self.eta_table
         car_idx = request.get("car_idx")
         new_eta = request.get("new_eta")
@@ -101,7 +101,8 @@ class ReservationTable:
         # 既存のプロットロジック
         for car_idx in car_idx_list:
             _df = self.eta_table
-            df_by_car = _df[(_df["car_idx"] == car_idx)&(_df["type"]=="waypoint")]
+            df_by_car = _df[(_df["car_idx"] == car_idx) &
+                            (_df["type"] == "waypoint")]
             plt.plot(df_by_car["x"], df_by_car["eta"],
                      color=color_list[car_idx % 6], linewidth=1, linestyle='--')
             plt.scatter(df_by_car["x"], df_by_car["eta"],
@@ -122,7 +123,6 @@ class ReservationTable:
         wpts = _df[_df["type"] == "waypoint"]["x"].unique()
         wpts.sort()  # xの値を昇順に並べ替える（必要に応じて）
         plt.xticks(wpts)
-
 
         # 罫線を引く
         plt.grid()
