@@ -19,6 +19,8 @@ class DFRSimulation(BaseSimulation):
         self.FUTURE_SCOPE = kwargs.get("FUTURE_SCOPE")
         # だいたい何秒先のノイズならわかるか、に相当する数字.
         self.MEAN_NOISE_PERIOD = kwargs.get("MEAN_NOISE_PERIOD")
+        self.create_noise = kwargs.get(
+            "create_noise", self.create_noise_default)
         self.state = {}
 
     def conduct_simulation(self, should_plot=False):
@@ -46,9 +48,8 @@ class DFRSimulation(BaseSimulation):
                 cars_on_road.append(next_car)
                 next_car_idx = cars_on_road[-1].car_idx + 1
                 event_flg = "arrival"
-
-            # cars_on_road = [
-            #     car for car in cars_on_road if car.xcor < self.TOTAL_LENGTH]
+            cars_on_road = [
+                car for car in cars_on_road if car.xcor < self.TOTAL_LENGTH]  # ゴールしたものは除く
 
             """
             STEP 1. ノイズが来るかを判定
@@ -112,9 +113,12 @@ class DFRSimulation(BaseSimulation):
                 if not car_to_action_id in influenced_by_eta_cars:
                     print(f"t={time}, car_id:{
                           car_to_action_id} avoiding noise.")
+                    if car_to_action_id == 0:
+                        leader = None
+                    else:
+                        leader = self.CARS[car_to_action_id-1]
                     new_eta = car_to_action.modify_eta(
-                        # 先頭車がノイズの影響受けたら car_to_action_id-1がバグりそう.
-                        noiseList=current_noise, table=self.reservation_table, current_time=time, leader=self.CARS[car_to_action_id-1])
+                        noiseList=current_noise, table=self.reservation_table, current_time=time, leader=leader)
                 else:
                     print(f"t={time}, car_id:{
                           car_to_action_id} changed by leading car.")
@@ -152,14 +156,10 @@ class DFRSimulation(BaseSimulation):
             eta_reservation_table, car.my_etas, TTC)]
         return car_list
 
-    def create_noise(self, current_time):
-        print("noise created!")
-        if current_time < 20:
-            return {"x": [400, 430], "t": [20, 25]}
-        else:
-            if current_time % 8 == 0:
-                # ノイズを未来に発生させる（この瞬間、だと偶然ハマる車が出てきしまう）
-                return {"x": [400, 430], "t": [current_time+5, current_time + 8]}
+    def create_noise_default(self, current_time):
+        if current_time % 8 == 0 and current_time > 0:
+            # ノイズを未来に発生させる（この瞬間、だと偶然ハマる車が出てきしまう）
+            return {"x": [400, 430], "t": [current_time+5, current_time + 8]}
         # この場合はノイズを発生させない.
         return None
 
