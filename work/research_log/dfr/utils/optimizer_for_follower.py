@@ -282,6 +282,15 @@ def crt_acc_itinerary_for_decel_area(v0, x0, t0, ve, xe, te, car_params, step_si
         cover_distance = calc_distance_from_acc_itinerary(
             acc_itinerary, te)  # ここで入れているacc_itineraryはあくまでもこの区間の走り方であることに注意
         edge_params = {"v0": v0 + decel * decel_period, "x0": xe, "t0": te}
+        # xeより後ろのwaypointがない場合.
+        if [item for item in earliest_etas if item["x"] > xe] == []:
+            arrival_time = ((xe - x0) - cover_distance) / \
+                edge_params["v0"] + te
+            if arrival_time > te:
+                return acc_itinerary, te
+            else:
+                continue
+
         earliest_eta_of_next_wp = sorted(
             [item for item in earliest_etas if item["x"] > xe], key=lambda x: x['x'], reverse=False)[0]
         # print("テスト", earliest_eta_of_next_wp)  # xeのさらにもう一つ次のWPの到着時間
