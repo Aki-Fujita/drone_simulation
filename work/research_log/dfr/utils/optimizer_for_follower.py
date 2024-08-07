@@ -50,7 +50,7 @@ def get_acc_for_time(data, t):
 """
 
 
-def optimizer_for_follower(**kwargs):
+def calc_late_avoid_with_leader(**kwargs):
     follower = kwargs.get("follower")
     ttc = kwargs.get("ttc", 0)
     leader = kwargs.get("leader", 0)  # 先行車のオブジェクト
@@ -106,20 +106,14 @@ def follower_acc_solver(follower, eta_of_leader, TTC, current_time):
           earliest_etas, "\n itinerary:", itinerary_from_now)
 
     for wp_idx, earliest_eta in enumerate(earliest_etas):
-        # print()
-        # print("NOW TESTING (next wp): x=", earliest_eta["x"], f"eariest={earliest_eta["eta"]}", itinerary_from_now)
-        # print("今のitineraryだとeariestの時刻でいる場所:", calc_distance_from_acc_itinerary(itinerary_from_now, earliest_eta["eta"]))
-        # print(f"start_params: {start_params}")
+
         eta_boundary = {"xe": earliest_eta["x"], "te": earliest_eta["eta"]}
-        # print("次のWPまでの情報: 境界条件", eta_boundary, "初期条件:", start_params,
-        #       "should_brake", should_brake(**start_params, **eta_boundary))
         if earliest_eta["x"] < follower.xcor:
             # print("この区間はもう通り過ぎている")
             continue
 
         if not should_brake(**start_params, **eta_boundary):
-            print(start_params, eta_boundary)
-            # print("この区間はブレーキの必要なし")
+            print("L116. sp: ", start_params, eta_boundary)
             # この場合、この区間のさらに先まで見た上で、これから先どこもブレーキが必要なかったら加速する！
             upcoming_wps = [{"xe": e["x"], "te": e["eta"]}
                             for i, e in enumerate(earliest_etas) if i >= wp_idx]
@@ -128,14 +122,12 @@ def follower_acc_solver(follower, eta_of_leader, TTC, current_time):
                 new_itinerary, sp = update_acc_itinerary_with_accel(itinerary_from_now, start_params, upcoming_wps, car_params={
                                                                     **car_params, "acc": 2}, current_x=follower.xcor)
 
-                # print("====After Update====",new_itinerary)
                 # 今のacc_itineraryだとこの先にブレーキが必要ないので、どこかしらに当たるまで加速する.
                 itinerary_from_now = update_acc_itinerary(
                     itinerary_from_now, new_itinerary)
                 start_params = sp
             else:
                 # ブレーキをかけずに走ることが確定しているが、次の区間でブレーキを踏む可能性がまだある.
-
                 continue
             continue
         if can_reach_after_designated_eta(**start_params, **eta_boundary, car_params=car_params):
@@ -144,7 +136,6 @@ def follower_acc_solver(follower, eta_of_leader, TTC, current_time):
                 **start_params, **eta_boundary, ve=None, car_params=car_params, step_size=0.5, earliest_etas=earliest_etas)
             v = a[-1]["v_0"]  # 必ず等速区間で終わるため
             start_params = {"v0": v, "x0": eta_boundary["xe"], "t0": eta}
-            # print("この区間のacc_itinerary", a, "ETA=", eta)
             itinerary_from_now = update_acc_itinerary(itinerary_from_now, a)
             continue
 

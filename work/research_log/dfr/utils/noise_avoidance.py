@@ -1,7 +1,7 @@
 from models import ReservationTable, Cars
 from .solve_acc_itinerary_early_avoid import solve_acc_itinerary_early_avoid
 from .calc_noise_avoid_without_leader_eta import calc_noise_avoid_without_leader_eta
-from .optimizer_for_follower import optimizer_for_follower
+from .optimizer_for_follower import calc_late_avoid_with_leader
 from .conduct_optimization import conduct_fuel_optimization
 import random
 import sys
@@ -86,7 +86,7 @@ def calc_late_avoid(noise, current_time, carObj, table, leader):
         return acc_itinerary
     front_car_etas = reservation[reservation["car_idx"] == carObj.car_idx - 1]
     if noise is None:
-        acc_itinerary, dt, N = optimizer_for_follower(
+        acc_itinerary, dt, N = calc_late_avoid_with_leader(
             follower=carObj,
             a_min=abs(carObj.a_min) * -1,
             eta_of_leader=front_car_etas,
@@ -130,7 +130,7 @@ def calc_late_avoid(noise, current_time, carObj, table, leader):
         これは自分の前に1台目としてnoiseを避けた車がいる時, 
         この場合はその車に衝突しないように経路設計をする必要がある, 
         """
-        acc_itinerary, dt, N = optimizer_for_follower(
+        acc_itinerary, dt, N = calc_late_avoid_with_leader(
             follower=carObj,
             a_min=carObj.a_min * -1,
             eta_of_leader=front_car_etas,

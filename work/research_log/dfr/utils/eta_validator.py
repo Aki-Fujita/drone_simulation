@@ -23,11 +23,11 @@ def validate_with_ttc(eta_reservation_table, car_plans, TTC):
         filtered_df = df[df["x"] == target_waypoint_x]
         # print(f"len(wpts)={len(filtered_df)}")
         last_entry_time = filtered_df["eta"].max()
-        if car_plan_by_x["eta"] > last_entry_time + TTC:
+        if car_plan_by_x["eta"] > last_entry_time + TTC - 0.1:  # 丸め誤差分を許容
             continue
         else:
-            # print(
-            #     f"eta_validator.py:  INVALID, x={target_waypoint_x}, car_id={car_idx}")
+            print(f"eta_validator.py: INVALID, x={
+                  target_waypoint_x}, car_id={car_idx}, leader_eta={last_entry_time}, desired_eta={car_plan_by_x['eta']}")
             # print(table[table["car_idx"] == car_idx-1])
             # # print(ERT[ERT["x"] < 150])
             # print(car_plan_by_x)
