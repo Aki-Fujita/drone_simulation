@@ -2,7 +2,7 @@ import copy
 from .ReservationTable import ReservationTable
 import pandas as pd
 from utils import calc_early_avoid_acc, calc_late_avoid, \
-    validate_with_ttc, create_itinerary_from_acc, calc_eta_from_acc, optimizer_for_follower, crt_itinerary_from_a_optimized
+    validate_with_ttc, create_itinerary_from_acc, calc_eta_from_acc, crt_itinerary_from_a_optimized
 import sys
 from functions import helly
 sys.path.append("..")
@@ -153,16 +153,6 @@ class Cars:
         print("Value Error 基本的にここには来ないはず")
         raise ValueError("ノイズを避けることができませんでした。")
 
-    def modify_eta_with_leading_car(self, noiseList, current_time, table, leader):
-        print(f"modify by idx={self.car_idx}")
-        noise_to_avoid = self.select_noise_for_late_avoid(
-            noiseList, current_time)
-        temp_acc_itinerary = calc_late_avoid(
-            noise_to_avoid, current_time, self, table, leader)
-        ideal_eta = create_itinerary_from_acc(
-            car_obj=self, current_time=current_time, acc_itinerary=temp_acc_itinerary)
-        return ideal_eta
-
     def add_noise_eta(self, noiselist):
         """
         この関数はノイズをETAに新規追加するだけでPUTは行わないことにする.
@@ -190,6 +180,9 @@ class Cars:
         この関数は自分のacc_itineraryをもとに自分のスピードを決める.
         """
         acc = self.get_acc_for_time(current_time)
+        if acc == 0:
+            self.v_x = self.get_v_for_time(current_time)
+            return
         # print("decide_speed: "self.car_idx, self.acc_itinerary, current_time, acc)
         next_speed = self.v_x + acc * time_step
         self.v_x = next_speed
@@ -255,6 +248,11 @@ class Cars:
                              <= current_time], key=lambda x: x['t_start'], reverse=True)
         # 条件を満たす最初の要素の acc を返す
         return valid_items[0]['acc'] if valid_items else None
+
+    def get_v_for_time(self, current_time):
+        valid_items = sorted([item for item in self.acc_itinerary if item['t_start']
+                             <= current_time], key=lambda x: x['t_start'], reverse=True)
+        return valid_items[0]['v_0']
 
     # 目の前のノイズを避けるかどうするかを決める関数.
     def will_overtake_noise(self, noise, front_car, time):

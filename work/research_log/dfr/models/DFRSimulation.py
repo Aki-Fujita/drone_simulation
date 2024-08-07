@@ -111,7 +111,8 @@ class DFRSimulation(BaseSimulation):
                 car_to_action = self.CARS[car_to_action_id]
                 # 先頭車がノイズの影響だけを受けている場合
                 if not car_to_action_id in influenced_by_eta_cars:
-                    print(f"t={time}, car_id:{
+                    print()
+                    print(f"t={time:.2f}, car_id:{
                           car_to_action_id} avoiding noise.")
                     if car_to_action_id == 0:
                         leader = None
