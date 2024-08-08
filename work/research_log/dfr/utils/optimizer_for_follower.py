@@ -150,7 +150,6 @@ def merge_acc_itinerary(pre_itinerary, new_itinerary):
     2つのacc_itineraryをマージする
     """
     result = copy.deepcopy(pre_itinerary)
-    print("pre_itinerary: ", pre_itinerary, "new_itinerary: ", new_itinerary)
     # そもそもnew_itineraryの方が前から始まっていたらnewを正とする.
     if new_itinerary[0]["t_start"] <= pre_itinerary[0]["t_start"]:
         return new_itinerary
@@ -261,7 +260,7 @@ def crt_acc_itinerary_for_decel_area(v0, x0, t0, ve, xe, te, car_params, step_si
     loop_count = 0
     delta_x = xe - x0
     while cover_distance > xe - x0 or loop_count < steps:
-        print("Loops: ", loop_count)
+        print("Loops: ", loop_count, steps)
         loop_count += 1
         # まずは加速度を変更してみる
         decel_period = loop_count * step_size

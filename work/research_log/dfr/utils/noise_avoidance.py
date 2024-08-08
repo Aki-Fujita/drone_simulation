@@ -39,23 +39,21 @@ def calc_early_avoid_acc(noise, current_time, carObj, table):
     TTC = table.global_params.DESIRED_TTC
     ETA_of_front_car = reservation[reservation["car_idx"]
                                    == carObj.car_idx - 1]
+    print(f"ETA_of_front_car: {ETA_of_front_car}")
 
     earliest_time = calc_earliest_time(
         carObj, noise_end_poisition, current_time)
     if len(ETA_of_front_car) > 0:
         earliest_time = ETA_of_front_car[ETA_of_front_car["x"]
                                          == noise_end_poisition]["eta"].iloc[0] + TTC
-        # print(earliest_time)
-        # print(ETA_of_front_car[ETA_of_front_car["x"] == noise_end_poisition])
-    # print(f"earliest_time: {earliest_time}, noise_start_time: {noise_start_time}")
     """
     ↓のような決め方もあったが、計算にランダムネスが生じるので一旦やめた
     ratio = random.uniform(0, 1) # このパラメタが急ぎ度に相当.
     eta_of_noise_end = ratio * earliest_time + (1-ratio) * noise_start_time
     """
     eta_of_noise_end = earliest_time + 0.1  # この車がノイズを横切る予定時刻
-    print(f"eta: {eta_of_noise_end}, 前の車に当たらない最速の時間:{
-          earliest_time}, ノイズ開始:{noise_start_time}")
+    print(f"早避けを検討. ノイズ終了地点のeta: {eta_of_noise_end}, 前の車に当たらない最速の時間:{
+          earliest_time}, ノイズ開始時刻:{noise_start_time}")
 
     if earliest_time >= noise_start_time:
         return False
@@ -70,12 +68,12 @@ def calc_early_avoid_acc(noise, current_time, carObj, table):
 
 
 def calc_late_avoid(noise, current_time, carObj, table, leader):
-    noise_end_time = noise["t"][1]
-    noise_start_poisition = noise["x"][0]
     reservation = table.eta_table
     my_etas = reservation[reservation["car_idx"] == carObj.car_idx]
     # 遅く避けるときはノイズを気にする！！
     if leader is None:
+        noise_end_time = noise["t"][1]
+        noise_start_poisition = noise["x"][0]
         acc_itinerary = calc_noise_avoid_without_leader_eta(
             car=carObj,
             xe=noise_start_poisition,
@@ -96,6 +94,8 @@ def calc_late_avoid(noise, current_time, carObj, table, leader):
         )
         return acc_itinerary
 
+    noise_end_time = noise["t"][1]
+    noise_start_poisition = noise["x"][0]
     te_by_ttc = front_car_etas[front_car_etas["x"] ==
                                noise_start_poisition]["eta"].iloc[0] + table.global_params.DESIRED_TTC
     target_time = max(te_by_ttc, noise_end_time)

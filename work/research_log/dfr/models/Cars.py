@@ -116,7 +116,7 @@ class Cars:
         (b) 上記の達成が不可能な場合はおとなしく左上を目指す.
         (c) もし避けるべきノイズがない場合(これは前の車の進路変更だけを気にすれば良い)
         """
-        print(f"avoidance by idx={self.car_idx}")
+        print(f"avoidance by idx={self.car_idx}, x={self.xcor}")
         can_early_avoid = True
         noise_to_avoid, can_early_avoid = self.select_noise_for_early_avoid(
             noiseList, current_time)
@@ -144,6 +144,7 @@ class Cars:
         print(f"ID: {self.car_idx}の新しいETA（Validate前）", ideal_eta)
 
         # 普通に計画すると前の車にぶつかることがあり得る。
+        # なのでvalidateが通ったらmy_etasとacc_itineraryを登録
         if validate_with_ttc(table.eta_table, ideal_eta, table.global_params.DESIRED_TTC):
             self.my_etas = ideal_eta
             self.acc_itinerary = temp_acc_itinerary

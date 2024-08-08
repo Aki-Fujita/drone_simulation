@@ -26,7 +26,9 @@ def solve_acc_itinerary_early_avoid(**kwargs):
     if isinstance(leader_eta, pd.DataFrame) and leader_eta.empty:
         # 先頭のクルマがいない場合
         leader_eta = None
-        acc_itinerary = calc_leader_acc_itinerary(car, current_time)
+        acc_itinerary_from_now = calc_leader_acc_itinerary(car, current_time)
+        acc_itinerary = update_acc_itinerary(
+            car.acc_itinerary, acc_itinerary_from_now)
         return acc_itinerary
     earliest_etas = create_earliest_etas(leader_eta, ttc, waypoints)
     noise_avoid_point = {"xe": xe, "te": noise_start_time}
@@ -201,6 +203,7 @@ def calc_leader_acc_itinerary(car, current_time):
     cruise_period = {"t_start": current_time + first_acc_period,
                      "acc": 0, "v_0": car.v_max, "t_end": 1e7}
     acc_itinerary.append(cruise_period)
+    print("leader acc_itinerary:", acc_itinerary)
     return acc_itinerary
 
 

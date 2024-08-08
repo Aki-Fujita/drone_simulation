@@ -13,10 +13,9 @@ def calc_noise_avoid_without_leader_eta(**kwargs):
     earliest_etas = insert_noise_eta(my_etas, xe, te)
     acc_itinerary = acc_solver(
         earliest_etas=earliest_etas, car=car, current_time=current_time)
-    print(" acc:", acc_itinerary)
+    # print(" acc:", acc_itinerary)
     merged_acc_itinerary = merge_acc_itinerary(
         pre_itinerary=car.acc_itinerary, new_itinerary=acc_itinerary)
-    print("merged:", merged_acc_itinerary)
     return merged_acc_itinerary
 
 
