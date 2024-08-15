@@ -22,9 +22,10 @@ def calc_late_avoid_with_early_avoid_leader(**kwargs):
     time_step = 0.5
     steps = int(total_time / time_step)
 
-    # リーダーのETAと自分のETAとノイズの通過時刻を元に最速のETAを計算する.
+    # リーダーのETAとノイズの通過時刻を元に最速のETAを計算する.
     constraints = create_earliest_etas(
         eta_of_leader, noise_x, noise_t, ttc, follower.my_etas)
+    print(f"constraints: {constraints}")
 
     # 後続車のパラメータ
     acc_itinerary = follower_acc_solver(
@@ -38,17 +39,16 @@ def calc_late_avoid_with_early_avoid_leader(**kwargs):
 def create_earliest_etas(leader_eta, noise_x, noise_t, ttc, my_etas):
     constraints = []
     print("leader_eta: ", leader_eta)
-    print("my_etas: ", my_etas)
     for my_eta in (my_etas):
         x_coord = my_eta['x']
         if x_coord < noise_x:
             # (a) my_etaのx座標がnoise_xより手前の場合
-            constraints.append(my_eta)
+            constraints.append({**my_eta, "eta": my_eta['eta'] - ttc - 0.15})
 
         elif x_coord == noise_x:
             # (b) my_etaのx座標がnoise_xと等しい場合
             constraint = {
-                'eta': noise_t,
+                'eta': noise_t - ttc,
                 'car_idx': my_eta['car_idx'],
                 'type': 'noise',
                 'x': noise_x
@@ -59,11 +59,12 @@ def create_earliest_etas(leader_eta, noise_x, noise_t, ttc, my_etas):
             # (c) my_etaのx座標がnoise_xより後ろの場合
             corresponding_leader_eta = leader_eta[leader_eta['x'] == x_coord]
             if not corresponding_leader_eta.empty:
-                adjusted_eta = corresponding_leader_eta.iloc[0]['eta'] + ttc
+                adjusted_eta = corresponding_leader_eta.iloc[0]['eta']
                 my_eta['eta'] = adjusted_eta
             constraints.append(my_eta)
 
     # constraintsをデータフレームに変換してreturn
+    print("constraints: ", constraints)
     return pd.DataFrame(constraints)
 
 

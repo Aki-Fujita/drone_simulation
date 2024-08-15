@@ -30,8 +30,8 @@ def will_avoid_single_noise(noise, carObj, current_time):
     x_at_noise_end = calc_distance_from_acc_itinerary(
         carObj.acc_itinerary, noise_end_time)
 
-    print(f"carID: {carObj.car_idx}, Start:{
-          x_at_noise_start}, End:{x_at_noise_end}")
+    # print(f"carID: {carObj.car_idx}, Start:{
+    #       x_at_noise_start}, End:{x_at_noise_end}")
     will_avoid_noise_early = x_at_noise_start > noise["x"][1]
     will_avoid_noise_late = x_at_noise_end < noise["x"][0]
     # print(f"Early:{will_avoid_noise_early}, Late:{will_avoid_noise_late}")

@@ -45,7 +45,6 @@ def solve_acc_itinerary_early_avoid(**kwargs):
     """
     initial_params = {"v0": car.v_x, "x0": car.xcor, "t0": current_time}
     start_params = copy.deepcopy(initial_params)  # 各区間をスタートするときのパラメータ
-    print("leader_eta", leader_eta, car.xcor)
     for idx, fastest_eta in enumerate(earliest_etas):
         if car.xcor >= fastest_eta["x"]:
             print("skipped: ", fastest_eta, car.xcor)
