@@ -1,8 +1,9 @@
 from models import ReservationTable, Cars
 from .solve_acc_itinerary_early_avoid import solve_acc_itinerary_early_avoid
-from .calc_noise_avoid_without_leader_eta import calc_noise_avoid_without_leader_eta
+from .calc_noise_avoid_without_leader_eta import calc_late_avoid_without_leader
 from .optimizer_for_follower import calc_late_avoid_with_leader
 from .conduct_optimization import conduct_fuel_optimization
+from .calc_late_avoid_with_early_avoid_leader import calc_late_avoid_with_early_avoid_leader
 import random
 import sys
 sys.path.append("..")
@@ -72,9 +73,11 @@ def calc_late_avoid(noise, current_time, carObj, table, leader):
     my_etas = reservation[reservation["car_idx"] == carObj.car_idx]
     # 遅く避けるときはノイズを気にする！！
     if leader is None:
+        print("リーダーがいない: ", carObj.car_idx)
         noise_end_time = noise["t"][1]
         noise_start_poisition = noise["x"][0]
-        acc_itinerary = calc_noise_avoid_without_leader_eta(
+        # これはリーダーがそもそもいない場合. 自分だけのETAで決めて良いケース.
+        acc_itinerary = calc_late_avoid_without_leader(
             car=carObj,
             xe=noise_start_poisition,
             te=noise_end_time + 0.1,
@@ -99,31 +102,20 @@ def calc_late_avoid(noise, current_time, carObj, table, leader):
     te_by_ttc = front_car_etas[front_car_etas["x"] ==
                                noise_start_poisition]["eta"].iloc[0] + table.global_params.DESIRED_TTC
     target_time = max(te_by_ttc, noise_end_time)
-    print(f"target_time: {target_time}")
+    print(f"target_time: {target_time}, 通過可能時刻: {
+          te_by_ttc}, ノイズ終了時刻: {noise_end_time}")
 
     if te_by_ttc < noise_end_time:
         """
-        これは自分がノイズの後ろの1台目の車の場合, なのでノイズを避けることだけ考えれば良い.
-        20240415時点では、遅く避ける場合の一台目に限り、燃費の最適化を行う. 
+        ノイズ以後にはリーダーがいるかもしれないが、ノイズ前ではリーダーが早避けしている場合. 
         """
-        # a_optimized, dt, N = conduct_fuel_optimization(
-        #     x0=carObj.xcor,
-        #     v0=carObj.v_x,
-        #     xe=noise_start_poisition,
-        #     te= target_time - current_time,
-        #     a_max=carObj.a_max,
-        #     a_min = carObj.a_min * -1
-        # ) # ここで最適化計算を実行
-        # acc_itinerary = crt_itinerary_from_a_optimized(a_optimized, dt, carObj, current_time, target_time)
-        """
-        リーダーを気にしないので自分のETAのみ参照する. 
-        """
-        acc_itinerary = calc_noise_avoid_without_leader_eta(
-            car=carObj,
+        acc_itinerary, dt, N = calc_late_avoid_with_early_avoid_leader(
+            follower=carObj,
             xe=noise_start_poisition,
             te=noise_end_time + 0.1,
-            etas=my_etas,
+            eta_of_leader=front_car_etas,
             current_time=current_time,
+            ttc=table.global_params.DESIRED_TTC
         )
     else:
         """

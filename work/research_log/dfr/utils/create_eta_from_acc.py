@@ -3,7 +3,7 @@ def create_itinerary_from_acc(**kwagrs):
     acc_itinerary = kwagrs.get("acc_itinerary", None)
     car_position = car_obj.xcor
     print("==== START CREATING ETA====")
-    print("acc_itinerary:", acc_itinerary)
+    print("L6: acc_itinerary:", acc_itinerary)
     new_itinerary = []
     for idx, item in enumerate(car_obj.my_etas):
         if item["x"] <= car_position:

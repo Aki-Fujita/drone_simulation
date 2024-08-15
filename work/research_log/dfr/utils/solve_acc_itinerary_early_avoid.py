@@ -2,6 +2,7 @@ import pandas as pd
 import copy
 from .calc_distance_from_acc_itinerary import calc_distance_from_acc_itinerary
 from .optimizer_for_follower import will_collide, can_reach_after_designated_eta, crt_acc_itinerary_for_decel_area
+from .simple_funcs import create_earliest_etas
 
 
 def solve_acc_itinerary_early_avoid(**kwargs):
@@ -30,7 +31,9 @@ def solve_acc_itinerary_early_avoid(**kwargs):
         acc_itinerary = update_acc_itinerary(
             car.acc_itinerary, acc_itinerary_from_now)
         return acc_itinerary
-    earliest_etas = create_earliest_etas(leader_eta, ttc, waypoints)
+
+    # ここからは前の車がいる場合のearly avoidの処理.
+    earliest_etas = create_earliest_etas(leader_eta, ttc)
     noise_avoid_point = {"xe": xe, "te": noise_start_time}
 
     acc_itinerary = car.acc_itinerary
@@ -49,8 +52,8 @@ def solve_acc_itinerary_early_avoid(**kwargs):
             continue
         print()
         print("====now testing: ", fastest_eta, "====")
-        print("===start_params: ", start_params, "===")
-        print("===acc_itinerary: ", acc_itinerary, "===")
+        # print("===start_params: ", start_params, "===")
+        # print("===acc_itinerary: ", acc_itinerary, "===")
         x_start = fastest_eta["x"]
         next_goal_x = earliest_etas[idx +
                                     1]["x"] if idx < len(earliest_etas)-1 else None
@@ -176,19 +179,7 @@ def solve_acc_itinerary_early_avoid(**kwargs):
                 print("前の車に当たってしまうので早避け不可")
                 return False
 
-            # eta = calc_eta_from_acc(x, acc_itinerary)
-            # print("L143: ", x, eta)
-            # return acc_itinerary
-
     return acc_itinerary
-
-
-def create_earliest_etas(leader_eta, ttc, waypoints):
-    leader_eta_list = leader_eta.sort_values(
-        by=["x"]).to_dict(orient="records")
-    earliest_etas = [{"x": leader_eta["x"], "eta": leader_eta["eta"]+ttc}
-                     for leader_eta in leader_eta_list]
-    return earliest_etas
 
 
 """
