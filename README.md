@@ -13,5 +13,6 @@
 -   opencv のインストールでコケることがある。その場合は、opencv を動かすための依存パッケージがインストールされていない場合がほとんど。
     -   20230411 時点では下記のコマンドで依存モジュールをインストールしたら動いた。
     ```shell:qiita.sh
+    apt-get update
     apt-get install -y libgl1-mesa-glx
     ```
