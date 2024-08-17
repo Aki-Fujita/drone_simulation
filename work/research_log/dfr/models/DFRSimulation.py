@@ -24,15 +24,17 @@ class DFRSimulation(BaseSimulation):
         self.create_noise = kwargs.get(
             "create_noise", self.create_noise_default)
         self.state = {}
+        self.DENSITY = kwargs.get("DENSITY")
 
     def conduct_simulation(self, should_plot=False):
         current_noise = []
         cars_on_road = []
         next_car_idx = 0
         communication_count = 0
-        for i in tnrange(self.total_steps, desc="Simulation Progress"):
+        for i in tnrange(self.total_steps, desc=f"Simulation Progress DFR, density={self.DENSITY}"):
             next_car = self.CARS[next_car_idx]
             time = i * self.TIME_STEP
+            communication_count += self.TIME_STEP
             event_flg = None
             self.state = {
                 "time": time,
@@ -113,11 +115,13 @@ class DFRSimulation(BaseSimulation):
                     print(f"t={time}, car_id:{
                           car_to_action_id} changed by leading car.")
 
-                new_eta = car_to_action.modify_eta(
-                    noiseList=current_noise, table=self.reservation_table, current_time=time, leader=leader)
-                self.reservation_table.update_with_request(
-                    car_idx=car_to_action_id, new_eta=new_eta)
-                car_to_action.my_etas = new_eta
+                if communication_count >= self.COMMUNICATION_SPEED:
+                    new_eta = car_to_action.modify_eta(
+                        noiseList=current_noise, table=self.reservation_table, current_time=time, leader=leader)
+                    self.reservation_table.update_with_request(
+                        car_idx=car_to_action_id, new_eta=new_eta)
+                    car_to_action.my_etas = new_eta
+                    communication_count = 0
 
             """
             STEP 4. 全員前進.

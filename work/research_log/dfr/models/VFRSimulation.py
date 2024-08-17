@@ -145,7 +145,7 @@ class VFRSimulation(BaseSimulation):
         cars_on_road = []
         next_car_idx = 0
 
-        for i in tnrange(self.total_steps, desc="Simulation Progress"):
+        for i in tnrange(self.total_steps, desc="Simulation Progress VFR"):
             next_car = self.CARS[next_car_idx]
             time = i * self.TIME_STEP
             event_flg = None
