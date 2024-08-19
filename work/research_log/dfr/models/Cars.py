@@ -197,11 +197,8 @@ class Cars:
     def decide_speed_helly(self, front_car, time_step):
         if self.helly_params is None:
             raise ValueError("ヘリーモデル用のパラメータが設定されていません")
-        """
-        この関数は自分のacc_itineraryをもとに自分のスピードを決める.
-        """
         if front_car is None:
-            front_car_x = 1e3
+            front_car_x = self.xcor + 1000
             front_car_vel = self.v_max
         else:
             front_car_x = front_car.xcor
@@ -215,8 +212,8 @@ class Cars:
             raise ValueError("Overtaking happened")
 
         next_speed = helly(delta_x, delta_v, time_step, v_n, self.helly_params)
-        # if self.car_idx == 1 and v_n > next_speed:
-        #     print("ID 1: 減速. delta_x", delta_x, "delta_v", delta_v, "next_speed", next_speed, "v_n:", v_n,
+        # if v_n > next_speed:
+        #     print(f"ID: {self.car_idx}, 減速. delta_x", delta_x, "delta_v", delta_v, "next_speed", next_speed, "v_n:", v_n,
         #           "front_car_x", front_car_x, "front_car_vel:", front_car_vel)
         self.v_x = next_speed
 

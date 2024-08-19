@@ -61,7 +61,7 @@ def helly(delta_x, delta_v, delta_t, v_n, helly_params):
 
     # 加速の場合
     if desired_acceleration >= 0:
-        # print("加速", max_accel, desired_acceleration, min(desired_acceleration, max_accel) * delta_t + v_n)
+
         v = min(desired_acceleration, max_accel) * delta_t + v_n
         return min(v, v_max)
     # 減速の場合

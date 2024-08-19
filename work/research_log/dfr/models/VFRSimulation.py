@@ -125,7 +125,7 @@ class VFRSimulation(BaseSimulation):
             "event_flg": None
         }
         cars_on_road = [
-            car for car in self.CARS if car.xcor < self.TOTAL_LENGTH]
+            car for car in self.CARS if car.xcor < self.TOTAL_LENGTH and car.arrival_time <= time]
         logObj["density"] = len(cars_on_road) / self.TOTAL_LENGTH
 
         if event_flg == "noise created":
@@ -202,7 +202,6 @@ class VFRSimulation(BaseSimulation):
                     continue
                 target_noise = None
                 noise_x = noise["x"][0]
-                # noise_car = NoiseCar(x=noise_x)  # noiseを便宜上車として扱う
                 is_leader = car.car_idx == 0 or (int(car.car_idx - 1)) not in [
                     car.car_idx for car in cars_on_road]
                 if car.xcor < noise_x:

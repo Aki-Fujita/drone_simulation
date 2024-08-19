@@ -169,7 +169,7 @@ class DFRSimulation(BaseSimulation):
             "event_flg": None
         }
         cars_on_road = [
-            car for car in self.CARS if car.xcor < self.TOTAL_LENGTH]
+            car for car in self.CARS if car.xcor < self.TOTAL_LENGTH and car.arrival_time <= time]
         logObj["density"] = len(cars_on_road) / self.TOTAL_LENGTH
 
         if event_flg == "noise created":
