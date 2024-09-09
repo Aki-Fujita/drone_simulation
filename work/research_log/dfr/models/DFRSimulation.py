@@ -131,6 +131,7 @@ class DFRSimulation(BaseSimulation):
                 car.proceed(self.TIME_STEP, time)
 
             self.record(time, event_flg)
+            self.record_headway(time)
             if should_plot and (i % 5 == 0 or event_flg):
                 self.plot_history_by_time(current_noise, time)
             if time % 10 == 0:

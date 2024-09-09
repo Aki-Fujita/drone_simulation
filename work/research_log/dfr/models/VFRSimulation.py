@@ -255,5 +255,6 @@ class VFRSimulation(BaseSimulation):
             ・プロット
             """
             self.record(time, event_flg)
+            self.record_headway(time)
             if should_plot and (i % 5 == 0):
                 self.plot_cars(time, current_noise)

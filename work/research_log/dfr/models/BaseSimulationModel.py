@@ -15,6 +15,7 @@ class BaseSimulation(ABC):
         self.total_steps = int(self.TOTAL_TIME / self.TIME_STEP)
         self.TOTAL_LENGTH = kwargs.get("TOTAL_LENGTH")
         self.v_mean_log = []  # 平均速度のログ. 時間と密度も同時に格納する
+        self.headway_log = []
 
     @abstractmethod
     def conduct_simulation(self):
@@ -22,6 +23,38 @@ class BaseSimulation(ABC):
         Conducts the simulation. Must be implemented by subclasses.
         """
         pass
+
+    def record_headway(self, time):
+        """
+        車間距離と速度のオブジェクトを作る.
+        time | headway | v_x | car_idx からなるデータフレームを作成する.
+        """
+        # シミュレーション中の車をフィルタリング
+        cars_on_road = [
+            car for car in self.CARS if car.xcor < self.TOTAL_LENGTH and car.arrival_time <= time]
+
+        for i, car in enumerate(cars_on_road):
+            car_idx = car.car_idx
+            v_x = car.v_x
+
+            if i > 0:
+                front_car = cars_on_road[i-1]
+                if front_car.xcor >= self.TOTAL_LENGTH:
+                    headway = self.TOTAL_LENGTH
+                else:
+                    headway = front_car.xcor - car.xcor
+            else:
+                headway = self.TOTAL_LENGTH
+            if headway < 0:
+                print("time: ", time, "car_idx: ", car_idx, "xcor: ", car.xcor)
+                raise ValueError("headway is negative")
+            self.headway_log.append({
+                "time": time,
+                "headway": headway,
+                "v_x": v_x,
+                "car_idx": car_idx,
+                "xcoor": car.xcor,
+            })
 
     def plot_v_mean_log(self, path):
         v_mean_log = self.v_mean_log
