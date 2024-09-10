@@ -73,9 +73,9 @@ class DFRSimulation(BaseSimulation):
                 continue
             influenced_by_noise_cars = []
             if len(current_noise) > 0:
-                print()
-                print(f"t={time}, next_car={next_car_idx}, current_noise= {
-                      current_noise}, event_flg={event_flg}")
+                # print()
+                # print(f"t={time}, next_car={next_car_idx}, current_noise= {
+                #       current_noise}, event_flg={event_flg}")
                 # 新しいノイズが来るか新しい車が到着したら誰が該当するかの判定をする.
                 influenced_by_noise_cars = self.find_noise_influenced_cars(
                     cars_on_road, current_noise, time)

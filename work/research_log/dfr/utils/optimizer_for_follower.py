@@ -244,20 +244,19 @@ def can_reach_after_designated_eta(v0, x0, t0, xe, te, car_params):
             return False
 
 
-"""
-2つのwaypoint間の進み方を決めるための関数.
-can_reach_after_designated_etaがTrueだった場合に、その条件下での最適な加速度を計算する.
-【重要】解の形は 減速 => 等速 に必ずなる. 
-Output: acc_itinerary # この区間の走り方であることに注意（最初からではない！）
-"""
-
-
 def crt_acc_itinerary_for_decel_area(v0, x0, t0, ve, xe, te, car_params, step_size, earliest_etas):
+    """
+    2つのwaypoint間の進み方を決めるための関数.
+    can_reach_after_designated_etaがTrueだった場合に、その条件下での最適な加速度を計算する.
+    【重要】解の形は 減速 => 等速 に必ずなる. 
+    Output: acc_itinerary # この区間の走り方であることに注意（最初からではない！）
+    """
     decel = abs(car_params.get("decel", None))*-1
     steps = int((te - t0) / step_size) + 1  # 始点から終点までの秒数
     cover_distance = 1e8  # x0から定義したacc_itineraryで進む距離
     loop_count = 0
     delta_x = xe - x0
+
     while cover_distance > xe - x0 or loop_count < steps:
         print("Loops: ", loop_count, steps)
         loop_count += 1
