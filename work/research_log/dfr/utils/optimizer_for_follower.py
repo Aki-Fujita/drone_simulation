@@ -5,6 +5,7 @@ import math
 # from calc_distance_from_acc_itinerary import calc_distance_from_acc_itinerary #単体テスト実行時はこっち
 # 親ファイルから呼ぶときはこっち
 from .calc_distance_from_acc_itinerary import calc_distance_from_acc_itinerary
+from .crt_acc_itinerary_for_decel_area import crt_acc_itinerary_for_decel_area
 import copy
 
 """
@@ -116,10 +117,15 @@ def follower_acc_solver(follower, eta_of_leader, TTC, current_time):
             # この場合、この区間のさらに先まで見た上で、これから先どこもブレーキが必要なかったら加速する！
             upcoming_wps = [{"xe": e["x"], "te": e["eta"]}
                             for i, e in enumerate(earliest_etas) if i >= wp_idx]
+            # t=70.6でアップデートされる car_idx: 14の車がなぜ加速しないのか調べる.
+            if follower.car_idx == 14:
+                print([not should_brake(**start_params, **eta_plan)
+                      for eta_plan in upcoming_wps])
+                print("L120: ", start_params, upcoming_wps)
             if all([not should_brake(**start_params, **eta_plan) for eta_plan in upcoming_wps]):
                 # print("これだとだいぶ余裕があるので加速する")
                 new_itinerary, sp = update_acc_itinerary_with_accel(itinerary_from_now, start_params, upcoming_wps, car_params={
-                                                                    **car_params, "acc": 2}, current_x=follower.xcor)
+                                                                    **car_params, "acc": 2}, current_x=follower.xcor, follower=follower)
 
                 # 今のacc_itineraryだとこの先にブレーキが必要ないので、どこかしらに当たるまで加速する.
                 itinerary_from_now = update_acc_itinerary(
@@ -130,7 +136,7 @@ def follower_acc_solver(follower, eta_of_leader, TTC, current_time):
                 continue
             continue
         if can_reach_after_designated_eta(**start_params, **eta_boundary, car_params=car_params):
-            print(f'減速すべき区間, goal:{eta_boundary["xe"]}, sp:{start_params}')
+            print(f'減速すべき区間, goal:{eta_boundary}, sp:{start_params}')
             a, eta = crt_acc_itinerary_for_decel_area(
                 **start_params, **eta_boundary, ve=None, car_params=car_params, step_size=0.5, earliest_etas=earliest_etas)
             v = a[-1]["v_0"]  # 必ず等速区間で終わるため
@@ -139,6 +145,8 @@ def follower_acc_solver(follower, eta_of_leader, TTC, current_time):
             continue
 
         else:
+            print(f"initial_params: {
+                  initial_params}, eta_boundary: {eta_boundary}")
             raise ValueError("どうやってもETAを満たせない")
 
     return itinerary_from_now
@@ -210,10 +218,10 @@ def should_brake(v0, x0, t0, xe, te):
 
 
 """
-ある場所に、定められた時間以後に到達できるかを判定する. 
+ある場所に、定められた時間以後に到達できるかを判定する.
 => 要するにこれは、delta_t秒でなるべく距離を出さないようにして、その結果delta_x[m]進まなければクリア
 => いずれにせよ車の最善策は全力でブレーキ
-(1) delta_t <= brake_timeの場合: これは速度が0にならない場合: 
+(1) delta_t <= brake_timeの場合: これは速度が0にならない場合:
     => cover_distance < delta_xならクリア
 (2) delta_t > brake_timeの場合: これは速度が0になる場合
     => delta_x > brake_distanceならクリア
@@ -244,62 +252,7 @@ def can_reach_after_designated_eta(v0, x0, t0, xe, te, car_params):
             return False
 
 
-def crt_acc_itinerary_for_decel_area(v0, x0, t0, ve, xe, te, car_params, step_size, earliest_etas):
-    """
-    2つのwaypoint間の進み方を決めるための関数.
-    can_reach_after_designated_etaがTrueだった場合に、その条件下での最適な加速度を計算する.
-    【重要】解の形は 減速 => 等速 に必ずなる. 
-    Output: acc_itinerary # この区間の走り方であることに注意（最初からではない！）
-    """
-    decel = abs(car_params.get("decel", None))*-1
-    steps = int((te - t0) / step_size) + 1  # 始点から終点までの秒数
-    cover_distance = 1e8  # x0から定義したacc_itineraryで進む距離
-    loop_count = 0
-    delta_x = xe - x0
-
-    while cover_distance > xe - x0 or loop_count < steps:
-        print("Loops: ", loop_count, steps)
-        loop_count += 1
-        # まずは加速度を変更してみる
-        decel_period = loop_count * step_size
-        acc_itinerary = [{"t_start": t0, "acc": decel,
-                          "v_0": v0, "t_end": t0+decel_period}]  # 減速区間分
-        acc_itinerary.append({"t_start": t0 + decel_period, "acc": 0,
-                             "v_0": v0 + decel * decel_period, "t_end": te})  # 減速後の等速区間分
-        # acc_itineraryからt=teでの位置を計算する
-        cover_distance = calc_distance_from_acc_itinerary(
-            acc_itinerary, te)  # ここで入れているacc_itineraryはあくまでもこの区間の走り方であることに注意
-        edge_params = {"v0": v0 + decel * decel_period, "x0": xe, "t0": te}
-        # xeより後ろのwaypointがない場合.
-        if [item for item in earliest_etas if item["x"] > xe] == []:
-            arrival_time = ((xe - x0) - cover_distance) / \
-                edge_params["v0"] + te
-            if arrival_time > te:
-                return acc_itinerary, te
-            else:
-                continue
-
-        earliest_eta_of_next_wp = sorted(
-            [item for item in earliest_etas if item["x"] > xe], key=lambda x: x['x'], reverse=False)[0]
-        # print("テスト", earliest_eta_of_next_wp)  # xeのさらにもう一つ次のWPの到着時間
-        next_boundary = {"xe": earliest_eta_of_next_wp["x"],
-                         "te": earliest_eta_of_next_wp["eta"]}
-        # cover_distance <= xe - x0 かつ、「ブレーキをしなかったことによって次の区間で追突」しなければOK という条件にする
-        should_decel_more = will_collide(
-            **edge_params, decel=car_params["decel"], **next_boundary,)
-        if cover_distance < xe - x0 and not should_decel_more:
-            # acc_itineraryを元に次のwaypointのETAを計算する.
-            last_v = acc_itinerary[-1]["v_0"]
-            eta = (delta_x - cover_distance) / last_v + te
-            acc_info_to_append = copy.deepcopy(acc_itinerary[-1])
-            acc_info_to_append["t_end"] = eta
-            acc_itinerary[-1] = acc_info_to_append
-            return acc_itinerary, eta
-
-    return {}, False
-
-
-def update_acc_itinerary_with_accel(itinerary_from_now, start_params, upcoming_wps, car_params, current_x):
+def update_acc_itinerary_with_accel(itinerary_from_now, start_params, upcoming_wps, car_params, current_x, follower):
     """
     遅すぎて余裕のあるacc_itineraryを受け取り、その後に加速区間を追加する.
     Input: acc_itinerary, start_params, upcoming_wps
@@ -307,9 +260,9 @@ def update_acc_itinerary_with_accel(itinerary_from_now, start_params, upcoming_w
     Output: updated_acc_itinerary
 
     具体的なユースケース
-    (例) 
+    (例)
     例えば区間2=>3でブレーキが必要だったので2=>3ではブレーキをかけたが、
-    その状態だと区間3=>4とそれ以降で余裕がありすぎるので、3=>4は少し加速したい. 
+    その状態だと区間3=>4とそれ以降で余裕がありすぎるので、3=>4は少し加速したい.
     その際、どれだけ加速するのが適切かを計算するための関数. （加速しすぎは結局後でブレーキを踏むため）
 
     方針
@@ -332,7 +285,7 @@ def update_acc_itinerary_with_accel(itinerary_from_now, start_params, upcoming_w
                  "t0": (xe - x_current) / v_current + t_current}
     result = copy.deepcopy(itinerary_from_now)
     result[-1]["t_end"] = result_sp["t0"]
-    print("first: start_params.", start_params)
+    print("L397: start_params.", start_params)
 
     while count < 100:
         count += 1
@@ -343,7 +296,11 @@ def update_acc_itinerary_with_accel(itinerary_from_now, start_params, upcoming_w
         updated_acc_itinerary.append(acc_segment)
         acc_segment_end = calc_distance_from_acc_itinerary(
             updated_acc_itinerary, acc_segment["t_end"]) + current_x
-        # print("in while loop", count, result_sp, acc_segment_end)
+        if follower.car_idx == 14:
+            print(f"res={calc_distance_from_acc_itinerary(
+                updated_acc_itinerary, acc_segment["t_end"])}, current_x={current_x}")
+            print(f"in while loop: count={count}, result_sp={
+                  result_sp}, acc_segment_end={acc_segment_end}, updated_acc_itinerary={updated_acc_itinerary}")
         speed_after_accel = acc_segment["v_0"] + car_params["acc"] * acc_period
         if acc_segment_end > xe or speed_after_accel > car_params["v_max"]:
             return result, result_sp
@@ -388,25 +345,6 @@ def isRssOK(distance, leader_speed, follower_speed):
               "leader speed:", leader_speed, "follower speed:", follower_speed)
         print("=================")
     return distance + leader_blake_distance > follower_blake_distance
-
-
-def will_collide(x0, v0, t0, decel, xe, te):
-    """
-    ある瞬間（x0, v0, t0）から全力でteまで減速してもxeに当たってしまうかどうかを判定。当たればTrueを返す.
-    """
-    delta_t = te - t0
-    if delta_t < 0:
-        # raise ValueError("delta_t must be positive")
-        return False
-    # 速度が0にならない場合
-    if delta_t < v0**2 / (2 * abs(decel)):
-        cover_distance = v0 * delta_t - 0.5 * abs(decel) * delta_t**2
-        # print("cover_distance", cover_distance, x0 + cover_distance, xe)
-        return x0 + cover_distance > xe
-    # 速度が0になる場合
-    cover_distance = v0**2 / (2 * abs(decel))
-    # print(x0, v0, t0, decel, xe, te, )
-    return x0 + cover_distance > xe
 
 
 def conduct_tests():

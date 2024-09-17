@@ -19,12 +19,29 @@ noiseにあたっていないと判断するには以下の (a) or (b)
 def will_avoid_single_noise(noise, carObj, current_time):
     noise_start_time = noise["t"][0]
     noise_end_time = noise["t"][1]
+    noise_start_x = noise["x"][0]
+    noise_end_x = noise["x"][1]
+    # ノイズが終わっている場合
     if noise_end_time < current_time:
         return True
-    if carObj.car_idx == 7:
-        print(carObj.acc_itinerary, noise_start_time,
-              noise_end_time, current_time, carObj.xcor)
 
+    # すでにnoiseを避けるETAをとっている場合.
+    # (a) ノイズの開始座標または終了座標に対応するETAを探す
+    noise_start_eta = None
+    noise_end_eta = None
+
+    for eta in carObj.my_etas:
+        if eta["x"] == noise_start_x:
+            noise_start_eta = eta["eta"]
+        elif eta["x"] == noise_end_x:
+            noise_end_eta = eta["eta"]
+
+    if noise_start_eta and noise_start_eta > noise_end_time:
+        return True
+    if noise_end_eta and noise_end_eta < noise_start_time:
+        return True
+
+    # ノイズに対するETAをとっていない場合
     x_at_noise_start = calc_distance_from_acc_itinerary(
         carObj.acc_itinerary, noise_start_time)
     x_at_noise_end = calc_distance_from_acc_itinerary(
@@ -32,8 +49,8 @@ def will_avoid_single_noise(noise, carObj, current_time):
 
     # print(f"carID: {carObj.car_idx}, Start:{
     #       x_at_noise_start}, End:{x_at_noise_end}")
-    will_avoid_noise_early = x_at_noise_start > noise["x"][1]
-    will_avoid_noise_late = x_at_noise_end < noise["x"][0]
+    will_avoid_noise_early = x_at_noise_start > noise_end_x
+    will_avoid_noise_late = x_at_noise_end < noise_start_x
     # print(f"Early:{will_avoid_noise_early}, Late:{will_avoid_noise_late}")
     return (will_avoid_noise_early or will_avoid_noise_late)
 

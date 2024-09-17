@@ -1,7 +1,9 @@
 import pandas as pd
 import copy
 from .calc_distance_from_acc_itinerary import calc_distance_from_acc_itinerary
-from .optimizer_for_follower import will_collide, can_reach_after_designated_eta, crt_acc_itinerary_for_decel_area
+from .optimizer_for_follower import can_reach_after_designated_eta
+from .will_collide import will_collide
+from .crt_acc_itinerary_for_decel_area import crt_acc_itinerary_for_decel_area
 from .simple_funcs import create_earliest_etas
 
 

@@ -1,4 +1,6 @@
-from .optimizer_for_follower import should_brake, update_acc_itinerary_with_accel, update_acc_itinerary, can_reach_after_designated_eta, crt_acc_itinerary_for_decel_area, merge_acc_itinerary, will_collide
+from .optimizer_for_follower import should_brake, update_acc_itinerary_with_accel, update_acc_itinerary, can_reach_after_designated_eta, merge_acc_itinerary
+from .will_collide import will_collide
+from .crt_acc_itinerary_for_decel_area import crt_acc_itinerary_for_decel_area
 import copy
 
 # これは late_avoidの場合の関数
