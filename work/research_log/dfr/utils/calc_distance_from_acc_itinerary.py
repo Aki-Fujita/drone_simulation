@@ -1,7 +1,7 @@
 """
 acc_itineraryとteを入れるとteの時点でどこにいるかを計算する関数
 acc_itineraryは以下のような形式
-{"t_start": 4.0, "acc": 3, "v_0": 20, "t_end": 14}
+{"t_start": 4.0, "acc": 3, "v_0": 20, "t_end": 14, "x_start": 10}
 """
 
 

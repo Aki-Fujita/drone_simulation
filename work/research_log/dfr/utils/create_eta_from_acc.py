@@ -15,10 +15,27 @@ def create_itinerary_from_acc(**kwagrs):
     return new_itinerary
 
 
-def calc_eta_from_acc(x_cor, acc_itinerary):
+def calc_eta_from_acc(x_coor, acc_itinerary):
+    """
+    Input: (目標地点のX座標, 加速度の情報)
+    Output: 目標地点に到達するETA
+    【処理概要】
+    acc_itineraryを元にXが更新されるたびに最初（acc_itineraryの初項）から計算する.
+
+    # 速く計算できるケース
+    x_startが入力されている場合は最も近いx_startから計算する. 
+    """
+
+    acc_itinerary = sorted(acc_itinerary, key=lambda x: x["t_start"])
+
+    # x_coor に一致するものをチェック (許容誤差 1e-2)
+    for acc_info in acc_itinerary:
+        if abs(acc_info.get("x_start", float('-inf')) - x_coor) < 1e-2:
+            return acc_info["t_start"]
+
     start_x = 0
     for idx, acc_info in enumerate(acc_itinerary):
-        delta_x = x_cor - start_x
+        delta_x = x_coor - start_x
         t_start = acc_info["t_start"]
         acc = acc_info["acc"]
         v_0 = acc_info["v_0"]

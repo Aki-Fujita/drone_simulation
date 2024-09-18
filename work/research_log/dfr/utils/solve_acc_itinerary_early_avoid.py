@@ -77,7 +77,7 @@ def solve_acc_itinerary_early_avoid(**kwargs):
                     if count > 300:
                         raise ValueError("Something wrong")
                     acc_period_length = count * time_step
-                    acc_period = {"t_start": start_params["t0"], "acc": car.a_max,
+                    acc_period = {"t_start": start_params["t0"], "acc": car.a_max, "x_start": start_params["x0"],
                                   "v_0": start_params["v0"], "t_end": start_params["t0"]+acc_period_length}
                     print(acc_period, x_start, next_goal_x)
                     acc_period_end = x_start + 0.5 * car.a_max * \
@@ -88,7 +88,7 @@ def solve_acc_itinerary_early_avoid(**kwargs):
                     eta_of_next_goal = (
                         next_goal_x - acc_period_end)/v_after_acc + start_params["t0"] + acc_period_length if next_goal_x else 1e7
                     cruise_after_accel = {
-                        "t_start": start_params["t0"]+acc_period_length, "acc": 0, "v_0": v_after_acc, "t_end": eta_of_next_goal}
+                        "t_start": start_params["t0"]+acc_period_length, "acc": 0, "v_0": v_after_acc, "t_end": eta_of_next_goal, "x_start": acc_period_end}
                     cruise_params = {"v0": v_after_acc,
                                      "x0": next_goal_x, "t0": eta_of_next_goal}
                     print("L90:", count, cruise_params,
@@ -190,9 +190,9 @@ def solve_acc_itinerary_early_avoid(**kwargs):
 
 def calc_leader_acc_itinerary(car, current_time):
     first_acc_period = (car.v_max - car.v_x) / car.a_max
-    acc_itinerary = [{"t_start": current_time, "acc": car.a_max,
+    acc_itinerary = [{"t_start": current_time, "acc": car.a_max, "x_start": car.xcor,
                       "v_0": car.v_x, "t_end": current_time + first_acc_period}]
-    cruise_period = {"t_start": current_time + first_acc_period,
+    cruise_period = {"t_start": current_time + first_acc_period, "x_start": car.xcor + 0.5 * car.a_max * first_acc_period**2 + car.v_x * first_acc_period,
                      "acc": 0, "v_0": car.v_max, "t_end": 1e7}
     acc_itinerary.append(cruise_period)
     print("leader acc_itinerary:", acc_itinerary)

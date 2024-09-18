@@ -189,7 +189,8 @@ class DFRSimulation(BaseSimulation):
         """
         各車のETAの変更履歴、座標、ノイズの有無をプロットする。
         """
-        color_list = ["orange", "pink", "blue", "brown", "red", "green"]
+        color_list = ["orange", "pink", "blue", "brown", "red", "green",
+                      "purple", "yellow", "cyan", "magenta", "lime", "teal"]
         car_idx_list_on_road = [
             car.car_idx for car in self.CARS if car.arrival_time <= current_time and car.xcor < self.TOTAL_LENGTH]
         eta_table = self.reservation_table.eta_table
@@ -204,23 +205,23 @@ class DFRSimulation(BaseSimulation):
             df_by_car = _df[(_df["car_idx"] == car_idx) &
                             (_df["type"] == "waypoint")]
             plt.plot(df_by_car["x"], df_by_car["eta"],
-                     color=color_list[car_idx % 6], linewidth=1, linestyle='--', alpha=0.1)
+                     color=color_list[car_idx % 12], linewidth=1, linestyle='--', alpha=0.1)
             plt.scatter(df_by_car["x"], df_by_car["eta"],
-                        color=color_list[car_idx % 6], alpha=0.2, s=20)
+                        color=color_list[car_idx % 12], alpha=0.2, s=20)
 
         # 現在道路に入った車に対するプロット
         for car_idx in car_idx_list_on_road:
             df_by_car = _df[(_df["car_idx"] == car_idx) &
                             (_df["type"] == "waypoint")]
             plt.plot(df_by_car["x"], df_by_car["eta"],
-                     color=color_list[car_idx % 6], linewidth=1, linestyle='--', alpha=0.1)
+                     color=color_list[car_idx % 12], linewidth=1, linestyle='--', alpha=0.1)
             plt.scatter(df_by_car["x"], df_by_car["eta"],
-                        color=color_list[car_idx % 6], alpha=0.2, s=20)
+                        color=color_list[car_idx % 12], alpha=0.2, s=20)
             car = self.CARS[car_idx]
             plt.plot(car.xcorList, car.timeLog,
-                     color=color_list[car_idx % 6], linewidth=1)
+                     color=color_list[car_idx % 12], linewidth=1, label=f'Car_{car_idx}')
             plt.scatter([car.xcor], [current_time],
-                        color=color_list[car_idx % 6], s=40, zorder=5)
+                        color=color_list[car_idx % 12], s=40, zorder=5)
 
         # ノイズ領域の描画
         for noise in noise_list:
@@ -251,8 +252,13 @@ class DFRSimulation(BaseSimulation):
         plt.xlabel('x')
         plt.ylabel('ETA')
 
+        # 凡例をグラフの外に表示
+        legend = plt.legend(bbox_to_anchor=(1.05, 1),
+                            loc='upper left', borderaxespad=0., fontsize='small')
+
         # 保存
-        plt.savefig(f"images/dfr/dfr_simulation_t={current_time:.1f}.png")
+        plt.savefig(
+            f"images/dfr/dfr_simulation_t={current_time:.1f}.png", bbox_inches='tight', bbox_extra_artists=[legend])
         plt.close()
 
 

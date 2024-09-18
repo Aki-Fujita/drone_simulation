@@ -29,7 +29,7 @@ def acc_solver(earliest_etas, car, current_time):
                       "t0": current_time}  # 計算開始時点での情報を保持
     car_params = {"decel": car.a_min, "accel": car.a_max}
     start_params = copy.deepcopy(initial_params)
-    itinerary_from_now = [{"t_start": current_time, "acc": 0,
+    itinerary_from_now = [{"t_start": current_time, "acc": 0, "x_start": car.xcor,
                            "v_0": car.v_x, "t_end": earliest_etas[0]["eta"]}]
     # print("Earliest ETAs: ", earliest_etas, itinerary_from_now)
     for wp_idx, earliest_eta in enumerate(earliest_etas):
