@@ -190,7 +190,7 @@ class DFRSimulation(BaseSimulation):
         各車のETAの変更履歴、座標、ノイズの有無をプロットする。
         """
         color_list = ["orange", "pink", "blue", "brown", "red", "green",
-                      "purple", "yellow", "cyan", "magenta", "lime", "teal"]
+                      "purple", "darkgoldenrod", "cyan", "magenta", "lime", "teal"]
         car_idx_list_on_road = [
             car.car_idx for car in self.CARS if car.arrival_time <= current_time and car.xcor < self.TOTAL_LENGTH]
         eta_table = self.reservation_table.eta_table
