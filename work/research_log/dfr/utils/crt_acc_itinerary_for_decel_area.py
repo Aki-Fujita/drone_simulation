@@ -83,6 +83,8 @@ def crt_acc_itinerary_for_decel_area(v0, x0, t0, ve, xe, te, car_params, step_si
                 if can_stop_before_goal(v0, x0, t0, xe, te, car_params):
                     acc_itinerary = stop_at_goal(
                         v0, x0, t0, xe, te, car_params)
+                    print(f"acc_itinerary with stop, acc_itinerary={
+                          acc_itinerary}")
                     return acc_itinerary, te
             acc_info_to_append = copy.deepcopy(acc_itinerary[-1])
             acc_info_to_append["t_end"] = eta
@@ -118,7 +120,7 @@ def stop_at_goal(v0, x0, t0, xe, te, car_params):
     decel_period = v0 / decel
     acc_itinerary = [{"t_start": t0, "acc": 0, "x_start": x0,
                       "v_0": v0, "t_end": t0+coasting_period}]  # ブレーキをかけ始めるまで
-    acc_itinerary.append({"t_start": t0+coasting_period, "acc": -1*decel, "x_start": x0 + braking_start_position,
+    acc_itinerary.append({"t_start": t0+coasting_period, "acc": -1*decel, "x_start": x0 + coasting_period*v0,
                          "v_0": v0, "t_end": t0 + coasting_period + decel_period})
     acc_itinerary.append({"t_start": t0 + coasting_period + decel_period, "acc": 0, "x_start": goal,
                          "v_0": 0, "t_end": te})  # 停止中
