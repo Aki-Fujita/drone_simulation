@@ -23,7 +23,6 @@ def calc_late_avoid_with_early_avoid_leader(**kwargs):
     # リーダーのETAとノイズの通過時刻を元に最速のETAを計算する.
     constraints = create_earliest_etas(
         eta_of_leader, noise_x, noise_t, ttc, follower.my_etas)
-    print(f"constraints: {constraints}")
 
     # 後続車のパラメータ
     acc_itinerary = follower_acc_solver(

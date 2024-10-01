@@ -127,7 +127,10 @@ class DFRSimulation(BaseSimulation):
             STEP 4. 全員前進.
             """
             for car in cars_on_road:
-                car.decide_speed(time, self.TIME_STEP)
+                front_car = None if car.car_idx == 0 else self.CARS[car.car_idx - 1]
+                if front_car is not None and front_car.xcor >= self.TOTAL_LENGTH:
+                    front_car = None
+                car.decide_speed(time, self.TIME_STEP, front_car)
                 car.proceed(self.TIME_STEP, time)
 
             self.record(time, event_flg)

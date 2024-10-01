@@ -18,10 +18,11 @@ def calc_distance_from_acc_itinerary(acc_itinerary, te):
 
         # print(f"v0={v0}, v_log={v_last}, te={te}, t_end={acc_info['t_end']}")
         # ここのthresholdはちゃんと考えないといけない。simulation時間のtickが0.2だとすると、加速度3の区間では最大0.3（3 * 0.2 /2）のずれが生じる
-        if abs(v_last-v0) > 0.299:
-            print(f"id={idx}", acc_itinerary, v0, v_last, acc_info)
-            raise ValueError(f"acc_itinerary is wrong, v0={
-                             v0}, v_log={v_last}")
+        # ETAだけで動くわけではなく, DAAも考慮するようにしたのでacc_itineraryが狂うこともあるため、以下のコードは無効にした. 
+        # if abs(v_last-v0) > 0.299:
+        #     print(f"id={idx}", acc_itinerary, v0, v_last, acc_info)
+        #     raise ValueError(f"acc_itinerary is wrong, v0={
+        #                      v0}, v_log={v_last}, acc_itinerary={acc_itinerary}, te={te}")
         cover_distance += v0 * delta_t + 0.5 * acc_info["acc"] * delta_t**2
         # print(f"i={idx}, cover_distance={cover_distance}")
         v_last += acc_info["acc"] * delta_t

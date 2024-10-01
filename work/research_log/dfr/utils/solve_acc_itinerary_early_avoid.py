@@ -168,7 +168,7 @@ def solve_acc_itinerary_early_avoid(**kwargs):
 
                 a, eta = crt_acc_itinerary_for_decel_area(
                     # FIXME: 加速度計算の時のstep_sizeは論点
-                    **start_params, **eta_boundary, ve=None, car_params=car_params, step_size=0.5, earliest_etas=earliest_etas)
+                    **start_params, **eta_boundary, ve=None, car_params=car_params, step_size=0.5, earliest_etas=earliest_etas, car_idx=car.car_idx)
                 v = a[-1]["v_0"]
                 acc_itinerary = update_acc_itinerary(
                     acc_itinerary, a)
@@ -200,7 +200,7 @@ def calc_leader_acc_itinerary(car, current_time):
 
 
 def should_brake(v0, x0, t0, xe, te):
-    arrival_time = (xe - x0) / v0 + t0
+    arrival_time = (xe - x0) /( v0+1e-4 ) + t0
     # print(f"Arrival Time: {arrival_time}, te: {te}, v0:{v0}, x0:{x0}, t0:{t0}")
     if arrival_time > te:  # 普通に等速で進んでもETAより後ろになる場合はブレーキをかけないで良い.
         return False
@@ -255,7 +255,7 @@ def calc_eta_from_acc(x_cor, acc_itinerary):
             # print(f"最後: delta_x={delta_x}, acc_info={acc_info}")
             if acc_info["acc"] == 0:
                 # 等速の場合
-                return delta_x / v_0 + t_start
+                return delta_x / (v_0 +1e-4)+ t_start
             # 加速度のある場合
             return ((v_0**2 + 2 * acc * delta_x)**0.5 - v_0)/acc + t_start
 
@@ -271,6 +271,6 @@ def calc_eta_from_acc(x_cor, acc_itinerary):
 
             # この区間で終わる場合.
             if acc_info["acc"] == 0:
-                return t_start + delta_x / v_0
+                return t_start + delta_x / (v_0+1e-4)
             else:
                 return ((v_0**2 + 2 * acc * delta_x)**0.5 - v_0)/acc + t_start

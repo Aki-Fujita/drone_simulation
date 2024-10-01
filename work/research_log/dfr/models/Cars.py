@@ -25,6 +25,7 @@ class Cars:
         self.v_max = kwargs.get("v_max")
         self.a_max = kwargs.get("a_max")
         self.a_min = kwargs.get("a_min")  # 許容可能な減速度
+        self.a_min_lim = kwargs.get("a_min_lim", -5)  # 急ブレーキ用の減速度
         self.xcor = 0
         self.xcorList = [0]
         self.timeLog = [self.arrival_time]
@@ -32,6 +33,7 @@ class Cars:
         self.helly_params = kwargs.get("helly_params", {
                                        **helly_params_default, "max_accel": self.a_max, "min_accel": self.a_min, "v_max": self.v_max, "isRss": True})
         self.my_etas = []  # 自分のETA予定表のこと
+        self.delta_from_eta = 0  # ETAからのずれ. DAAで必要以上のブレーキやアクセルが必要になった場合にここの値が変動する. 
 
         # 以下はVFRのシミュレーションで利用するprops
         self.foreseeable_distance = kwargs.get(
@@ -176,17 +178,58 @@ class Cars:
                 {"eta": eta_at_noise, "car_idx": self.car_idx, "type": "noise", "x": noise_x_coor})
 
     # DFRのシミュレーション用
-    def decide_speed(self, current_time, time_step):
+    def decide_speed(self, current_time, time_step, front_car=None):
         """
         この関数は自分のacc_itineraryをもとに自分のスピードを決める.
+         => ただ、改めて見ると、速度と加速度をただ参照しているだけでは目的地に狙ったETAで到達できるかは怪しい. 
         """
-        acc = self.get_acc_for_time(current_time)
-        if acc == 0:
-            self.v_x = self.get_v_for_time(current_time)
+        delta_x = front_car.xcor - self.xcor if front_car is not None else 1e3
+        v_front = front_car.v_x if front_car is not None else None
+        
+        planned_speed = self.calc_speed_from_acc_itinerary(current_time)
+        if planned_speed is None:
+            planned_speed = self.v_x
             return
-        # print("decide_speed: "self.car_idx, self.acc_itinerary, current_time, acc)
-        next_speed = self.v_x + acc * time_step
-        self.v_x = next_speed
+        if v_front is None or self.can_drive_with_planned_speed(front_car, planned_speed):
+            self.v_x = planned_speed
+            return
+        
+        # 衝突する場合は速度を調整する（最大限のブレーキを踏む）
+        controled_speed = max(self.v_x + self.a_min_lim * time_step, 0)
+        self.v_x = controled_speed
+        self.delta_from_eta += (planned_speed - controled_speed) * time_step # planned_speedに対してどれだけ遅れているかを記録
+        print(f"CONTROL領域: ID: {self.car_idx}, planned_speed={planned_speed}, controled_speed={controled_speed}, delta_x={delta_x}, v_front={v_front}")
+
+        # 本当はself.delta_from_etaを見た上で余裕がある時には速度を増やしたりしたいが、一旦割愛
+
+    def can_drive_with_planned_speed(self, front_car, planned_speed):
+        """
+        前の車との間に十分なスペースがあるかどうかを判断する関数.
+        """
+        if front_car is None:
+            return True
+        front_car_brake_distance = abs(front_car.v_x ** 2 / 2 / front_car.a_min)
+        my_brake_distance = planned_speed ** 2 / 2 / self.a_min
+        headway = front_car.xcor - self.xcor
+        car_length = 3
+        return headway + front_car_brake_distance > my_brake_distance + car_length
+
+    def calc_speed_from_acc_itinerary(self, time):
+        """
+        acc_itineraryを元に速度を計算する関数.
+        """
+        # 区間を検索
+        for interval in self.acc_itinerary:
+            # 指定された時刻が区間に含まれているか確認
+            if interval['t_start'] <= time <= interval['t_end']:
+                # 速度を計算: v = v_0 + acc * (time - t_start)
+                v_0 = interval['v_0']
+                acc = interval['acc']
+                t_start = interval['t_start']
+                speed = v_0 + acc * (time - t_start)
+                return speed
+        # 該当する区間がない場合は None を返す
+        return None
 
     def proceed(self, time_step, current_time):
         self.xcor += self.v_x * time_step

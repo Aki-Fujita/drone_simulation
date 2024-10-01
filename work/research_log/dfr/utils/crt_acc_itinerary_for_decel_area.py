@@ -116,7 +116,7 @@ def stop_at_goal(v0, x0, t0, xe, te, car_params):
     stop_distance = v0**2 / 2 / decel  # ブレーキをかけながら進む距離
     braking_start_position = goal - stop_distance
     coasting_distance = braking_start_position - x0
-    coasting_period = coasting_distance / v0
+    coasting_period = coasting_distance / (v0 +1e-4)
     decel_period = v0 / decel
     acc_itinerary = [{"t_start": t0, "acc": 0, "x_start": x0,
                       "v_0": v0, "t_end": t0+coasting_period}]  # ブレーキをかけ始めるまで

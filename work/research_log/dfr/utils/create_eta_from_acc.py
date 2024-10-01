@@ -57,7 +57,7 @@ def calc_eta_from_acc(x_coor, acc_itinerary):
             # 最後の区間の処理
             if acc == 0:
                 # 等速の場合
-                return delta_x / v_0 + t_start
+                return delta_x / (v_0+1e-4) + t_start
             else:
                 # 加速度がある場合
                 return ((v_0**2 + 2 * acc * delta_x) ** 0.5 - v_0) / acc + t_start
@@ -70,7 +70,7 @@ def calc_eta_from_acc(x_coor, acc_itinerary):
             if delta_x <= covered_distance:
                 # この区間で目標に到達できる場合
                 if acc == 0:
-                    return t_start + delta_x / v_0
+                    return t_start + delta_x / (v_0 + 1e-4)
                 else:
                     return ((v_0**2 + 2 * acc * delta_x) ** 0.5 - v_0) / acc + t_start
 

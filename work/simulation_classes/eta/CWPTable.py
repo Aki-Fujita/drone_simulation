@@ -126,7 +126,7 @@ class CWPTable:
                 end_of_phase_1 = phase_1["duration"] * v_0
                 end_of_phase_2 = phase_2["ACC"] * phase_2["duration"] ** 2 * 0.5 + v_0 * phase_2["duration"] + end_of_phase_1
                 if d <= end_of_phase_1:
-                    return d / v_0
+                    return d / (v_0 +1e-4)
                 if d <= end_of_phase_2:
                     delta = d - end_of_phase_1
                     return ((v_0 ** 2 + 2 * phase_2["ACC"] * delta)**0.5 - v_0) / phase_2["ACC"] + phase_1["duration"]
