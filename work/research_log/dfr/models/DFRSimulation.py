@@ -141,6 +141,12 @@ class DFRSimulation(BaseSimulation):
                 for car in cars_on_road:
                     print(f"t={time}, car_id:{car.car_idx}, xcor:{
                           car.xcor}, speed:{car.v_x}")
+            if time >= 111.4 and time < 120:
+                print()
+                print(f"DEBUG: L146 ")
+                print(f"car_id: 31, INFO: {self.CARS[31].xcor}, {self.CARS[31].v_x}")
+                print(f"car_id: 32, INFO: {self.CARS[32].xcor}, {self.CARS[32].v_x}")
+                print()
 
     def find_noise_influenced_cars(self, cars_on_road, noiseList, time):
         car_list = [car.car_idx for idx, car in enumerate(

@@ -118,7 +118,7 @@ class Cars:
         (b) 上記の達成が不可能な場合はおとなしく左上を目指す.
         (c) もし避けるべきノイズがない場合(これは前の車の進路変更だけを気にすれば良い)
         """
-        print(f"avoidance by idx={self.car_idx}, x={self.xcor}")
+        print(f"avoidance by idx={self.car_idx}, x={self.xcor}, v_0={self.v_x}")
         can_early_avoid = True
         noise_to_avoid, can_early_avoid = self.select_noise_for_early_avoid(
             noiseList, current_time)

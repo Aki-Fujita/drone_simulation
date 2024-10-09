@@ -90,18 +90,19 @@ def follower_acc_solver(follower, eta_of_leader, TTC, current_time):
     earliest_etas = []
     for eta_info in eta_of_leader:
         earilist_eta = eta_info["eta"] + TTC + \
-            0.15  # 先頭車のETAにTTC秒以上開けた上でマージンを0.15秒とる
+            0.1  # 先頭車のETAにTTC秒以上開けた上でマージンを0.1秒とる（これ、密度が高くなると計算が合わない要因になり得る）
         earliest_etas.append(
             {**eta_info, "eta": earilist_eta, "car_idx": follower.car_idx})
 
     # (b) 続いて上のETAが実現可能であるかを検証し、無理ならばETAを遅らせていく
     initial_params = {"v0": follower.v_x,
                       "x0": follower.xcor, "t0": current_time}
-    car_params = {"decel": follower.a_min,
-                  "accel": follower.a_max, "v_max": follower.v_max}
+    car_params = {"decel": follower.a_min,  
+                  "accel": follower.a_max, "v_max": follower.v_max, "a_min_lim": follower.a_min_lim}
     start_params = copy.deepcopy(initial_params)
     itinerary_from_now = [{"t_start": current_time, "acc": 0, "x_start": follower.xcor,
                            "v_0": follower.v_x, "t_end": earliest_etas[0]["eta"]}]
+    print()
     print("late avoid with leader: earliest_possible_ETAs:",
           earliest_etas, "\n itinerary:", itinerary_from_now)
 
@@ -119,7 +120,7 @@ def follower_acc_solver(follower, eta_of_leader, TTC, current_time):
             upcoming_wps = [{"xe": e["x"], "te": e["eta"]}
                             for i, e in enumerate(earliest_etas) if i >= wp_idx]
             # デバッグ用
-            if follower.car_idx == 6:
+            if follower.car_idx == 25:
                 print([should_brake(**start_params, **eta_plan)
                       for eta_plan in upcoming_wps])
                 print("L120: ", start_params, upcoming_wps, itinerary_from_now)
@@ -143,19 +144,30 @@ def follower_acc_solver(follower, eta_of_leader, TTC, current_time):
                 **start_params, **eta_boundary, ve=None, car_params=car_params, step_size=0.5, earliest_etas=earliest_etas, car_idx=follower.car_idx)
             v = a[-1]["v_0"]  # 必ず等速区間で終わるため
             start_params = {"v0": v, "x0": eta_boundary["xe"], "t0": eta}
-            if follower.car_idx == 6:
-                print(f"L145_itinerary_from_now: {itinerary_from_now}, a={a}")
+            # if follower.car_idx == 6:
+            #     print(f"L145_itinerary_from_now: {itinerary_from_now}, a={a}")
             itinerary_from_now = update_acc_itinerary(itinerary_from_now, a)
-            if follower.car_idx == 14:
-                print(f"L148_itinerary_from_now: {itinerary_from_now}")
             continue
 
         else:
-            print(f"initial_params: {
-                  initial_params}, eta_boundary: {eta_boundary}")
-            print(f"can_reach_after_designated_eta: {can_reach_after_designated_eta(
-                **start_params, **eta_boundary, car_params=car_params)}")
-            raise ValueError("どうやってもETAを満たせない")
+            car_params["decel"] = car_params["a_min_lim"]
+
+            if can_reach_after_designated_eta(**start_params, **eta_boundary, car_params=car_params):
+                a, eta = crt_acc_itinerary_for_decel_area(
+                    **start_params, **eta_boundary, ve=None, car_params=car_params, step_size=0.5, earliest_etas=earliest_etas, car_idx=follower.car_idx)
+                v = a[-1]["v_0"]  # 必ず等速区間で終わるため
+                start_params = {"v0": v, "x0": eta_boundary["xe"], "t0": eta}
+                if follower.car_idx == 32:
+                    print(f"L162_itinerary_from_now: {itinerary_from_now}, a={a}")
+                itinerary_from_now = update_acc_itinerary(itinerary_from_now, a)
+                car_params["decel"] = follower.a_min
+                continue
+            else:
+                print(f"initial_params: {
+                      initial_params}, eta_boundary: {eta_boundary}")
+                print(f"can_reach_after_designated_eta: {can_reach_after_designated_eta(
+                    **start_params, **eta_boundary, car_params=car_params)}")
+                raise ValueError("どうやってもETAを満たせない")
 
     return itinerary_from_now
 
@@ -314,7 +326,7 @@ def update_acc_itinerary_with_accel(itinerary_from_now, start_params, upcoming_w
         updated_acc_itinerary.append(acc_segment)
         acc_segment_end = calc_distance_from_acc_itinerary(
             updated_acc_itinerary, acc_segment["t_end"]) + current_x
-        if follower.car_idx == 14:
+        if follower.car_idx == 25:
             print()
             print(f"res={calc_distance_from_acc_itinerary(
                 updated_acc_itinerary, acc_segment["t_end"])}, current_x={current_x}")
@@ -326,7 +338,7 @@ def update_acc_itinerary_with_accel(itinerary_from_now, start_params, upcoming_w
         if acc_segment_end > xe or speed_after_accel > car_params["v_max"]:
             return result, result_sp
         cruise_segment = {"t_start": acc_segment["t_end"], "acc": 0, "v_0": speed_after_accel, "t_end": (
-            xe - acc_segment_end) / (acc_segment["v_0"]+1e-4) + acc_segment["t_end"], "x_start": acc_segment_end}
+            xe - acc_segment_end) / (speed_after_accel+1e-4) + acc_segment["t_end"], "x_start": acc_segment_end}
 
         updated_acc_itinerary.append(cruise_segment)
         position_at_te = calc_distance_from_acc_itinerary(
@@ -334,16 +346,21 @@ def update_acc_itinerary_with_accel(itinerary_from_now, start_params, upcoming_w
         # print(f"count={count}, Position at te: {position_at_te}, xe: {xe}, acc_segment_end: {acc_segment_end}")
         if position_at_te <= xe and acc_segment_end <= xe:
             # この区間は大丈夫なので、これ以降のwaypointsに対しても大丈夫かを判定する.
-            # print()
-            # print("計算に使った要素:", updated_acc_itinerary,
-            #       acc_segment_end, xe, cruise_segment)
             start_params_at_edge = {"v0": cruise_segment["v_0"], "x0": xe, "t0": (
                 xe - acc_segment_end)/cruise_segment["v_0"] + cruise_segment["t_start"]}
             # print("should brake: ", start_params_at_edge,  [should_brake(
             #     **start_params_at_edge, **eta_plan) for eta_plan in upcoming_wps], upcoming_wps)
             should_continue = all([not should_brake(
                 **start_params_at_edge, **eta_plan) for eta_plan in upcoming_wps])
-            # print(should_continue)
+            if follower.car_idx == 25:
+                print()
+                print("計算に使った要素:", updated_acc_itinerary,
+                      acc_segment_end, "\n xe:{xe}", cruise_segment)
+                print(should_continue)
+                print(f"L425 start_params_at_edge: {start_params_at_edge} \n UpcomingWps:{upcoming_wps}")
+                print()
+                print([not should_brake(
+                **start_params_at_edge, **eta_plan) for eta_plan in upcoming_wps])
             if not should_continue:
                 return result, result_sp
             result = updated_acc_itinerary

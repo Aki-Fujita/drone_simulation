@@ -1,4 +1,4 @@
-from utils import check_multiple_noise_effect, validate_with_ttc
+from utils import check_multiple_noise_effect
 import sys
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches

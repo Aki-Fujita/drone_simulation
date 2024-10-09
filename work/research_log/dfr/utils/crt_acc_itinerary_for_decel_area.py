@@ -48,7 +48,7 @@ def crt_acc_itinerary_for_decel_area(v0, x0, t0, ve, xe, te, car_params, step_si
         temp_eta = te
         if cover_distance < delta_x:
             last_v = acc_itinerary[-1]["v_0"]
-            temp_eta = (delta_x - cover_distance) / last_v + te
+            temp_eta = (delta_x - cover_distance) / (last_v+1e-4) + te
         edge_params = {"v0": v0 + decel *
                        decel_period, "x0": xe, "t0": temp_eta}
         # xeより後ろのwaypointがない場合.
@@ -75,7 +75,7 @@ def crt_acc_itinerary_for_decel_area(v0, x0, t0, ve, xe, te, car_params, step_si
         if cover_distance < xe - x0 and not should_decel_more:
             # acc_itineraryを元に次のwaypointのETAを計算する.
             last_v = acc_itinerary[-1]["v_0"]
-            eta = (delta_x - cover_distance) / last_v + te
+            eta = (delta_x - cover_distance) / (last_v+1e-4) + te
             # teより5秒以上遅くなる場合は止まる方に変更.
             if eta - te > 5:
                 print(f"ETA >> TE :ETA-TE={eta-te}")
