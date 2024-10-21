@@ -101,7 +101,7 @@ def follower_acc_solver(follower, eta_of_leader, TTC, current_time):
                   "accel": follower.a_max, "v_max": follower.v_max, "a_min_lim": follower.a_min_lim}
     start_params = copy.deepcopy(initial_params)
     itinerary_from_now = [{"t_start": current_time, "acc": 0, "x_start": follower.xcor,
-                           "v_0": follower.v_x, "t_end": earliest_etas[0]["eta"]}]
+                           "v_0": follower.v_x, "t_end": current_time}]# t_endはどうせ変わるのでここにt_startより前の値が入るのは別にヤバくはない
     print()
     print("late avoid with leader: earliest_possible_ETAs:",
           earliest_etas, "\n itinerary:", itinerary_from_now)
@@ -120,7 +120,7 @@ def follower_acc_solver(follower, eta_of_leader, TTC, current_time):
             upcoming_wps = [{"xe": e["x"], "te": e["eta"]}
                             for i, e in enumerate(earliest_etas) if i >= wp_idx]
             # デバッグ用
-            if follower.car_idx == 25:
+            if follower.car_idx == 17:
                 print([should_brake(**start_params, **eta_plan)
                       for eta_plan in upcoming_wps])
                 print("L120: ", start_params, upcoming_wps, itinerary_from_now)
@@ -168,7 +168,7 @@ def follower_acc_solver(follower, eta_of_leader, TTC, current_time):
                 print(f"can_reach_after_designated_eta: {can_reach_after_designated_eta(
                     **start_params, **eta_boundary, car_params=car_params)}")
                 raise ValueError("どうやってもETAを満たせない")
-
+    print("acc_itinerary:", itinerary_from_now)
     return itinerary_from_now
 
 
@@ -305,7 +305,7 @@ def update_acc_itinerary_with_accel(itinerary_from_now, start_params, upcoming_w
         無理ならば、その時点でのacc_itineraryを返す.
     """
     count = 0
-    step_size = 0.25
+    step_size = 0.2
     xe = upcoming_wps[0]["xe"]  # この区間のゴール
     te = upcoming_wps[0]["te"]  # この時刻より早くxeに到達してはいけない.
     x_start = start_params["x0"]  # この区間のスタート
@@ -315,7 +315,7 @@ def update_acc_itinerary_with_accel(itinerary_from_now, start_params, upcoming_w
                  "t0": (xe - x_start) / (v_current + 1e-4) + t_current}
     result = copy.deepcopy(itinerary_from_now)
     result[-1]["t_end"] = result_sp["t0"]
-    print("L397: start_params.", start_params)
+    print("L318: start_params.", start_params)
 
     while count < 100:
         count += 1
@@ -326,14 +326,15 @@ def update_acc_itinerary_with_accel(itinerary_from_now, start_params, upcoming_w
         updated_acc_itinerary.append(acc_segment)
         acc_segment_end = calc_distance_from_acc_itinerary(
             updated_acc_itinerary, acc_segment["t_end"]) + current_x
-        if follower.car_idx == 25:
+        if follower.car_idx == 47:
             print()
-            print(f"res={calc_distance_from_acc_itinerary(
+            print(f"加速中に進む距離={calc_distance_from_acc_itinerary(
                 updated_acc_itinerary, acc_segment["t_end"])}, current_x={current_x}")
             print(f"in while loop: count={count}, result_sp={
                   result_sp}, acc_segment_end={acc_segment_end}, updated_acc_itinerary={updated_acc_itinerary}")
+            
         speed_after_accel = acc_segment["v_0"] + car_params["acc"] * acc_period
-
+        print(acc_segment_end > xe or speed_after_accel > car_params["v_max"])
         # 加速区間の出口がxeを超えるか、速度がv_maxを超える場合はダメ
         if acc_segment_end > xe or speed_after_accel > car_params["v_max"]:
             return result, result_sp

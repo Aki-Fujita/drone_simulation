@@ -91,6 +91,7 @@ class DFRSimulation(BaseSimulation):
                 set(influenced_by_noise_cars + influenced_by_eta_cars))
 
             if event_flg or len(influenced_cars) > 0:
+                print(f"---------t={time:.2f}---------")
                 print(f"直接ノイズの影響を受けるもの: {influenced_by_noise_cars}")
                 print(f"他の車の影響: {influenced_by_eta_cars}")
                 print(f"対象車: {influenced_cars}")
@@ -112,7 +113,7 @@ class DFRSimulation(BaseSimulation):
                     print(f"t={time:.2f}, car_id:{
                           car_to_action_id} avoiding noise.")
                 else:
-                    print(f"t={time}, car_id:{
+                    print(f"t={time:.2f}, car_id:{
                           car_to_action_id} changed by leading car.")
 
                 if communication_count >= self.COMMUNICATION_SPEED:

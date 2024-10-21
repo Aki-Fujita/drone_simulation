@@ -72,7 +72,7 @@ class VFRSimulation(BaseSimulation):
         ax = plt.gca()
         plt.title(f"t={current_time:.1f}")
         car_idx_list_on_road = [
-            car.car_idx for car in self.CARS if car.arrival_time <= current_time]
+            car.car_idx for car in self.CARS if car.arrival_time <= current_time and car.xcor < self.TOTAL_LENGTH]
 
         # 車の位置をプロット
         for car_idx in car_idx_list_on_road:
@@ -196,6 +196,8 @@ class VFRSimulation(BaseSimulation):
                 car.is_crossing = False
                 noise = current_noise[0] if len(current_noise) > 0 else None
                 front_car = None if car.car_idx == 0 else self.CARS[car.car_idx - 1]
+                if front_car is not None and front_car.xcor >= self.TOTAL_LENGTH:
+                    front_car = None
                 if noise is None:
                     car.decide_speed_helly(front_car, self.TIME_STEP)
                     car.proceed(self.TIME_STEP, time)

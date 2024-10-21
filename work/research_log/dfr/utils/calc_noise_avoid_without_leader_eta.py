@@ -56,7 +56,7 @@ def acc_solver(earliest_etas, car, current_time):
         if can_reach_after_designated_eta(**start_params, **eta_boundary, car_params=car_params):
             a, eta = crt_acc_itinerary_for_decel_area(
                 # FIXME: 加速度計算の時のstep_sizeは論点
-                **start_params, **eta_boundary, ve=None, car_params=car_params, step_size=0.5, earliest_etas=earliest_etas)
+                **start_params, **eta_boundary, ve=None, car_params=car_params, step_size=0.5, earliest_etas=earliest_etas, car_idx=car.car_idx)
             v = a[-1]["v_0"]
             start_params = {"v0": v, "x0": eta_boundary["xe"], "t0": eta}
             itinerary_from_now = update_acc_itinerary(itinerary_from_now, a)
