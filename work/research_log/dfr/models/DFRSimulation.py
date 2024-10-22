@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from tqdm.notebook import tnrange
 from .BaseSimulationModel import BaseSimulation
+import os
 
 
 class DFRSimulation(BaseSimulation):
@@ -172,6 +173,10 @@ class DFRSimulation(BaseSimulation):
         """
         各車のETAの変更履歴、座標、ノイズの有無をプロットする。
         """
+        save_dir = "images/dfr/"
+        # ディレクトリが存在するか確認し、なければ作成
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
         color_list = ["orange", "pink", "blue", "brown", "red", "green",
                       "purple", "darkgoldenrod", "cyan", "magenta", "lime", "teal"]
         car_idx_list_on_road = [
@@ -239,10 +244,14 @@ class DFRSimulation(BaseSimulation):
         legend = plt.legend(bbox_to_anchor=(1.05, 1),
                             loc='upper left', borderaxespad=0., fontsize='small')
 
-        # 保存
-        plt.savefig(
-            f"images/dfr/dfr_simulation_t={current_time:.1f}.png", bbox_inches='tight', bbox_extra_artists=[legend])
-        plt.close()
+        # 保存処理
+        try:
+            plt.savefig(
+                f"{save_dir}dfr_simulation_t={current_time:.1f}.png", bbox_inches='tight', bbox_extra_artists=[legend])
+        except Exception as e:
+            print(f"Error saving file for time {current_time}: {e}")
+        finally:
+            plt.close()
 
 
 def test():

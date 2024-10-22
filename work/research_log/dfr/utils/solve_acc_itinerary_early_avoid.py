@@ -17,7 +17,7 @@ def solve_acc_itinerary_early_avoid(**kwargs):
         => 加速する. 
     else: 速度をキープ
     """
-    time_step = 0.5
+    time_step = 0.2
     noise_start_time = kwargs.get("noise_start_time", None)
     car = kwargs.get("car", None)
     current_time = kwargs.get("current_time", None)
@@ -139,8 +139,6 @@ def solve_acc_itinerary_early_avoid(**kwargs):
 
                 return False
 
-            # これは早避けが可能な場合.
-            x = fastest_eta["x"]
             # noiseより後ろのwaypointに対しては、その先も衝突しないことを保証する必要がある.
             # 20240724はここから作業開始.
             """
@@ -168,10 +166,13 @@ def solve_acc_itinerary_early_avoid(**kwargs):
 
                 a, eta = crt_acc_itinerary_for_decel_area(
                     # FIXME: 加速度計算の時のstep_sizeは論点
-                    **start_params, **eta_boundary, ve=None, car_params=car_params, step_size=0.5, earliest_etas=earliest_etas, car_idx=car.car_idx)
-                v = a[-1]["v_0"]
+                    **start_params, **eta_boundary, ve=None, car_params=car_params, step_size=0.2, earliest_etas=earliest_etas, car_idx=car.car_idx)
+                v = a[-1]["v_0"] + a[-1]["acc"] * (a[-1]["t_end"] - a[-1]["t_start"])
                 acc_itinerary = update_acc_itinerary(
                     acc_itinerary, a)
+                print("acc_itinerary: ", acc_itinerary)
+                # 早避け後は前の車両に当たるのを心配する + 近いWPの方が衝突の危険性が高いのでstart_paramsを更新する。
+                start_params = {"v0": v, "x0": fastest_eta["x"], "t0": eta} 
                 continue
 
             else:
