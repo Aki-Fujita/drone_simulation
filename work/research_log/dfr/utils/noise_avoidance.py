@@ -93,7 +93,7 @@ def calc_late_avoid(noise, current_time, carObj, table, leader):
             eta_of_leader=front_car_etas,
             leader=leader,
             current_time=current_time,
-            ttc=table.global_params.DESIRED_TTC
+            ttc=table.global_params.DESIRED_TTC,
         )
         return acc_itinerary
 
@@ -115,7 +115,8 @@ def calc_late_avoid(noise, current_time, carObj, table, leader):
             te=noise_end_time + 0.1,
             eta_of_leader=front_car_etas,
             current_time=current_time,
-            ttc=table.global_params.DESIRED_TTC
+            ttc=table.global_params.DESIRED_TTC,
+            leader=leader,
         )
     else:
         """

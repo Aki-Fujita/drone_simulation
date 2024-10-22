@@ -45,7 +45,7 @@ def acc_solver(earliest_etas, car, current_time):
                             for i, e in enumerate(earliest_etas) if i >= wp_idx]
             if all([not should_brake(**start_params, **eta_boundary) for eta_boundary in upcoming_wps]):
                 new_itinerary, sp = update_acc_itinerary_with_accel(itinerary_from_now, start_params, upcoming_wps, car_params={
-                                                                    **car_params, "acc": 2, "v_max": car.v_max}, current_x=car.xcor)
+                                                                    **car_params, "acc": 2, "v_max": car.v_max}, current_x=car.xcor, follower=car)
 
                 itinerary_from_now = update_acc_itinerary(
                     itinerary_from_now, new_itinerary)

@@ -69,14 +69,14 @@ def calc_late_avoid_with_leader(**kwargs):
 
     # 後続車のパラメータ
     acc_itinerary = follower_acc_solver(
-        follower, eta_of_leader, ttc, current_time)
+        follower, eta_of_leader, ttc, current_time, leader)
     merged_acc_itinerary = merge_acc_itinerary(
         pre_itinerary=follower.acc_itinerary, new_itinerary=acc_itinerary)
     # print("merged:", merged_acc_itinerary)
     return merged_acc_itinerary, time_step, steps
 
 
-def follower_acc_solver(follower, eta_of_leader, TTC, current_time):
+def follower_acc_solver(follower, eta_of_leader, TTC, current_time, leader):
     """
     基本方針
     (a) まずleaderのETAを一通り確認し、それに対し+TTC秒以上開けたETAを作成する
@@ -163,11 +163,30 @@ def follower_acc_solver(follower, eta_of_leader, TTC, current_time):
                 car_params["decel"] = follower.a_min
                 continue
             else:
-                print(f"initial_params: {
-                      initial_params}, eta_boundary: {eta_boundary}")
-                print(f"can_reach_after_designated_eta: {can_reach_after_designated_eta(
-                    **start_params, **eta_boundary, car_params=car_params)}")
-                raise ValueError("どうやってもETAを満たせない")
+                """
+                減速を頑張ってもETA（TTC=TTC_GLOBALで設定されている）より前についてしまう場合.
+                => あまりにゴールが近い場合は、最悪TTC = GLOBAL_TTCでなくても良いので、それを考慮する. 
+                """
+                if leader.xcor >= eta_boundary["xe"]: # この処理自体はめっちゃ良いと思うが、これをdecel = a_minの時にも適用するか悩ましい
+                    TTC_LIM = 1.0 # 限界のTTC
+                    eta_boundary["te"] - TTC + TTC_LIM
+                    if can_reach_after_designated_eta(**start_params, **eta_boundary, car_params=car_params):
+                        a, eta = crt_acc_itinerary_for_decel_area(
+                            **start_params, **eta_boundary, ve=None, car_params=car_params, step_size=0.2, earliest_etas=earliest_etas, car_idx=follower.car_idx)
+                        v = a[-1]["v_0"]  # 必ず等速区間で終わるため
+                        start_params = {"v0": v, "x0": eta_boundary["xe"], "t0": eta}
+                        if follower.car_idx == 6:
+                            print(f"L162_itinerary_from_now: {itinerary_from_now}, a={a}")
+                        itinerary_from_now = update_acc_itinerary(itinerary_from_now, a)
+                        car_params["decel"] = follower.a_min
+                        continue
+
+                else:
+                    print(f"initial_params: {
+                          initial_params}, eta_boundary: {eta_boundary}")
+                    print(f"can_reach_after_designated_eta: {can_reach_after_designated_eta(
+                        **start_params, **eta_boundary, car_params=car_params)}")
+                    raise ValueError("どうやってもETAを満たせない")
     print("acc_itinerary:", itinerary_from_now)
     return itinerary_from_now
 

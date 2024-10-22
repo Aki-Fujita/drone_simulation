@@ -9,6 +9,7 @@ def calc_late_avoid_with_early_avoid_leader(**kwargs):
     noise_t = kwargs.get("te")  # noiseを通過する時刻（ノイズ終了時刻くらい）
     current_time = kwargs.get("current_time", [])
     eta_of_leader = kwargs.get("eta_of_leader", {})
+    leader = kwargs.get("leader", {})
     leader_finish_time = eta_of_leader.loc[eta_of_leader["eta"].idxmax(
     )]["eta"]
     if ttc < 1:
@@ -26,7 +27,7 @@ def calc_late_avoid_with_early_avoid_leader(**kwargs):
 
     # 後続車のパラメータ
     acc_itinerary = follower_acc_solver(
-        follower, constraints, ttc, current_time)
+        follower, constraints, ttc, current_time, leader)
     merged_acc_itinerary = merge_acc_itinerary(
         pre_itinerary=follower.acc_itinerary, new_itinerary=acc_itinerary)
     print("L34: merged:", merged_acc_itinerary)
