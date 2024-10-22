@@ -55,6 +55,36 @@ class BaseSimulation(ABC):
                 "car_idx": car_idx,
                 "xcoor": car.xcor,
             })
+    
+    def record(self, time, event_flg):
+        """
+        平均速度, その時の密度を記録する
+        """
+        logObj = {
+            "time": time,
+            "v_mean": 0,
+            "density": None,
+            "event_flg": None,
+            "flow_sum": 0
+        }
+        cars_on_road = [
+            car for car in self.CARS if car.xcor < self.TOTAL_LENGTH and car.arrival_time <= time]
+        logObj["density"] = len(cars_on_road) / self.TOTAL_LENGTH
+
+        if event_flg == "noise created":
+            logObj["event_flg"] = "noise"
+
+        if len(cars_on_road) == 0:
+            logObj["v_mean"] = 0
+            logObj["flow_sum"] = 0
+            self.v_mean_log.append(logObj)
+            return
+        flow_sum = sum([car.v_x for car in cars_on_road])
+        v_mean = flow_sum / len(cars_on_road)
+        logObj["v_mean"] = v_mean
+        logObj["flow_sum"] = flow_sum
+        self.v_mean_log.append(logObj)
+        return
 
     def plot_v_mean_log(self, path):
         v_mean_log = self.v_mean_log

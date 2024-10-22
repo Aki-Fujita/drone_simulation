@@ -168,33 +168,6 @@ class DFRSimulation(BaseSimulation):
         # この場合はノイズを発生させない.
         return None
 
-    # FIXME: 後々抽象化したい.
-    def record(self, time, event_flg):
-        """
-        平均速度, その時の密度を記録する
-        """
-        logObj = {
-            "time": time,
-            "v_mean": 0,
-            "density": None,
-            "event_flg": None
-        }
-        cars_on_road = [
-            car for car in self.CARS if car.xcor < self.TOTAL_LENGTH and car.arrival_time <= time]
-        logObj["density"] = len(cars_on_road) / self.TOTAL_LENGTH
-
-        if event_flg == "noise created":
-            logObj["event_flg"] = "noise"
-
-        if len(cars_on_road) == 0:
-            logObj["v_mean"] = 0
-            self.v_mean_log.append(logObj)
-            return
-        v_mean = sum([car.v_x for car in cars_on_road]) / len(cars_on_road)
-        logObj["v_mean"] = v_mean
-        self.v_mean_log.append(logObj)
-        return
-
     def plot_history_by_time(self, noise_list, current_time):
         """
         各車のETAの変更履歴、座標、ノイズの有無をプロットする。
