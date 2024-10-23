@@ -26,13 +26,9 @@ def validate_with_ttc(eta_reservation_table, car_plans, TTC):
         if car_plan_by_x["eta"] > last_entry_time + TTC - 0.1:  # 丸め誤差分を許容
             continue
         else:
-            print(f"eta_validator.py: INVALID, x={
-                  target_waypoint_x}, car_id={car_idx}, leader_eta={last_entry_time}, desired_eta={car_plan_by_x['eta']}")
-            # print(table[table["car_idx"] == car_idx-1])
-            # # print(ERT[ERT["x"] < 150])
-            # print(car_plan_by_x)
-            # print(last_entry_time, TTC, car_idx)
-            # print(f"wp_x={car_plan_by_x["x"]}, TTC={car_plan_by_x["eta"] - last_entry_time}")
+            # print(f"eta_validator.py: INVALID, x={
+            #       target_waypoint_x}, car_id={car_idx}, leader_eta={last_entry_time}, desired_eta={car_plan_by_x['eta']}")
+            
             is_valid = False
             break
     return is_valid
@@ -49,7 +45,7 @@ def create_sample_itinerary():
         estimated_time_of_arrival = waypoint["x"] / 20 + arrival_time
         itinerary.append(
             {**waypoint,  "eta": estimated_time_of_arrival, "car_idx": car_idx})
-    print(f"itinerary \n{itinerary}")
+    # print(f"itinerary \n{itinerary}")
     return itinerary
 
 

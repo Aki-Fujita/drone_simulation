@@ -5,6 +5,8 @@ from utils import calc_early_avoid_acc, calc_late_avoid, \
     validate_with_ttc, create_itinerary_from_acc, calc_eta_from_acc, crt_itinerary_from_a_optimized
 import sys
 from functions import helly
+import logging
+logging.basicConfig(level=logging.INFO)  # INFOレベル以上を表示
 sys.path.append("..")
 
 helly_params_default = {
@@ -87,7 +89,7 @@ class Cars:
             required_speeds.append(required_speed)
 
         if len(required_speeds) == 0:
-            print("早避けすべきノイズがない")
+            logging.debug("早避けすべきノイズがない")
             return None, False
         noise_to_avoid = noiseList[required_speeds.index(max(required_speeds))]
         return noise_to_avoid, True
@@ -107,7 +109,7 @@ class Cars:
             required_speed = (noise_start - self.xcor) / \
                 (margin_time + 1e-3)  # division by zeroを避けるため
             required_speeds.append(required_speed)
-        print(noiseList, required_speeds)
+        logging.debug(noiseList, required_speeds)
         noise_to_avoid = noiseList[required_speeds.index(min(required_speeds))]
         return noise_to_avoid
 
@@ -118,11 +120,11 @@ class Cars:
         (b) 上記の達成が不可能な場合はおとなしく左上を目指す.
         (c) もし避けるべきノイズがない場合(これは前の車の進路変更だけを気にすれば良い)
         """
-        print(f"avoidance by idx={self.car_idx}, x={self.xcor}, v_0={self.v_x}")
+        logging.debug(f"avoidance by idx={self.car_idx}, x={self.xcor}, v_0={self.v_x}")
         can_early_avoid = True
         noise_to_avoid, can_early_avoid = self.select_noise_for_early_avoid(
             noiseList, current_time)
-        print(noise_to_avoid, can_early_avoid)
+        logging.debug(noise_to_avoid, can_early_avoid)
 
         # (a)の場合: early_avoidをまずは検討.
         if can_early_avoid:
@@ -133,7 +135,7 @@ class Cars:
         if not can_early_avoid:
             noise_to_avoid = self.select_noise_for_late_avoid(
                 noiseList, current_time)
-            print("Early avoid 不可, late avoidの探索開始.")
+            logging.debug("Early avoid 不可, late avoidの探索開始.")
             temp_acc_itinerary = calc_late_avoid(
                 noise_to_avoid, current_time, self, table, leader)
 
@@ -141,9 +143,10 @@ class Cars:
             ただし、いずれの場合も未認証.
         """
 
+        logging.debug("==== START CREATING ETA====")
         ideal_eta = create_itinerary_from_acc(
             car_obj=self, current_time=current_time, acc_itinerary=temp_acc_itinerary)
-        print(f"ID: {self.car_idx}の新しいETA（Validate前）", ideal_eta)
+        logging.debug(f"ID: {self.car_idx}の新しいETA（Validate前）", ideal_eta)
 
         # 普通に計画すると前の車にぶつかることがあり得る。
         # なのでvalidateが通ったらmy_etasとacc_itineraryを登録
@@ -198,7 +201,7 @@ class Cars:
         controled_speed = max(self.v_x + self.a_min_lim * time_step, 0)
         self.v_x = controled_speed
         self.delta_from_eta += (planned_speed - controled_speed) * time_step # planned_speedに対してどれだけ遅れているかを記録
-        print(f"CONTROL領域: ID: {self.car_idx}, planned_speed={planned_speed}, controled_speed={controled_speed}, delta_x={delta_x}, v_front={v_front}")
+        logging.debug(f"CONTROL領域: ID: {self.car_idx}, planned_speed={planned_speed}, controled_speed={controled_speed}, delta_x={delta_x}, v_front={v_front}")
 
         # 本当はself.delta_from_etaを見た上で余裕がある時には速度を増やしたりしたいが、一旦割愛
 

@@ -3,6 +3,8 @@ acc_itineraryとteを入れるとteの時点でどこにいるかを計算する
 acc_itineraryは以下のような形式
 {"t_start": 4.0, "acc": 3, "v_0": 20, "t_end": 14, "x_start": 10}
 """
+import logging
+logging.basicConfig(level=logging.INFO)  # INFOレベル以上を表示
 
 
 def calc_distance_from_acc_itinerary(acc_itinerary, te):
@@ -35,12 +37,12 @@ def calc_distance_from_acc_itinerary(acc_itinerary, te):
 
 
 def test():
-    print("TEST START: calc_distance_from_acc_itinerary.py")
+    logging.debug("TEST START: calc_distance_from_acc_itinerary.py")
     acc_itinerary = [{'t_start': 15.0, 'acc': -3, 'v_0': 20, 't_end': 15.5}, {'t_start': 15.5, 'acc': 0, 'v_0': 18.5, 't_end': 25.79054054054054}, {'t_start': 25.79054054054054, 'acc': -3, 'v_0': 18.5, 't_end': 27.79054054054054}, {'t_start': 27.79054054054054, 'acc': 0, 'v_0': 12.5, 't_end': 33.31054054054054}, {'t_start': 33.31054054054054, 'acc': 2, 'v_0': 12.5, 't_end': 34.06054054054054}, {'t_start': 34.06054054054054, 'acc': 0, 'v_0': 14.0, 't_end': 47.6364333976834}, {'t_start': 47.6364333976834, 'acc': 2, 'v_0': 14.0, 't_end': 52.6364333976834}, {'t_start': 52.6364333976834, 'acc': 0, 'v_0': 24.0, 't_end': 52.99357625482625},
                      {'t_start': 52.99357625482625, 'acc': 2, 'v_0': 24.0, 't_end': 53.24357625482625}, {'t_start': 53.24357625482625, 'acc': 0, 'v_0': 24.5, 't_end': 53.25882923101673}, {'t_start': 53.25882923101673, 'acc': 2, 'v_0': 24.5, 't_end': 56.25882923101673}, {'t_start': 56.25882923101673, 'acc': 0, 'v_0': 30.5, 't_end': 56.56464039476795}, {'t_start': 56.56464039476795, 'acc': 2, 'v_0': 30.5, 't_end': 57.31464039476795}, {'t_start': 57.31464039476795, 'acc': 0, 'v_0': 32.0, 't_end': 59.6498789265646}, {'t_start': 59.6498789265646, 'acc': 2, 'v_0': 32.0, 't_end': 59.8998789265646}, {'t_start': 59.8998789265646, 'acc': 0, 'v_0': 32.5, 't_end': 10000000.0}]
     te = 50
     distance = calc_distance_from_acc_itinerary(acc_itinerary, te)
-    print(distance)
+    logging.debug(distance)
 
 
 if __name__ == "__main__":

@@ -5,6 +5,8 @@ from .optimizer_for_follower import can_reach_after_designated_eta
 from .will_collide import will_collide
 from .crt_acc_itinerary_for_decel_area import crt_acc_itinerary_for_decel_area
 from .simple_funcs import create_earliest_etas
+import logging
+logging.basicConfig(level=logging.INFO)  # INFOレベル以上を表示
 
 
 def solve_acc_itinerary_early_avoid(**kwargs):
@@ -79,7 +81,7 @@ def solve_acc_itinerary_early_avoid(**kwargs):
                     acc_period_length = count * time_step
                     acc_period = {"t_start": start_params["t0"], "acc": car.a_max, "x_start": start_params["x0"],
                                   "v_0": start_params["v0"], "t_end": start_params["t0"]+acc_period_length}
-                    print(acc_period, x_start, next_goal_x)
+                    # print(acc_period, x_start, next_goal_x)
                     acc_period_end = x_start + 0.5 * car.a_max * \
                         acc_period_length**2 + \
                         start_params["v0"] * acc_period_length
@@ -91,9 +93,8 @@ def solve_acc_itinerary_early_avoid(**kwargs):
                         "t_start": start_params["t0"]+acc_period_length, "acc": 0, "v_0": v_after_acc, "t_end": eta_of_next_goal, "x_start": acc_period_end}
                     cruise_params = {"v0": v_after_acc,
                                      "x0": next_goal_x, "t0": eta_of_next_goal}
-                    print("L90:", count, cruise_params,
-                          arrival_time_if_cruise, acc_period_end, acc_period_length)
-                    # arrival_time = eta_of_next_goal
+                    # print("L90:", count, cruise_params,
+                    #       arrival_time_if_cruise, acc_period_end, acc_period_length)
 
                     """
                     ループを抜ける条件
@@ -102,8 +103,8 @@ def solve_acc_itinerary_early_avoid(**kwargs):
                     ・加速しすぎてノイズより手前のWPまでのいずれかでブレーキが必要になる（基準2）. 
                     """
                     if v_after_acc > car.v_max or acc_period_end > next_goal_x:
-                        print("ループ抜ける判定基準1:", v_after_acc,
-                              car.v_max, acc_period_end, next_goal_x)
+                        # print("ループ抜ける判定基準1:", v_after_acc,
+                        #       car.v_max, acc_period_end, next_goal_x)
                         start_params = next_start_params
                         break
 
@@ -111,10 +112,10 @@ def solve_acc_itinerary_early_avoid(**kwargs):
                     upcoming_wps_before_noise = [{"xe": e["x"], "te": e["eta"]} for i, e in enumerate(
                         earliest_etas) if i >= idx and e["x"] <= noise_avoid_point["xe"]]
                     if not all([not should_brake(**cruise_params, **earliest_eta) for earliest_eta in upcoming_wps_before_noise]):
-                        print("ループ抜ける判定基準2:", [should_brake(
-                            **cruise_params, **earliest_eta) for earliest_eta in upcoming_wps_before_noise])
-                        print("detail: ", [{"eta": earliest_eta["te"], "arrival_time": (earliest_eta["xe"] - cruise_params["x0"]) /
-                              cruise_params["v0"]+cruise_params["t0"], "x": earliest_eta["xe"]} for earliest_eta in upcoming_wps_before_noise])
+                        # print("ループ抜ける判定基準2:", [should_brake(
+                        #     **cruise_params, **earliest_eta) for earliest_eta in upcoming_wps_before_noise])
+                        # print("detail: ", [{"eta": earliest_eta["te"], "arrival_time": (earliest_eta["xe"] - cruise_params["x0"]) /
+                        #       cruise_params["v0"]+cruise_params["t0"], "x": earliest_eta["xe"]} for earliest_eta in upcoming_wps_before_noise])
                         start_params = next_start_params
                         break
 
@@ -147,7 +148,7 @@ def solve_acc_itinerary_early_avoid(**kwargs):
             ・start_paramsをnoise_avoid_pointに設定
             ・そこからはnoise以後のearliest_etaを満たすように加速度を調整する. 無理ならFalse
             """
-            print("start params: ", start_params)
+            # print("start params: ", start_params)
             eta_boundary = {"xe": fastest_eta["x"], "te": fastest_eta["eta"]}
             car_params = {"decel": car.a_min, "accel": car.a_max}
             should_brake_for_next_interval = will_collide(
@@ -160,9 +161,9 @@ def solve_acc_itinerary_early_avoid(**kwargs):
                 continue
             # ブレーキを踏む必要がある上で、踏めば一応大丈夫な場合.
             if can_reach_after_designated_eta(**start_params, **eta_boundary, car_params=car_params):
-                print("!!!!!!!!!!")
-                print(start_params, eta_boundary, earliest_etas)
-                print("!!!!!!!!!!")
+                # print("!!!!!!!!!!")
+                # print(start_params, eta_boundary, earliest_etas)
+                # print("!!!!!!!!!!")
 
                 a, eta = crt_acc_itinerary_for_decel_area(
                     # FIXME: 加速度計算の時のstep_sizeは論点
@@ -170,7 +171,7 @@ def solve_acc_itinerary_early_avoid(**kwargs):
                 v = a[-1]["v_0"] + a[-1]["acc"] * (a[-1]["t_end"] - a[-1]["t_start"])
                 acc_itinerary = update_acc_itinerary(
                     acc_itinerary, a)
-                print("acc_itinerary: ", acc_itinerary)
+                logging.debug("acc_itinerary: ", acc_itinerary)
                 # 早避け後は前の車両に当たるのを心配する + 近いWPの方が衝突の危険性が高いのでstart_paramsを更新する。
                 start_params = {"v0": v, "x0": fastest_eta["x"], "t0": eta} 
                 continue

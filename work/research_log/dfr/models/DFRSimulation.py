@@ -6,6 +6,8 @@ from tqdm.notebook import tnrange
 from .BaseSimulationModel import BaseSimulation
 import os
 import psutil
+import logging
+logging.basicConfig(level=logging.INFO)  # INFOレベル以上を表示
 
 
 class DFRSimulation(BaseSimulation):
@@ -75,9 +77,6 @@ class DFRSimulation(BaseSimulation):
                 continue
             influenced_by_noise_cars = []
             if len(current_noise) > 0:
-                # print()
-                # print(f"t={time}, next_car={next_car_idx}, current_noise= {
-                #       current_noise}, event_flg={event_flg}")
                 # 新しいノイズが来るか新しい車が到着したら誰が該当するかの判定をする.
                 influenced_by_noise_cars = self.find_noise_influenced_cars(
                     cars_on_road, current_noise, time)
@@ -93,12 +92,10 @@ class DFRSimulation(BaseSimulation):
                 set(influenced_by_noise_cars + influenced_by_eta_cars))
 
             if event_flg or len(influenced_cars) > 0:
-                print(f"---------t={time:.2f}---------")
-                print(f"直接ノイズの影響を受けるもの: {influenced_by_noise_cars}")
-                print(f"他の車の影響: {influenced_by_eta_cars}")
-                print(f"対象車: {influenced_cars}")
+                logging.debug(f"---------t={time:.2f}---------")
+                logging.debug(f"対象車: {influenced_cars}")
                 # メモリ使用量のチェック
-                print(f"メモリ使用量: {psutil.virtual_memory().percent}%")
+                logging.debug(f"メモリ使用量: {psutil.virtual_memory().percent}%")
                 event_flg = "influenced car exists"
 
             if len(influenced_cars) > 0:  # ETA変更する車が存在した場合.
@@ -112,12 +109,11 @@ class DFRSimulation(BaseSimulation):
                 car_to_action = self.CARS[car_to_action_id]
                 # 先頭車がノイズの影響だけを受けている場合
                 leader = None if car_to_action_id < 1 else self.CARS[car_to_action_id-1]
-                print()
                 if not car_to_action_id in influenced_by_eta_cars:
-                    print(f"t={time:.2f}, car_id:{
+                    logging.debug(f"t={time:.2f}, car_id:{
                           car_to_action_id} avoiding noise.")
                 else:
-                    print(f"t={time:.2f}, car_id:{
+                    logging.debug(f"t={time:.2f}, car_id:{
                           car_to_action_id} changed by leading car.")
 
                 if communication_count >= self.COMMUNICATION_SPEED:
@@ -142,13 +138,6 @@ class DFRSimulation(BaseSimulation):
             self.record_headway(time)
             if should_plot and (i % 5 == 0 or event_flg):
                 self.plot_history_by_time(current_noise, time)
-                
-            if time >= 111.4 and time < 120:
-                print()
-                print(f"DEBUG: L146 ")
-                print(f"car_id: 31, INFO: {self.CARS[31].xcor}, {self.CARS[31].v_x}")
-                print(f"car_id: 32, INFO: {self.CARS[32].xcor}, {self.CARS[32].v_x}")
-                print()
 
     def find_noise_influenced_cars(self, cars_on_road, noiseList, time):
         car_list = [car.car_idx for idx, car in enumerate(

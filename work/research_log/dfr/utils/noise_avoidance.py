@@ -7,6 +7,8 @@ from .calc_late_avoid_with_early_avoid_leader import calc_late_avoid_with_early_
 import random
 import sys
 sys.path.append("..")
+import logging
+logging.basicConfig(level=logging.INFO)  # INFOレベル以上を表示
 
 """
 noiseを早避けするためのacc_itineraryを計算する関数 
@@ -40,7 +42,7 @@ def calc_early_avoid_acc(noise, current_time, carObj, table):
     TTC = table.global_params.DESIRED_TTC
     ETA_of_front_car = reservation[reservation["car_idx"]
                                    == carObj.car_idx - 1]
-    print(f"ETA_of_front_car: {ETA_of_front_car}")
+    logging.debug(f"ETA_of_front_car: {ETA_of_front_car}")
 
     earliest_time = calc_earliest_time(
         carObj, noise_end_poisition, current_time)
@@ -53,7 +55,7 @@ def calc_early_avoid_acc(noise, current_time, carObj, table):
     eta_of_noise_end = ratio * earliest_time + (1-ratio) * noise_start_time
     """
     eta_of_noise_end = earliest_time + 0.1  # この車がノイズを横切る予定時刻
-    print(f"早避けを検討. ノイズ終了地点のeta: {eta_of_noise_end}, 前の車に当たらない最速の時間:{
+    logging.debug(f"早避けを検討. ノイズ終了地点のeta: {eta_of_noise_end}, 前の車に当たらない最速の時間:{
           earliest_time}, ノイズ開始時刻:{noise_start_time}")
 
     if earliest_time >= noise_start_time:
@@ -102,7 +104,7 @@ def calc_late_avoid(noise, current_time, carObj, table, leader):
     te_by_ttc = front_car_etas[front_car_etas["x"] ==
                                noise_start_poisition]["eta"].iloc[0] + table.global_params.DESIRED_TTC
     target_time = max(te_by_ttc, noise_end_time)
-    print(f"target_time: {target_time}, 通過可能時刻: {
+    logging.debug(f"target_time: {target_time}, 通過可能時刻: {
           te_by_ttc}, ノイズ終了時刻: {noise_end_time}")
 
     if te_by_ttc < noise_end_time:
@@ -259,7 +261,6 @@ def binary_search_for_v(carObj, S, delta_t, epsilon=1e-3):
 
 def calc_max_cover_distance(margin_time_to_noise, carObj: Cars):
     # 最大限加速したら最大スピードに達する場合
-    print(margin_time_to_noise, carObj.a_max, carObj.v_max)
     if margin_time_to_noise * carObj.a_max + carObj.v_x > carObj.v_max:
         delta_t_to_max_speed = (carObj.v_max - carObj.v_x) / carObj.a_max
         return {"distance": carObj.v_x * delta_t_to_max_speed + 0.5 * carObj.a_max * delta_t_to_max_speed ** 2 +

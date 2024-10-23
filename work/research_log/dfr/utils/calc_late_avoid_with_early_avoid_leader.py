@@ -1,5 +1,7 @@
 from .optimizer_for_follower import follower_acc_solver, merge_acc_itinerary
 import pandas as pd
+import logging
+logging.basicConfig(level=logging.INFO)  # INFOレベル以上を表示
 
 
 def calc_late_avoid_with_early_avoid_leader(**kwargs):
@@ -13,7 +15,6 @@ def calc_late_avoid_with_early_avoid_leader(**kwargs):
     leader_finish_time = eta_of_leader.loc[eta_of_leader["eta"].idxmax(
     )]["eta"]
     if ttc < 1:
-        print("ttc:", ttc)
         raise ValueError("ttc is too small")
 
     # シミュレーションのパラメータ
@@ -30,13 +31,13 @@ def calc_late_avoid_with_early_avoid_leader(**kwargs):
         follower, constraints, ttc, current_time, leader)
     merged_acc_itinerary = merge_acc_itinerary(
         pre_itinerary=follower.acc_itinerary, new_itinerary=acc_itinerary)
-    print("L34: merged:", merged_acc_itinerary)
+    logging.debug("L34: merged:", merged_acc_itinerary)
     return merged_acc_itinerary, time_step, steps
 
 
 def create_earliest_etas(leader_eta, noise_x, noise_t, ttc, my_etas):
     constraints = []
-    print("leader_eta: ", leader_eta)
+    logging.debug("leader_eta: ", leader_eta)
     for my_eta in (my_etas):
         x_coord = my_eta['x']
         if x_coord < noise_x:
@@ -62,5 +63,5 @@ def create_earliest_etas(leader_eta, noise_x, noise_t, ttc, my_etas):
             constraints.append(my_eta)
 
     # constraintsをデータフレームに変換してreturn
-    print("constraints: ", constraints)
+    logging.debug("constraints: ", constraints)
     return pd.DataFrame(constraints)

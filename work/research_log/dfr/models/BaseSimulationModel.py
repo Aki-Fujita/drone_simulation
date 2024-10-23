@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from tqdm.notebook import tnrange
 from abc import ABC, abstractmethod
+import logging
+logging.basicConfig(level=logging.INFO)  # INFOレベル以上を表示
 
 
 class BaseSimulation(ABC):
@@ -46,7 +48,7 @@ class BaseSimulation(ABC):
             else:
                 headway = self.TOTAL_LENGTH
             if headway < 0:
-                print("time: ", time, "car_idx: ", car_idx, "xcor: ", car.xcor)
+                logging.info("time: ", time, "car_idx: ", car_idx, "xcor: ", car.xcor)
                 raise ValueError("headway is negative")
             self.headway_log.append({
                 "time": time,

@@ -2,6 +2,8 @@ import copy
 import numpy as np
 from .calc_distance_from_acc_itinerary import calc_distance_from_acc_itinerary
 from .will_collide import will_collide
+import logging
+logging.basicConfig(level=logging.INFO)  # INFOレベル以上を表示
 
 
 def crt_acc_itinerary_for_decel_area(v0, x0, t0, ve, xe, te, car_params, step_size, earliest_etas, car_idx):
@@ -18,7 +20,7 @@ def crt_acc_itinerary_for_decel_area(v0, x0, t0, ve, xe, te, car_params, step_si
     delta_x = xe - x0
 
     while cover_distance > xe - x0 or loop_count < steps:
-        print("Loops: ", loop_count, steps)
+        # print("Loops: ", loop_count, steps)
         loop_count += 1
         # 減速区間を増やす
         decel_period = loop_count * step_size
@@ -31,10 +33,10 @@ def crt_acc_itinerary_for_decel_area(v0, x0, t0, ve, xe, te, car_params, step_si
             print("L271: 止まる方に入った")
             if can_stop_before_goal(v0, x0, t0, xe, te, car_params):
                 acc_itinerary = stop_at_goal(v0, x0, t0, xe, te, car_params)
-                print(f"L275: acc_itinerary with stop, acc_itinerary={
-                      acc_itinerary}, te={te}")
-                print(f"cover_distance={
-                      calc_distance_from_acc_itinerary(acc_itinerary, te)}")
+                # print(f"L275: acc_itinerary with stop, acc_itinerary={
+                #       acc_itinerary}, te={te}")
+                # print(f"cover_distance={
+                #       calc_distance_from_acc_itinerary(acc_itinerary, te)}")
                 return acc_itinerary, te
 
         acc_itinerary = [{"t_start": t0, "acc": decel, "x_start": x0,
@@ -68,22 +70,22 @@ def crt_acc_itinerary_for_decel_area(v0, x0, t0, ve, xe, te, car_params, step_si
         # cover_distance <= xe - x0 かつ、「ブレーキをしなかったことによって次の区間で追突」しなければOK という条件にする
         should_decel_more = will_collide(
             **edge_params, decel=car_params["decel"], **next_boundary,)
-        if car_idx == 6:
-            print("=====================DEBUG=====================")
-            print(f"L66: should_decel_more={should_decel_more}, edge_params={
-                  edge_params}, next_boundary={next_boundary}")
+        # if car_idx == 6:
+        #     print("=====================DEBUG=====================")
+        #     print(f"L66: should_decel_more={should_decel_more}, edge_params={
+        #           edge_params}, next_boundary={next_boundary}")
         if cover_distance < xe - x0 and not should_decel_more:
             # acc_itineraryを元に次のwaypointのETAを計算する.
             last_v = acc_itinerary[-1]["v_0"]
             eta = (delta_x - cover_distance) / (last_v+1e-4) + te
             # teより5秒以上遅くなる場合は止まる方に変更.
             if eta - te > 5:
-                print(f"ETA >> TE :ETA-TE={eta-te}")
-                print("L307: ETAがteより遅すぎるので止まる方に変更")
+                logging.debug(f"ETA >> TE :ETA-TE={eta-te}")
+                logging.debug("L307: ETAがteより遅すぎるので止まる方に変更")
                 if can_stop_before_goal(v0, x0, t0, xe, te, car_params):
                     acc_itinerary = stop_at_goal(
                         v0, x0, t0, xe, te, car_params)
-                    print(f"acc_itinerary with stop, acc_itinerary={
+                    logging.debug(f"acc_itinerary with stop, acc_itinerary={
                           acc_itinerary}")
                     return acc_itinerary, te
             acc_info_to_append = copy.deepcopy(acc_itinerary[-1])
