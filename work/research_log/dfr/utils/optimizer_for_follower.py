@@ -72,7 +72,7 @@ def calc_late_avoid_with_leader(**kwargs):
         follower, eta_of_leader, ttc, current_time, leader)
     merged_acc_itinerary = merge_acc_itinerary(
         pre_itinerary=follower.acc_itinerary, new_itinerary=acc_itinerary)
-    # print("merged:", merged_acc_itinerary)
+    print("merged:", merged_acc_itinerary)
     return merged_acc_itinerary, time_step, steps
 
 
@@ -208,14 +208,22 @@ def merge_acc_itinerary(pre_itinerary, new_itinerary):
 
     # その他: 途中をreplaceすることになる場合.
     retList = []
+    print("sol:", new_itinerary)
+    print("pre:", pre_itinerary)
     if new_itinerary[0]["t_start"] < pre_itinerary[-1]["t_end"]:
         # これは要するにどこかの区間の途中で入ってきているということなので、new_itineraryが入ってからはそっちを正とする.
         new_itinerary_start = new_itinerary[0]["t_start"]
         for pre_item in pre_itinerary:
             if pre_item["t_end"] < new_itinerary_start:
-                retList.append(pre_item)
+                retList.append(pre_item) 
                 continue
             else:  # ここからはnew_itineraryの情報を使う
+                if new_itinerary[0]["x_start"] < pre_item["x_start"]:
+                    # これは途中でacc_itineraryにないブレーキがかかっている場合. 
+                    print("入った")
+                    print("pre_item: ", pre_item)
+                    print("new_itinerary[0]: ", new_itinerary[0])
+                    return new_itinerary
                 fixed_pre_item = {**pre_item, "t_end": new_itinerary_start}
                 retList.append(fixed_pre_item)
                 break

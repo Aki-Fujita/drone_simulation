@@ -5,6 +5,7 @@ import matplotlib.patches as patches
 from tqdm.notebook import tnrange
 from .BaseSimulationModel import BaseSimulation
 import os
+import psutil
 
 
 class DFRSimulation(BaseSimulation):
@@ -96,6 +97,8 @@ class DFRSimulation(BaseSimulation):
                 print(f"直接ノイズの影響を受けるもの: {influenced_by_noise_cars}")
                 print(f"他の車の影響: {influenced_by_eta_cars}")
                 print(f"対象車: {influenced_cars}")
+                # メモリ使用量のチェック
+                print(f"メモリ使用量: {psutil.virtual_memory().percent}%")
                 event_flg = "influenced car exists"
 
             if len(influenced_cars) > 0:  # ETA変更する車が存在した場合.
@@ -139,10 +142,7 @@ class DFRSimulation(BaseSimulation):
             self.record_headway(time)
             if should_plot and (i % 5 == 0 or event_flg):
                 self.plot_history_by_time(current_noise, time)
-            if time % 10 == 0:
-                for car in cars_on_road:
-                    print(f"t={time}, car_id:{car.car_idx}, xcor:{
-                          car.xcor}, speed:{car.v_x}")
+                
             if time >= 111.4 and time < 120:
                 print()
                 print(f"DEBUG: L146 ")
