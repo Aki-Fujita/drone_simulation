@@ -3,7 +3,8 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from .Cars import Cars
 from .BaseSimulationModel import BaseSimulation
-
+import logging
+logging.basicConfig(level=logging.INFO)  # INFOレベル以上を表示
 
 class NoiseCar:
     """
@@ -78,7 +79,7 @@ class VFRSimulation(BaseSimulation):
         for car_idx in car_idx_list_on_road:
             car_obj = self.CARS[car_idx]
             plt.plot(car_obj.xcorList, car_obj.timeLog,
-                     color=color_list[car_idx % 6], linewidth=1)
+                     color=color_list[car_idx % 6], linewidth=1, label=f'Car_{car_idx}')
             plt.scatter([car_obj.xcor], [current_time],
                         color=color_list[car_idx % 6], s=40, zorder=5)
 
@@ -103,8 +104,12 @@ class VFRSimulation(BaseSimulation):
             plt.ylim(0, 140)   # y軸の範囲を0から140に設定
         plt.ylabel('t')
 
+        # 凡例をグラフの外に表示
+        legend = plt.legend(bbox_to_anchor=(1.05, 1),
+                            loc='upper left', borderaxespad=0., fontsize='small')
+
         # 保存
-        plt.savefig(f"images/vfr/vfr_simulation_t={current_time:.1f}.png")
+        plt.savefig(f"images/vfr/vfr_simulation_t={current_time:.1f}.png", bbox_inches='tight', bbox_extra_artists=[legend])
         plt.close()
 
     def can_avoid_noise(self, car, noise):
@@ -156,7 +161,7 @@ class VFRSimulation(BaseSimulation):
                 continue
 
             if event_flg is not None:
-                print(f"t={time}, event_flg={
+                logging.debug(f"t={time}, event_flg={
                       event_flg}, noise={current_noise}")
 
             """
@@ -176,10 +181,11 @@ class VFRSimulation(BaseSimulation):
                     car.proceed(self.TIME_STEP, time)
                     continue
                 target_noise = None
-                noise_x = noise["x"][0]
+                noise_start_x = noise["x"][0]
+                noise_end_x = noise["x"][1]
                 is_leader = car.car_idx == 0 or (int(car.car_idx - 1)) not in [
                     car.car_idx for car in cars_on_road]
-                if car.xcor < noise_x:
+                if car.xcor < noise_start_x:
                     """
                     以下の条件を満たしたらtarget_noiseを設定する
                     ・自分とノイズの間に車が存在しない
@@ -188,7 +194,7 @@ class VFRSimulation(BaseSimulation):
                     """
                     # もしも自分と一つ前の車の間にノイズだったら、target_noiseを設定する
                     cars_between_me_and_noise = [car for frontCar in cars_on_road if frontCar.xcor >
-                                                 car.xcor and frontCar.xcor < noise_x and frontCar.is_crossing == False]
+                                                 car.xcor and frontCar.xcor < noise_start_x and frontCar.is_crossing == False]
                     if len(cars_between_me_and_noise) == 0:
                         target_noise = noise
                     if target_noise is not None:
@@ -198,7 +204,7 @@ class VFRSimulation(BaseSimulation):
                         (b) ノイズが見えていて避けられる => 早避けする
                         (c) ノイズが見えていて避けられない => 止まれるようにする
                         """
-                        if car.xcor + car.foreseeable_distance < noise_x:
+                        if car.xcor + car.foreseeable_distance < noise_start_x:
                             car.decide_speed_helly(None, self.TIME_STEP)
                             car.proceed(self.TIME_STEP, time)
                             continue
@@ -216,10 +222,13 @@ class VFRSimulation(BaseSimulation):
                             # (c) 避けられない場合 => この場合は狙った場所で止まれるようにする.
                             else:
                                 car.stop_at_target_x(
-                                    noise_x, time, self.TIME_STEP)
+                                    noise_start_x, time, self.TIME_STEP)
                                 car.proceed(self.TIME_STEP, time)
 
                                 continue
+                # まさに今ノイズ区間を渡っている場合
+                elif car.xcor < noise_end_x:
+                    car.is_crossing = True
 
                 car.decide_speed_helly(front_car, self.TIME_STEP)
                 car.proceed(self.TIME_STEP, time)

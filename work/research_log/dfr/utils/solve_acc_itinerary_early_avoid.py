@@ -51,10 +51,9 @@ def solve_acc_itinerary_early_avoid(**kwargs):
     start_params = copy.deepcopy(initial_params)  # 各区間をスタートするときのパラメータ
     for idx, fastest_eta in enumerate(earliest_etas):
         if car.xcor >= fastest_eta["x"]:
-            print("skipped: ", fastest_eta, car.xcor)
+            logging.debug("skipped: ", fastest_eta, car.xcor)
             continue
-        print()
-        print("====now testing: ", fastest_eta, "====")
+        logging.debug("====now testing: ", fastest_eta, "====")
         # print("===start_params: ", start_params, "===")
         # print("===acc_itinerary: ", acc_itinerary, "===")
         x_start = fastest_eta["x"]
@@ -65,7 +64,7 @@ def solve_acc_itinerary_early_avoid(**kwargs):
             # この場合は可能な範囲で頑張って加速する.
             arrival_time_if_cruise = (
                 # 等速で走った時の到着時刻
-                x_start - start_params["x0"]) / start_params["v0"] + start_params["t0"]
+                x_start - start_params["x0"]) / (start_params["v0"] + 1e-3) + start_params["t0"]
 
             if arrival_time_if_cruise > fastest_eta["eta"]:
                 # 加速できる場合は加速できるかぎりする.
@@ -134,8 +133,8 @@ def solve_acc_itinerary_early_avoid(**kwargs):
             x_at_noise_start = calc_distance_from_acc_itinerary(
                 acc_itinerary, noise_avoid_point["te"])
             if x_at_noise_start < noise_avoid_point["xe"]:
-                print("最速で行ってもノイズに当たってしまうので早避け不可能")
-                print("detail:", x_at_noise_start,
+                logging.debug("最速で行ってもノイズに当たってしまうので早避け不可能")
+                logging.debug("detail:", x_at_noise_start,
                       noise_avoid_point["xe"], noise_avoid_point["te"])
 
                 return False

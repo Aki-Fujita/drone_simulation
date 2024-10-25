@@ -316,17 +316,24 @@ class Cars:
             return False
 
         """
-        ここまで来た時点でノイズを渡れることが確定している.
-        あとは前の車にぶつからないかどうかを判断する.
+        ここまで来た時点で等速ならノイズを渡れることが確定している.
+        あとは等速で行ったと仮定して前の車にぶつからないかどうかを判断する.
         """
         if front_car is None:
             return True
+        
+        if front_car.is_crossing:
+            logging.debug(f"ID: {self.car_idx}, 前の車が早避け中")
+            """
+            前の車が早避け中の場合は自分も渡ると強制的に判断してみる。 
+            """
+            return True
 
         front_car_stoppping_distance = front_car.v_x ** 2 / 2 / front_car.a_min
-        distance_between_noiseEnd_frontCar = front_car.xcor - noise_end_x
+        distance_between_noiseEnd_and_frontCar = front_car.xcor - noise_end_x
 
         my_braking_distance = self.v_x ** 2 / 2 / self.a_min
-        if distance_between_noiseEnd_frontCar + front_car_stoppping_distance > my_braking_distance:
+        if (front_car.xcor - self.xcor) + front_car_stoppping_distance > my_braking_distance:
             return True
 
         return False
