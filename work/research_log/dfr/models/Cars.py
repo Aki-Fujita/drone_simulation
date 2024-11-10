@@ -35,7 +35,8 @@ class Cars:
         self.helly_params = kwargs.get("helly_params", {
                                        **helly_params_default, "max_accel": self.a_max, "min_accel": self.a_min, "v_max": self.v_max, "isRss": True})
         self.my_etas = []  # 自分のETA予定表のこと
-        self.delta_from_eta = 0  # ETAからのずれ. DAAで必要以上のブレーキやアクセルが必要になった場合にここの値が変動する. 
+        self.delta_from_eta = 0  # ETAからのずれ. DAAで必要以上のブレーキやアクセルが必要になった場合にここの値が変動する.
+        self.car_length = 3  # 車の長さ (m)
 
         # 以下はVFRのシミュレーションで利用するprops
         self.foreseeable_distance = kwargs.get(
@@ -186,7 +187,6 @@ class Cars:
         この関数は自分のacc_itineraryをもとに自分のスピードを決める.
          => ただ、改めて見ると、速度と加速度をただ参照しているだけでは目的地に狙ったETAで到達できるかは怪しい. 
         """
-        delta_x = front_car.xcor - self.xcor if front_car is not None else 1e3
         v_front = front_car.v_x if front_car is not None else None
         
         planned_speed = self.calc_speed_from_acc_itinerary(current_time)
@@ -201,7 +201,7 @@ class Cars:
         controled_speed = max(self.v_x + self.a_min_lim * time_step, 0)
         self.v_x = controled_speed
         self.delta_from_eta += (planned_speed - controled_speed) * time_step # planned_speedに対してどれだけ遅れているかを記録
-        logging.debug(f"CONTROL領域: ID: {self.car_idx}, planned_speed={planned_speed}, controled_speed={controled_speed}, delta_x={delta_x}, v_front={v_front}")
+        logging.debug(f"CONTROL領域: ID: {self.car_idx}, planned_speed={planned_speed}, controled_speed={controled_speed}, v_front={v_front}")
 
         # 本当はself.delta_from_etaを見た上で余裕がある時には速度を増やしたりしたいが、一旦割愛
 
@@ -213,9 +213,8 @@ class Cars:
             return True
         front_car_brake_distance = abs(front_car.v_x ** 2 / 2 / front_car.a_min)
         my_brake_distance = planned_speed ** 2 / 2 / self.a_min
-        headway = front_car.xcor - self.xcor
-        car_length = 3
-        return headway + front_car_brake_distance > my_brake_distance + car_length
+        headway = front_car.xcor - self.xcor - self.car_length
+        return headway + front_car_brake_distance > my_brake_distance
 
     def calc_speed_from_acc_itinerary(self, time):
         """

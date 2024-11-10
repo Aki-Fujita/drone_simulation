@@ -29,8 +29,9 @@ class DFRSimulation(BaseSimulation):
             "create_noise", self.create_noise_default)
         self.state = {}
         self.DENSITY = kwargs.get("DENSITY")
+        self.plot_condition = kwargs.get("plot_condition", [])
 
-    def conduct_simulation(self, should_plot=False):
+    def conduct_simulation(self, should_plot=False, **kwargs):
         current_noise = []
         cars_on_road = []
         next_car_idx = 0
@@ -66,7 +67,7 @@ class DFRSimulation(BaseSimulation):
                 new_noise = self.create_noise(time)
                 if new_noise:
                     current_noise.append(new_noise)
-                    event_flg = "noise created"
+                    event_flg = "noise_created"
             # 新規に追加したノイズに対しても一応フィルター
             current_noise = [
                 noise for noise in current_noise if noise["t"][1] >= time]
@@ -77,6 +78,7 @@ class DFRSimulation(BaseSimulation):
                 continue
             influenced_by_noise_cars = []
             if len(current_noise) > 0:
+                event_flg = "noise_continue"
                 # 新しいノイズが来るか新しい車が到着したら誰が該当するかの判定をする.
                 influenced_by_noise_cars = self.find_noise_influenced_cars(
                     cars_on_road, current_noise, time)
@@ -134,10 +136,15 @@ class DFRSimulation(BaseSimulation):
                 car.decide_speed(time, self.TIME_STEP, front_car)
                 car.proceed(self.TIME_STEP, time)
 
-            self.record(time, event_flg)
+            noise_x = None
+            if len(current_noise) > 0:
+                noise_x = current_noise[0]["x"][0]
+            self.record(time, event_flg, noise_x)
             self.record_headway(time)
-            if should_plot and (i % 5 == 0 or event_flg):
-                self.plot_history_by_time(current_noise, time)
+            if should_plot and (i % 5 == 0 or event_flg in self.plot_contdition):
+                plot_start_time = kwargs.get("plot_start", 0)
+                plot_finish_time = kwargs.get("plot_finish", 1000)
+                self.plot_history_by_time(current_noise, time, plot_start_time, plot_finish_time)
 
     def find_noise_influenced_cars(self, cars_on_road, noiseList, time):
         car_list = [car.car_idx for idx, car in enumerate(
@@ -158,10 +165,12 @@ class DFRSimulation(BaseSimulation):
         # この場合はノイズを発生させない.
         return None
 
-    def plot_history_by_time(self, noise_list, current_time):
+    def plot_history_by_time(self, noise_list, current_time, plot_start_time, plot_finish_time):
         """
         各車のETAの変更履歴、座標、ノイズの有無をプロットする。
         """
+        if current_time < plot_start_time or current_time > plot_finish_time:
+            return
         save_dir = "images/dfr/"
         # ディレクトリが存在するか確認し、なければ作成
         if not os.path.exists(save_dir):
@@ -231,7 +240,7 @@ class DFRSimulation(BaseSimulation):
 
         # 凡例をグラフの外に表示
         legend = plt.legend(bbox_to_anchor=(1.05, 1),
-                            loc='upper left', borderaxespad=0., fontsize='small')
+                            loc='upper left', borderaxespad=0., fontsize='small', ncol=2)
 
         # 保存処理
         try:
