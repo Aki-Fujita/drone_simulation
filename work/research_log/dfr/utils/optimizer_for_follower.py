@@ -151,7 +151,7 @@ def follower_acc_solver(follower, eta_of_leader, TTC, current_time, leader):
 
             if can_reach_after_designated_eta(**start_params, **eta_boundary, car_params=car_params):
                 a, eta = crt_acc_itinerary_for_decel_area(
-                    **start_params, **eta_boundary, ve=None, car_params=car_params, step_size=0.5, earliest_etas=earliest_etas, car_idx=follower.car_idx)
+                    **start_params, **eta_boundary, ve=None, car_params=car_params, step_size=0.2, earliest_etas=earliest_etas, car_idx=follower.car_idx)
                 v = a[-1]["v_0"]  # 必ず等速区間で終わるため
                 start_params = {"v0": v, "x0": eta_boundary["xe"], "t0": eta}
                 if follower.car_idx == 32:

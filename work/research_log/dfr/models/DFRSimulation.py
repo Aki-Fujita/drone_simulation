@@ -29,7 +29,7 @@ class DFRSimulation(BaseSimulation):
             "create_noise", self.create_noise_default)
         self.state = {}
         self.DENSITY = kwargs.get("DENSITY")
-        self.plot_condition = kwargs.get("plot_condition", [])
+        self.plot_condition = kwargs.get("PLOT_CONDITION", [])
 
     def conduct_simulation(self, should_plot=False, **kwargs):
         current_noise = []
@@ -141,7 +141,7 @@ class DFRSimulation(BaseSimulation):
                 noise_x = current_noise[0]["x"][0]
             self.record(time, event_flg, noise_x)
             self.record_headway(time)
-            if should_plot and (i % 5 == 0 or event_flg in self.plot_contdition):
+            if should_plot and (i % 5 == 0 or event_flg in self.plot_condition):
                 plot_start_time = kwargs.get("plot_start", 0)
                 plot_finish_time = kwargs.get("plot_finish", 1000)
                 self.plot_history_by_time(current_noise, time, plot_start_time, plot_finish_time)
@@ -184,16 +184,16 @@ class DFRSimulation(BaseSimulation):
         plt.figure(figsize=(6, 6))
         ax = plt.gca()
 
-        # 全車のETAのプロット
-        car_idx_list = [car.car_idx for car in self.CARS]
+        # # 全車のETAのプロット これがあるとデバッグしにくいのでコメントアウト.
+        # car_idx_list = [car.car_idx for car in self.CARS]
         _df = eta_table
-        for car_idx in car_idx_list:
-            df_by_car = _df[(_df["car_idx"] == car_idx) &
-                            (_df["type"] == "waypoint")]
-            plt.plot(df_by_car["x"], df_by_car["eta"],
-                     color=color_list[car_idx % 12], linewidth=1, linestyle='--', alpha=0.1)
-            plt.scatter(df_by_car["x"], df_by_car["eta"],
-                        color=color_list[car_idx % 12], alpha=0.2, s=20)
+        # for car_idx in car_idx_list:
+        #     df_by_car = _df[(_df["car_idx"] == car_idx) &
+        #                     (_df["type"] == "waypoint")]
+        #     plt.plot(df_by_car["x"], df_by_car["eta"],
+        #              color=color_list[car_idx % 12], linewidth=1, linestyle='--', alpha=0.1)
+        #     plt.scatter(df_by_car["x"], df_by_car["eta"],
+        #                 color=color_list[car_idx % 12], alpha=0.2, s=20)
 
         # 現在道路に入った車に対するプロット
         for car_idx in car_idx_list_on_road:
