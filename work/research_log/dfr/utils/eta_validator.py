@@ -15,23 +15,17 @@ def validate_with_ttc(eta_reservation_table, car_plans, TTC):
 
     if df.shape[0] < 1:
         return True
+    target_waypoints = [car_plan["x"] for car_plan in car_plans]
+    max_eta_by_waypoint = df[df["x"].isin(target_waypoints)].groupby("x")["eta"].max()
 
-    for idx, car_plan_by_x in enumerate(car_plans):
-        if idx == 0:
-            continue
+    for car_plan_by_x in car_plans[1:]:
         target_waypoint_x = car_plan_by_x["x"]
-        filtered_df = df[df["x"] == target_waypoint_x]
-        # print(f"len(wpts)={len(filtered_df)}")
-        last_entry_time = filtered_df["eta"].max()
-        if car_plan_by_x["eta"] > last_entry_time + TTC - 0.1:  # 丸め誤差分を許容
-            continue
-        else:
-            # print(f"eta_validator.py: INVALID, x={
-            #       target_waypoint_x}, car_id={car_idx}, leader_eta={last_entry_time}, desired_eta={car_plan_by_x['eta']}")
-            
-            is_valid = False
-            break
-    return is_valid
+        if target_waypoint_x in max_eta_by_waypoint:
+            last_entry_time = max_eta_by_waypoint[target_waypoint_x]
+            if not (car_plan_by_x["eta"] > last_entry_time + TTC - 0.1):  # 条件に合わない場合
+                return False
+
+    return True
 
 
 def create_sample_itinerary():
