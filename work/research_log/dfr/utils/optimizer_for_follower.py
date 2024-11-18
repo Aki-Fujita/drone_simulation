@@ -103,6 +103,8 @@ def follower_acc_solver(follower, eta_of_leader, TTC, current_time, leader):
     itinerary_from_now = [{"t_start": current_time, "acc": 0, "x_start": follower.xcor,
                            "v_0": follower.v_x, "t_end": current_time}]# t_endはどうせ変わるのでここにt_startより前の値が入るのは別にヤバくはない
     logging.debug("L105: late avoid with leader")
+    # if follower.car_idx == 27:
+    #     print(f"follower.car_idx: {follower.car_idx}, earilist_etas: {earliest_etas}")
 
     for wp_idx, earliest_eta in enumerate(earliest_etas):
 
@@ -111,16 +113,14 @@ def follower_acc_solver(follower, eta_of_leader, TTC, current_time, leader):
             continue
 
         if not should_brake(**start_params, **eta_boundary):
-            # print(f"L116. sp: {start_params}, \n earliest_possible_ETA: {
-            #       eta_boundary}")
             # この場合、この区間のさらに先まで見た上で、これから先どこもブレーキが必要なかったら加速する！
             upcoming_wps = [{"xe": e["x"], "te": e["eta"]}
                             for i, e in enumerate(earliest_etas) if i >= wp_idx]
             # デバッグ用
-            # if follower.car_idx == 17:
-            #     print([should_brake(**start_params, **eta_plan)
-            #           for eta_plan in upcoming_wps])
-            #     print("L120: ", start_params, upcoming_wps, itinerary_from_now)
+            # if follower.car_idx == 27:
+                # print([should_brake(**start_params, **eta_plan)
+                #       for eta_plan in upcoming_wps])
+                # print("L120: ", start_params, upcoming_wps, itinerary_from_now)
             if all([not should_brake(**start_params, **eta_plan) for eta_plan in upcoming_wps]):
                 # print("これだとだいぶ余裕があるので加速する")
                 new_itinerary, sp = update_acc_itinerary_with_accel(itinerary_from_now, start_params, upcoming_wps, car_params={

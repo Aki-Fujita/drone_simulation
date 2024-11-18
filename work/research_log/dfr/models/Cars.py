@@ -37,6 +37,7 @@ class Cars:
         self.my_etas = []  # 自分のETA予定表のこと
         self.delta_from_eta = 0  # ETAからのずれ. DAAで必要以上のブレーキやアクセルが必要になった場合にここの値が変動する.
         self.car_length = 3  # 車の長さ (m)
+        self.has_reacted_to_noise = False
 
         # 以下はVFRのシミュレーションで利用するprops
         self.foreseeable_distance = kwargs.get(

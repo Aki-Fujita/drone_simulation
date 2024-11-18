@@ -27,3 +27,12 @@ def update_acc_itinerary(current_itinerary, new_itinerary):
     else:
         result = current_itinerary + new_itinerary
     return result
+
+def find_next_wpt(my_etas, x_coor):
+    """
+    my_etasの中で次に到達する地点を探す
+    """
+    for eta in my_etas:
+        if eta["x"] > x_coor:
+            return eta
+    return None

@@ -6,3 +6,4 @@ from .conduct_optimization import conduct_fuel_optimization
 from .optimizer_for_follower import calc_late_avoid_with_leader
 from .calc_distance_from_acc_itinerary import calc_distance_from_acc_itinerary
 from .generate_arrival_times import generate_arrival_times_poisson
+from .simple_funcs import find_next_wpt

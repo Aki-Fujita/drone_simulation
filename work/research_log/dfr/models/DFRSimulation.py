@@ -7,6 +7,9 @@ from .BaseSimulationModel import BaseSimulation
 import os
 import psutil
 import logging
+sys.path.append("../")
+from utils import find_next_wpt
+
 logging.basicConfig(level=logging.INFO)  # INFOレベル以上を表示
 
 
@@ -29,6 +32,7 @@ class DFRSimulation(BaseSimulation):
             "create_noise", self.create_noise_default)
         self.state = {}
         self.DENSITY = kwargs.get("DENSITY")
+        self.TTC = kwargs.get("TTC", 1.5)
         self.plot_condition = kwargs.get("PLOT_CONDITION", [])
 
     def conduct_simulation(self, should_plot=False, **kwargs):
@@ -36,6 +40,11 @@ class DFRSimulation(BaseSimulation):
         cars_on_road = []
         next_car_idx = 0
         communication_count = 0
+        last_eta_updated_car_id = None
+        next_car_to_update_eta = None
+        did_someone_updated_eta = False
+        last_eta_updated_time = 0
+
         for i in tnrange(self.total_steps, desc=f"Simulation Progress DFR, density={self.DENSITY}"):
             next_car = self.CARS[next_car_idx]
             time = i * self.TIME_STEP
@@ -72,12 +81,14 @@ class DFRSimulation(BaseSimulation):
             current_noise = [
                 noise for noise in current_noise if noise["t"][1] >= time]
             """
-            STEP 2. ノイズの影響を受ける車と、ノイズによって影響を受けた他の車の影響を受けた車をリスト化
+            STEP 2. ノイズの影響を受ける車と、ノイズによって影響を受けた他の車の影響を受けた車をリスト化. 
+            ノイズがある場合は、ノイズの影響を受ける車と他の車の影響を受ける車のうち、最も先頭のものから更新. 
+            ノイズがない場合はcomminucation_speedごとにETAを更新手続きを行う.
             """
             if len(cars_on_road) < 1:
                 continue
             influenced_by_noise_cars = []
-            if len(current_noise) > 0:
+            if len(current_noise) > 0: # ノイズがある場合
                 event_flg = "noise_continue"
                 # 新しいノイズが来るか新しい車が到着したら誰が該当するかの判定をする.
                 influenced_by_noise_cars = self.find_noise_influenced_cars(
@@ -85,13 +96,20 @@ class DFRSimulation(BaseSimulation):
                 for car in cars_on_road:
                     # noiseを通るETAを計算する（これはノイズに引っ掛かろうがそうでなかろうが全員必須。）
                     car.add_noise_eta(current_noise)
+                    # print(car.car_idx, car.my_etas)
                     self.reservation_table.update_with_request(
                         car_idx=car.car_idx, new_eta=car.my_etas)
+                    car.has_reacted_to_noise = True
 
-            influenced_by_eta_cars = self.find_ETA_influenced_cars(
-                cars_on_road)
-            influenced_cars = list(
-                set(influenced_by_noise_cars + influenced_by_eta_cars))
+                influenced_by_eta_cars = self.find_first_ETA_influenced_car(
+                    cars_on_road)
+                influenced_cars = list(
+                    set(influenced_by_noise_cars + influenced_by_eta_cars))
+            else: # ノイズがない場合
+                if communication_count >= self.COMMUNICATION_SPEED:
+                    influenced_cars = self.find_first_ETA_influenced_car(cars_on_road)
+                else:
+                    influenced_cars = []
 
             if event_flg or len(influenced_cars) > 0:
                 logging.debug(f"---------t={time:.2f}---------")
@@ -125,6 +143,43 @@ class DFRSimulation(BaseSimulation):
                         car_idx=car_to_action_id, new_eta=new_eta)
                     car_to_action.my_etas = new_eta
                     communication_count = 0
+                    last_eta_updated_car_id = car_to_action_id
+                    next_car_to_update_eta = car_to_action_id + 1
+                    did_someone_updated_eta = True
+                    last_eta_updated_time = time
+            
+            # 誰もETAを変更していない場合、モニタリング機構が発火し、前とあまりに距離が空いている車がいたらETAをアップデートする. ただし、noiseを避けたことがある人に限る. 
+            if did_someone_updated_eta and (time - last_eta_updated_time >= self.COMMUNICATION_SPEED) and last_eta_updated_car_id is not None:
+                follower = self.CARS[next_car_to_update_eta]
+                if follower.has_reacted_to_noise:
+                    leader_etas = self.CARS[last_eta_updated_car_id].my_etas
+                    follower_x = follower.xcor
+                    follower_eta = follower.my_etas
+
+                    # leader_etaとfolower_etaの差が大きすぎた場合にfollowerを更新.
+                    follower_next_wp = find_next_wpt(follower_eta, follower_x + 50)
+                    leader_next_wp = find_next_wpt(leader_etas, follower_x + 50)
+
+                    follower_eta = follower_next_wp["eta"]
+                    leader_next_eta = leader_next_wp["eta"]
+
+                    if follower_eta - leader_next_eta > 3 * self.TTC:
+                        print(f"勧告によりアップデート:id={follower.car_idx}, time={time}")
+                        new_eta= follower.modify_eta(noiseList=current_noise, table=self.reservation_table, current_time=time, leader=self.CARS[last_eta_updated_car_id])
+                        self.reservation_table.update_with_request(
+                            car_idx=car_to_action_id, new_eta=new_eta)
+                        # print(new_eta)
+                        follower.my_etas = new_eta
+                        communication_count = 0
+                        last_eta_updated_time = time
+                        did_someone_updated_eta = True
+                        last_eta_updated_car_id = follower.car_idx
+                        next_car_to_update_eta = follower.car_idx + 1
+                else:
+                    # print("勧告なし")
+                    last_eta_updated_car_id = None
+                    did_someone_updated_eta = False
+                
 
             """
             STEP 4. 全員前進.
@@ -157,6 +212,19 @@ class DFRSimulation(BaseSimulation):
         car_list = [car.car_idx for car_id, car in enumerate(cars_on_road) if not validate_with_ttc(
             eta_reservation_table, car.my_etas, TTC)]
         return car_list
+    
+    """
+    上の関数の、一つでも見つかったらすぐ返すバージョン
+    """
+    def find_first_ETA_influenced_car(self, cars_on_road):
+        eta_reservation_table = self.reservation_table.eta_table
+        TTC = self.reservation_table.global_params.DESIRED_TTC
+
+        for car in cars_on_road:
+            if not validate_with_ttc(eta_reservation_table, car.my_etas, TTC):
+                return [car.car_idx]  # 条件を満たしたら即リターン
+
+        return []
 
     def create_noise_default(self, current_time):
         if current_time % 8 == 0 and current_time > 0:

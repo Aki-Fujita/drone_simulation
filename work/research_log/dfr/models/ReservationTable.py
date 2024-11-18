@@ -26,13 +26,14 @@ class ReservationTable:
             return True
 
         is_valid = True
+        grouped_df = df.groupby("waypoint_idx")["eta"].max()
+
         for idx, waypoint_info in enumerate(waypoints_with_eta):
             if idx == 0:
                 continue
 
             target_waypoint = waypoint_info["waypoint_idx"]
-            filtered_df = df[df["waypoint_idx"] == target_waypoint]
-            last_entry_time = filtered_df["eta"].max()
+            last_entry_time = grouped_df.get(target_waypoint, float('-inf'))
             if waypoint_info["eta"] > last_entry_time + self.global_params.DESIRED_TTC:
                 continue
             else:
@@ -81,7 +82,8 @@ class ReservationTable:
             raise ValueError(
                 "car_idx and new_eta must be specified in the request")
         car_0 = pd.DataFrame(new_eta)
-        new_df = df[df['car_idx'] != car_idx]
+        mask = df['car_idx'].to_numpy() != car_idx
+        new_df = df.loc[mask]
         # 更新された部分集合を元のDataFrameに追加
         new_df = pd.concat([new_df, car_0], ignore_index=True)
         self.eta_table = new_df

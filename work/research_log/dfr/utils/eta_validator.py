@@ -11,7 +11,7 @@ def validate_with_ttc(eta_reservation_table, car_plans, TTC):
     table = eta_reservation_table
     is_valid = True
     car_idx = car_plans[0]["car_idx"]
-    df = table[table["car_idx"] < car_idx]  # 追い抜きがないので自分より前にいる車 = indexが若い車
+    df = table[table["car_idx"] == int(car_idx-1)]  # 追い抜きがないので自分より前にいる車 = 一つ前の車
 
     if df.shape[0] < 1:
         return True

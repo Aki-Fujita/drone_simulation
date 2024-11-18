@@ -196,7 +196,7 @@ def calc_leader_acc_itinerary(car, current_time):
     cruise_period = {"t_start": current_time + first_acc_period, "x_start": car.xcor + 0.5 * car.a_max * first_acc_period**2 + car.v_x * first_acc_period,
                      "acc": 0, "v_0": car.v_max, "t_end": 1e7}
     acc_itinerary.append(cruise_period)
-    print("leader acc_itinerary:", acc_itinerary)
+    # print("leader acc_itinerary:", acc_itinerary)
     return acc_itinerary
 
 
