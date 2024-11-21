@@ -61,6 +61,10 @@ def calc_late_avoid_with_leader(**kwargs):
     )]["eta"]
     if ttc < 1:
         raise ValueError("ttc is too small")
+    
+    # if follower.car_idx == 38:
+    #     print("=====入った=====")
+    #     print(eta_of_leader)
 
     # シミュレーションのパラメータ
     total_time = leader_finish_time - current_time
@@ -70,6 +74,7 @@ def calc_late_avoid_with_leader(**kwargs):
     # 後続車のパラメータ
     acc_itinerary = follower_acc_solver(
         follower, eta_of_leader, ttc, current_time, leader)
+    # print("acc_itinerary: ", acc_itinerary)
     merged_acc_itinerary = merge_acc_itinerary(
         pre_itinerary=follower.acc_itinerary, new_itinerary=acc_itinerary)
     # print("merged:", merged_acc_itinerary)
@@ -103,8 +108,6 @@ def follower_acc_solver(follower, eta_of_leader, TTC, current_time, leader):
     itinerary_from_now = [{"t_start": current_time, "acc": 0, "x_start": follower.xcor,
                            "v_0": follower.v_x, "t_end": current_time}]# t_endはどうせ変わるのでここにt_startより前の値が入るのは別にヤバくはない
     logging.debug("L105: late avoid with leader")
-    # if follower.car_idx == 27:
-    #     print(f"follower.car_idx: {follower.car_idx}, earilist_etas: {earliest_etas}")
 
     for wp_idx, earliest_eta in enumerate(earliest_etas):
 

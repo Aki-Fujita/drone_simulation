@@ -152,12 +152,13 @@ class Cars:
 
         # 普通に計画すると前の車にぶつかることがあり得る。
         # なのでvalidateが通ったらmy_etasとacc_itineraryを登録
-        if validate_with_ttc(table.eta_table, ideal_eta, table.global_params.DESIRED_TTC):
+        if validate_with_ttc(table.eta_table, ideal_eta, table.global_params.DESIRED_TTC, car_position=self.xcor, current_time=current_time):
             self.my_etas = ideal_eta
             self.acc_itinerary = temp_acc_itinerary
             return ideal_eta
 
         # (b)の場合
+        print(f"car_idx={self.car_idx}, acc_itinerary={temp_acc_itinerary} \n ideal_eta={ideal_eta}")
         print("Value Error 基本的にここには来ないはず")
         raise ValueError("ノイズを避けることができませんでした。")
 

@@ -106,7 +106,7 @@ class VFRSimulation(BaseSimulation):
 
         # 凡例をグラフの外に表示
         legend = plt.legend(bbox_to_anchor=(1.05, 1),
-                            loc='upper left', borderaxespad=0., fontsize='small')
+                            loc='upper left', borderaxespad=0., fontsize='small', ncol=2)
 
         # 保存
         plt.savefig(f"images/vfr/vfr_simulation_t={current_time:.1f}.png", bbox_inches='tight', bbox_extra_artists=[legend])

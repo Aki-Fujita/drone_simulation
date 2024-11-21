@@ -1,7 +1,7 @@
 import pandas as pd
 
 
-def validate_with_ttc(eta_reservation_table, car_plans, TTC):
+def validate_with_ttc(eta_reservation_table, car_plans, TTC, **kwargs):
     """
     eta_reservation_table: 全体のスケジュール. DataFrame型を想定. 
     car_plan: 申し込もうとしてるもの. 
@@ -12,6 +12,8 @@ def validate_with_ttc(eta_reservation_table, car_plans, TTC):
     is_valid = True
     car_idx = car_plans[0]["car_idx"]
     df = table[table["car_idx"] == int(car_idx-1)]  # 追い抜きがないので自分より前にいる車 = 一つ前の車
+    current_car_position = kwargs.get("car_position", 0)
+    current_time = kwargs.get("current_time", 0)
 
     if df.shape[0] < 1:
         return True
@@ -20,9 +22,13 @@ def validate_with_ttc(eta_reservation_table, car_plans, TTC):
 
     for car_plan_by_x in car_plans[1:]:
         target_waypoint_x = car_plan_by_x["x"]
+        if target_waypoint_x < current_car_position:
+            continue
         if target_waypoint_x in max_eta_by_waypoint:
             last_entry_time = max_eta_by_waypoint[target_waypoint_x]
             if not (car_plan_by_x["eta"] > last_entry_time + TTC - 0.1):  # 条件に合わない場合
+                # if car_idx == 38:
+                #     print(car_plan_by_x, last_entry_time)
                 return False
 
     return True
