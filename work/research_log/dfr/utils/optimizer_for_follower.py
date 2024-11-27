@@ -61,10 +61,7 @@ def calc_late_avoid_with_leader(**kwargs):
     )]["eta"]
     if ttc < 1:
         raise ValueError("ttc is too small")
-    
-    # if follower.car_idx == 38:
-    #     print("=====入った=====")
-    #     print(eta_of_leader)
+  
 
     # シミュレーションのパラメータ
     total_time = leader_finish_time - current_time
@@ -74,7 +71,9 @@ def calc_late_avoid_with_leader(**kwargs):
     # 後続車のパラメータ
     acc_itinerary = follower_acc_solver(
         follower, eta_of_leader, ttc, current_time, leader)
-    # print("acc_itinerary: ", acc_itinerary)
+    # if follower.car_idx == 39:
+    #     print("=====入った=====")
+    #     print(eta_of_leader, acc_itinerary)
     merged_acc_itinerary = merge_acc_itinerary(
         pre_itinerary=follower.acc_itinerary, new_itinerary=acc_itinerary)
     # print("merged:", merged_acc_itinerary)

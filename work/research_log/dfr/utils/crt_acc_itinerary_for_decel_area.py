@@ -30,7 +30,7 @@ def crt_acc_itinerary_for_decel_area(v0, x0, t0, ve, xe, te, car_params, step_si
             """
             この場合はtarget_timeまでゴール手前で止まるacc_itineraryを計算する.
             """
-            print("L271: 止まる方に入った")
+            # print("L271: 止まる方に入った")
             if can_stop_before_goal(v0, x0, t0, xe, te, car_params):
                 acc_itinerary = stop_at_goal(v0, x0, t0, xe, te, car_params)
                 # print(f"L275: acc_itinerary with stop, acc_itinerary={

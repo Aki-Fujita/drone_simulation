@@ -44,6 +44,9 @@ def calc_early_avoid_acc(noise, current_time, carObj, table):
                                    == carObj.car_idx - 1]
     logging.debug(f"ETA_of_front_car: {ETA_of_front_car}")
 
+    # if carObj.car_idx == 39:
+    #     print("L48:", ETA_of_front_car)
+
     earliest_time = calc_earliest_time(
         carObj, noise_end_poisition, current_time)
     if len(ETA_of_front_car) > 0:
@@ -75,7 +78,7 @@ def calc_late_avoid(noise, current_time, carObj, table, leader):
     my_etas = reservation[reservation["car_idx"] == carObj.car_idx]
     # 遅く避けるときはノイズを気にする！！
     if leader is None:
-        print("リーダーがいない: ", carObj.car_idx)
+        # print("リーダーがいない: ", carObj.car_idx)
         noise_end_time = noise["t"][1]
         noise_start_poisition = noise["x"][0]
         # これはリーダーがそもそもいない場合. 自分だけのETAで決めて良いケース.

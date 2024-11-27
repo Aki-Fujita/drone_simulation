@@ -238,7 +238,11 @@ class VFRSimulation(BaseSimulation):
             ・平均速度の保存
             ・プロット
             """
-            self.record(time, event_flg)
+            noise_x = None
+            if len(current_noise) > 0:
+                noise_x = current_noise[0]["x"][0]
+            
+            self.record(time, event_flg, noise_x)
             self.record_headway(time)
             if should_plot and (i % 5 == 0):
                 self.plot_cars(time, current_noise)

@@ -176,9 +176,7 @@ def solve_acc_itinerary_early_avoid(**kwargs):
                 continue
 
             else:
-                # この場合は、そもそも早避けが不可能なのでFalseを返す.
-                # raise ValueError("前の車に当たってしまう. ")
-                print("前の車に当たってしまうので早避け不可")
+                # print("前の車に当たってしまうので早避け不可")
                 return False
 
     return acc_itinerary

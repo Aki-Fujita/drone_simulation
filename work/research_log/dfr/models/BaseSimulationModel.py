@@ -71,6 +71,12 @@ class BaseSimulation(ABC):
             "flow": 0,
             "car_num_before_noise": 0,
             "car_num_after_noise": 0,
+            "v_mean_before_noise": 0,
+            "v_mean_after_noise": 0,
+            "rho_before_noise": 0,
+            "rho_after_noise": 0,
+            "flow_before_noise": 0,
+            "flow_after_noise": 0,
         }
         cars_on_road = [
             car for car in self.CARS if car.xcor < self.TOTAL_LENGTH and car.arrival_time <= time]

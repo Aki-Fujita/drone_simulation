@@ -102,12 +102,12 @@ class DFRSimulation(BaseSimulation):
                     car.has_reacted_to_noise = True
 
                 influenced_by_eta_cars = self.find_first_ETA_influenced_car(
-                    cars_on_road)
+                    cars_on_road, time)
                 influenced_cars = list(
                     set(influenced_by_noise_cars + influenced_by_eta_cars))
             else: # ノイズがない場合
                 if communication_count >= self.COMMUNICATION_SPEED:
-                    influenced_cars = self.find_first_ETA_influenced_car(cars_on_road)
+                    influenced_cars = self.find_first_ETA_influenced_car(cars_on_road, time)
                 else:
                     influenced_cars = []
 
@@ -160,21 +160,21 @@ class DFRSimulation(BaseSimulation):
                     follower_next_wp = find_next_wpt(follower_eta, follower_x + 50)
                     leader_next_wp = find_next_wpt(leader_etas, follower_x + 50)
 
-                    follower_eta = follower_next_wp["eta"]
-                    leader_next_eta = leader_next_wp["eta"]
+                    if follower_next_wp is not None and leader_next_wp is not None:                        
+                        follower_eta = follower_next_wp["eta"]
+                        leader_next_eta = leader_next_wp["eta"]
 
-                    if follower_eta - leader_next_eta > 3 * self.TTC:
-                        print(f"勧告によりアップデート:id={follower.car_idx}, time={time}")
-                        new_eta= follower.modify_eta(noiseList=current_noise, table=self.reservation_table, current_time=time, leader=self.CARS[last_eta_updated_car_id])
-                        self.reservation_table.update_with_request(
-                            car_idx=car_to_action_id, new_eta=new_eta)
-                        # print(new_eta)
-                        follower.my_etas = new_eta
-                        communication_count = 0
-                        last_eta_updated_time = time
-                        did_someone_updated_eta = True
-                        last_eta_updated_car_id = follower.car_idx
-                        next_car_to_update_eta = follower.car_idx + 1
+                        if follower_eta - leader_next_eta > 3 * self.TTC:
+                            new_eta= follower.modify_eta(noiseList=current_noise, table=self.reservation_table, current_time=time, leader=self.CARS[last_eta_updated_car_id])
+                            self.reservation_table.update_with_request(
+                                car_idx=car_to_action_id, new_eta=new_eta)
+                            # print(new_eta)
+                            follower.my_etas = new_eta
+                            communication_count = 0
+                            last_eta_updated_time = time
+                            did_someone_updated_eta = True
+                            last_eta_updated_car_id = follower.car_idx
+                            next_car_to_update_eta = follower.car_idx + 1
                 else:
                     # print("勧告なし")
                     last_eta_updated_car_id = None
@@ -206,22 +206,22 @@ class DFRSimulation(BaseSimulation):
             cars_on_road) if check_multiple_noise_effect(noiseList, car, time)]
         return car_list
 
-    def find_ETA_influenced_cars(self, cars_on_road):
+    def find_ETA_influenced_cars(self, cars_on_road, time):
         eta_reservation_table = self.reservation_table.eta_table
         TTC = self.reservation_table.global_params.DESIRED_TTC
         car_list = [car.car_idx for car_id, car in enumerate(cars_on_road) if not validate_with_ttc(
-            eta_reservation_table, car.my_etas, TTC)]
+            eta_reservation_table, car.my_etas, TTC, car_position=car.xcor, current_time=time)]
         return car_list
     
     """
     上の関数の、一つでも見つかったらすぐ返すバージョン
     """
-    def find_first_ETA_influenced_car(self, cars_on_road):
+    def find_first_ETA_influenced_car(self, cars_on_road, time):
         eta_reservation_table = self.reservation_table.eta_table
         TTC = self.reservation_table.global_params.DESIRED_TTC
 
         for car in cars_on_road:
-            if not validate_with_ttc(eta_reservation_table, car.my_etas, TTC):
+            if not validate_with_ttc(eta_reservation_table, car.my_etas, TTC, car_position=car.xcor, current_time=time):
                 return [car.car_idx]  # 条件を満たしたら即リターン
 
         return []
