@@ -6,3 +6,7 @@ __pycache__/
 **/.ipynb_checkpoints/
 .DS_Store
 /research_log/dfr/notebooks/images/
+/research_log/dfr/notebooks/*/*.csv
+/research_log/dfr/notebooks/*/*.json
+/research_log/dfr/notebooks/*.csv
+/research_log/dfr/notebooks/*.png
