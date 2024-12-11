@@ -297,8 +297,8 @@ def can_reach_after_designated_eta(v0, x0, t0, xe, te, car_params):
         if brake_distance < delta_x:
             return True
         else:
-            print(f"L267: v0={v0}, x0={x0}, t0={t0}, xe={xe}, te={te}, delta_t={delta_t}, brake_time={
-                  brake_time}, cover_distance={cover_distance}, delta_x={delta_x}")
+            # print(f"L267: v0={v0}, x0={x0}, t0={t0}, xe={xe}, te={te}, delta_t={delta_t}, brake_time={
+            #       brake_time}, cover_distance={cover_distance}, delta_x={delta_x}")
 
             return False
 

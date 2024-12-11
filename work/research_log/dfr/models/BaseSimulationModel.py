@@ -48,7 +48,7 @@ class BaseSimulation(ABC):
             else:
                 headway = self.TOTAL_LENGTH
             if headway < 0:
-                logging.info("time: ", time, "car_idx: ", car_idx, "xcor: ", car.xcor)
+                logging.info(f"time:{time}, car_idx: {car_idx}, xcor:{car.xcor}")
                 raise ValueError("headway is negative")
             self.headway_log.append({
                 "time": time,

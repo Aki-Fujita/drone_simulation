@@ -41,7 +41,7 @@ class Cars:
 
         # 以下はVFRのシミュレーションで利用するprops
         self.foreseeable_distance = kwargs.get(
-            "foreseeable_distance", 180)
+            "foreseeable_distance", 160)
         self.is_crossing = False  # 今信号を渡っている最中かどうか
         self.acc_itinerary = [
             {"acc": 0, "t_start": self.arrival_time, "v_0": self.v_x, "t_end": 1e7, "x_start": 0}]
@@ -271,7 +271,7 @@ class Cars:
         """
         delta_x = target_x - self.xcor
         if self.v_x ** 2 / 2 / self.a_min > delta_x:
-            print(f"ID: {self.car_idx}, xcor={self.xcor}, v_x={self.v_x}")
+            print(f"ID: {self.car_idx}, xcor={self.xcor}, v_x={self.v_x}, delta_x={delta_x}")
             raise ValueError("狙った場所に止まることができません！")
 
         # 止まれる場合は必要最小限の減速度で減速する.
@@ -312,6 +312,9 @@ class Cars:
 
         # まずはnoiseを渡れるかどうかを判断
         distance_to_noise = noise_end_x - self.xcor
+        # if self.car_idx == 18:
+        #     print("L315")
+        #     print(distance_to_noise, self.v_x + time >= noise_start_time, )
         if distance_to_noise / self.v_x + time >= noise_start_time:
             # この場合は等速ではいけない場合なので一旦Falseということにする（挙動の修正次第ではTrueになるかも）
             return False
@@ -332,9 +335,17 @@ class Cars:
 
         front_car_stoppping_distance = front_car.v_x ** 2 / 2 / front_car.a_min
         distance_between_noiseEnd_and_frontCar = front_car.xcor - noise_end_x
-
         my_braking_distance = self.v_x ** 2 / 2 / self.a_min
+
+        # if self.car_idx == 18:
+        #     print(f"L341の結論: {(front_car.xcor - self.xcor) + front_car_stoppping_distance > my_braking_distance}")
+        #     print(f"車間距離: {front_car.xcor - self.xcor}, リーダー停止距離: {front_car_stoppping_distance}, 自分の停止距離:{my_braking_distance}")
+        
         if (front_car.xcor - self.xcor) + front_car_stoppping_distance > my_braking_distance:
+            return True
+        
+        # 前の車が急ブレーキを踏んだらワンチャン当たる場合=> ガチの急ブレーキでOKならOKにする.  
+        if (front_car.xcor - self.xcor) + front_car_stoppping_distance > my_braking_distance*self.a_min / self.a_min_lim:
             return True
 
         return False

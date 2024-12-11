@@ -35,8 +35,7 @@ def crt_acc_itinerary_for_decel_area(v0, x0, t0, ve, xe, te, car_params, step_si
                 acc_itinerary = stop_at_goal(v0, x0, t0, xe, te, car_params)
                 # print(f"L275: acc_itinerary with stop, acc_itinerary={
                 #       acc_itinerary}, te={te}")
-                # print(f"cover_distance={
-                #       calc_distance_from_acc_itinerary(acc_itinerary, te)}")
+                
                 return acc_itinerary, te
 
         acc_itinerary = [{"t_start": t0, "acc": decel, "x_start": x0,
