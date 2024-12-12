@@ -10,11 +10,11 @@ logging.basicConfig(level=logging.INFO)  # INFOレベル以上を表示
 sys.path.append("..")
 
 helly_params_default = {
-    "max_accel": 0.2,
-    "min_accel": 0.15,
+    "max_accel": 2,
+    "min_accel": 3,
     "lambda_1": 0.4,
     "lambda_2": 0.6,
-    "d": 0.5,
+    "d": 3,
     "T_des": 1.5,
 }
 
@@ -315,7 +315,7 @@ class Cars:
         # if self.car_idx == 18:
         #     print("L315")
         #     print(distance_to_noise, self.v_x + time >= noise_start_time, )
-        if distance_to_noise / self.v_x + time >= noise_start_time:
+        if distance_to_noise / (self.v_x+1e-3) + time >= noise_start_time:
             # この場合は等速ではいけない場合なので一旦Falseということにする（挙動の修正次第ではTrueになるかも）
             return False
 
@@ -326,12 +326,12 @@ class Cars:
         if front_car is None:
             return True
         
-        if front_car.is_crossing:
-            logging.debug(f"ID: {self.car_idx}, 前の車が早避け中")
-            """
-            前の車が早避け中の場合は自分も渡ると強制的に判断してみる。 
-            """
-            return True
+        # if front_car.is_crossing:
+        #     logging.debug(f"ID: {self.car_idx}, 前の車が早避け中")
+        #     """
+        #     前の車が早避け中の場合は自分も渡ると強制的に判断してみる。 
+        #     """
+        #     return True
 
         front_car_stoppping_distance = front_car.v_x ** 2 / 2 / front_car.a_min
         distance_between_noiseEnd_and_frontCar = front_car.xcor - noise_end_x
@@ -341,11 +341,11 @@ class Cars:
         #     print(f"L341の結論: {(front_car.xcor - self.xcor) + front_car_stoppping_distance > my_braking_distance}")
         #     print(f"車間距離: {front_car.xcor - self.xcor}, リーダー停止距離: {front_car_stoppping_distance}, 自分の停止距離:{my_braking_distance}")
         
-        if (front_car.xcor - self.xcor) + front_car_stoppping_distance > my_braking_distance:
+        if (front_car.xcor - self.xcor) + front_car_stoppping_distance > my_braking_distance + self.v_x * 1.5:
             return True
         
         # 前の車が急ブレーキを踏んだらワンチャン当たる場合=> ガチの急ブレーキでOKならOKにする.  
-        if (front_car.xcor - self.xcor) + front_car_stoppping_distance > my_braking_distance*self.a_min / self.a_min_lim:
+        if (front_car.xcor - self.xcor) + front_car_stoppping_distance > my_braking_distance*self.a_min / self.a_min_lim + self.v_x * 1.5:
             return True
 
         return False

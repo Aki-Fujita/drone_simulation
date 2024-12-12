@@ -77,6 +77,7 @@ class DFRSimulation(BaseSimulation):
                 if new_noise:
                     current_noise.append(new_noise)
                     event_flg = "noise_created"
+                    # print(f"t={time}, noise created: {new_noise}")
             # 新規に追加したノイズに対しても一応フィルター
             current_noise = [
                 noise for noise in current_noise if noise["t"][1] >= time]
@@ -165,9 +166,10 @@ class DFRSimulation(BaseSimulation):
                         leader_next_eta = leader_next_wp["eta"]
 
                         if follower_eta - leader_next_eta > 3 * self.TTC:
+                            # print("勧告あり")
                             new_eta= follower.modify_eta(noiseList=current_noise, table=self.reservation_table, current_time=time, leader=self.CARS[last_eta_updated_car_id])
                             self.reservation_table.update_with_request(
-                                car_idx=car_to_action_id, new_eta=new_eta)
+                                car_idx=follower.car_idx, new_eta=new_eta)
                             # print(new_eta)
                             follower.my_etas = new_eta
                             communication_count = 0
@@ -189,6 +191,7 @@ class DFRSimulation(BaseSimulation):
                 if front_car is not None and front_car.xcor >= self.TOTAL_LENGTH:
                     front_car = None
                 car.decide_speed(time, self.TIME_STEP, front_car)
+            for car in cars_on_road:
                 car.proceed(self.TIME_STEP, time)
 
             noise_x = None

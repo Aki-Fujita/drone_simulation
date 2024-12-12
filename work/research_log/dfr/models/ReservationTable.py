@@ -72,7 +72,7 @@ class ReservationTable:
         self.eta_table = combined_df
 
     def update_with_request(self, **request):
-        car_idx = request.get("car_idx")
+        car_idx = int(request.get("car_idx"))
         # print(f"======update by ID:{car_idx}!=======")
         df = self.eta_table
         car_idx = request.get("car_idx")
@@ -82,15 +82,21 @@ class ReservationTable:
             raise ValueError(
                 "car_idx and new_eta must be specified in the request")
         car_0 = pd.DataFrame(new_eta)
-        mask = df['car_idx'].to_numpy() != car_idx
+        # if car_idx==135:
+        #     print("ID 135")
+        #     print(car_0)
+        #     print("=====")
+            # print(df['car_idx'].astype(int) == car_idx)
+        mask = df['car_idx'].astype(int) != car_idx
         new_df = df.loc[mask]
         # 更新された部分集合を元のDataFrameに追加
         new_df = pd.concat([new_df, car_0], ignore_index=True)
         self.eta_table = new_df
+    #     duplicates = new_df[new_df.duplicated(subset=['car_idx', 'x'], keep=False)]
+    #     if not duplicates.empty:
+    #         duplicated_car_idxs = duplicates['car_idx'].unique()
+    #         raise ValueError(f"Duplicate rows detected for the following car_idx values: {duplicated_car_idxs}")
 
-    """
-    If noise_list is empty [], it just plots ETAs of each car.
-    """
 
     def plot_with_noise(self, noise_list):
         color_list = ["orange", "pink", "blue", "brown", "red", "green"]

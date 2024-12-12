@@ -64,10 +64,12 @@ class VFRSimulation(BaseSimulation):
                 for index, time in enumerate(arrival_times)]
         return CARS
 
-    def plot_cars(self, current_time, noise_list):
+    def plot_cars(self, current_time, noise_list, plot_start_time, plot_finish_time):
         """
         各車のtrajectoryとノイズをプロットする
         """
+        if current_time < plot_start_time or current_time > plot_finish_time:
+            return
         color_list = ["orange", "pink", "blue", "brown", "red", "green"]
         plt.figure(figsize=(6, 6))
         ax = plt.gca()
@@ -118,7 +120,7 @@ class VFRSimulation(BaseSimulation):
         """
         return False
 
-    def conduct_simulation(self, should_plot=False):
+    def conduct_simulation(self, should_plot=False, **kwargs):
         current_noise = []
         cars_on_road = []
         next_car_idx = 0
@@ -178,7 +180,6 @@ class VFRSimulation(BaseSimulation):
                     front_car = None
                 if noise is None:
                     car.decide_speed_helly(front_car, self.TIME_STEP)
-                    car.proceed(self.TIME_STEP, time)
                     continue
                 target_noise = None
                 noise_start_x = noise["x"][0]
@@ -206,7 +207,6 @@ class VFRSimulation(BaseSimulation):
                         """
                         if car.xcor + car.foreseeable_distance < noise_start_x: # (a) 普通にfront_carを見て走る
                             car.decide_speed_helly(None, self.TIME_STEP)
-                            car.proceed(self.TIME_STEP, time)
                             continue
                         else:
                             # (b)か(c)で場合分け
@@ -218,15 +218,12 @@ class VFRSimulation(BaseSimulation):
                             if car.will_overtake_noise(target_noise, front_car, time):
                                 # 早避けすることが決まった
                                 car.is_crossing = True
-                                next_speed = car.v_x  # 一旦早避けの際も等速で進むことにする
-                                car.v_x = min(next_speed, car.v_max)
-                                car.proceed(self.TIME_STEP, time)
+                                car.decide_speed_helly(front_car, self.TIME_STEP)
                                 continue
                             # (c) 避けられない場合 => この場合は狙った場所で止まれるようにする.
                             else:
                                 car.stop_at_target_x(
                                     noise_start_x, time, self.TIME_STEP)
-                                car.proceed(self.TIME_STEP, time)
 
                                 continue
                 # まさに今ノイズ区間を渡っている場合
@@ -234,6 +231,8 @@ class VFRSimulation(BaseSimulation):
                     car.is_crossing = True
 
                 car.decide_speed_helly(front_car, self.TIME_STEP)
+            
+            for car in cars_on_road:
                 car.proceed(self.TIME_STEP, time)
 
             """
@@ -248,4 +247,6 @@ class VFRSimulation(BaseSimulation):
             self.record(time, event_flg, noise_x)
             self.record_headway(time)
             if should_plot and (i % 5 == 0):
-                self.plot_cars(time, current_noise)
+                plot_start_time = kwargs.get("plot_start", 0)
+                plot_finish_time = kwargs.get("plot_finish", 1000)
+                self.plot_cars(time, current_noise, plot_start_time, plot_finish_time)
