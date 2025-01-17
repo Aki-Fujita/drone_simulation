@@ -42,8 +42,10 @@ class VFRSimulation(BaseSimulation):
         self.segment_length = reference.segment_length
         self.flow_count_interval = reference.flow_count_interval
         self.last_flow_record_time = 0.0
+        self.exclude_distance = 1.0
         self.cross_counts_record = {x_line: 0 for x_line in self.observation_points}
         self.density_records = {x_line: [] for x_line in self.observation_points}
+        self.arrival_time_log = []
 
     def setup_without_reference(self, kwargs):
         self.TIME_STEP = kwargs.get("TIME_STEP")
@@ -143,9 +145,16 @@ class VFRSimulation(BaseSimulation):
             ・cars_on_roadの中ですでにゴールした車は除外
             """
             if time >= next_car.arrival_time:
-                cars_on_road.append(next_car)
-                next_car_idx = cars_on_road[-1].car_idx + 1
-                event_flg = "arrival"
+                # 前の車がある程度離れている場合に限り入場許可
+                front_car = None if next_car.car_idx == 0 else self.CARS[next_car.car_idx - 1]
+                if front_car is None or front_car.xcor >= self.exclude_distance:
+                    # next_carの速度を調整する必要あり. 一旦前の車の速度に合わせることにした.  
+                    next_car.v_x = front_car.v_x if front_car is not None else next_car.v_x
+                    cars_on_road.append(next_car)
+                    next_car_idx = cars_on_road[-1].car_idx + 1
+                    event_flg = "arrival"
+                    self.arrival_time_log.append(time)
+
             cars_on_road = [
                 car for car in cars_on_road if car.xcor < self.TOTAL_LENGTH]
 
