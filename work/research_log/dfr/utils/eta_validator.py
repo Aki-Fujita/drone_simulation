@@ -8,16 +8,28 @@ def validate_with_ttc(eta_reservation_table, car_plans, TTC, **kwargs):
     TTC: 空けないといけない車間時間
     この関数はeta_reservation_tableを元に、送られてきたeta_planがValidかどうかを返す. 
     """
-    table = eta_reservation_table
-    is_valid = True
-    car_idx = car_plans[0]["car_idx"]
-    df = table[table["car_idx"] == int(car_idx-1)]  # 追い抜きがないので自分より前にいる車 = 一つ前の車
-    current_car_position = kwargs.get("car_position", 0)
+
     current_time = kwargs.get("current_time", 0)
+    car_idx = car_plans[0]["car_idx"]
+
+    if eta_reservation_table.index.name != "car_idx":
+        # print(f"入った, t={current_time},  idx:{car_idx}")
+        eta_reservation_table.set_index("car_idx", inplace=True, drop=False)
+
+    table = eta_reservation_table
+    target_idx = car_idx - 1  # 前の車両
+    # df = table[table["car_idx"] == int(car_idx-1)]  # 追い抜きがないので自分より前にいる車 = 一つ前の車
+
+    # ② 前の車両が存在しない場合（先頭車両）はTrueを返す
+    if target_idx not in eta_reservation_table.index:
+        return True  # 前に車がいないので問題なし
+    
+    df = table.loc[[target_idx]]
+    current_car_position = kwargs.get("car_position", 0)
 
     if df.shape[0] < 1:
         return True
-    target_waypoints = [car_plan["x"] for car_plan in car_plans]
+    target_waypoints = set(car_plan["x"] for car_plan in car_plans)
     max_eta_by_waypoint = df[df["x"].isin(target_waypoints)].groupby("x")["eta"].max()
 
     for car_plan_by_x in car_plans[1:]:

@@ -57,12 +57,10 @@ def calc_late_avoid_with_leader(**kwargs):
     leader = kwargs.get("leader", 0)  # 先行車のオブジェクト
     current_time = kwargs.get("current_time", [])
     eta_of_leader = kwargs.get("eta_of_leader", {})
-    leader_finish_time = eta_of_leader.loc[eta_of_leader["eta"].idxmax(
-    )]["eta"]
+    leader_finish_time = eta_of_leader["eta"].max()
     if ttc < 1:
         raise ValueError("ttc is too small")
   
-
     # シミュレーションのパラメータ
     total_time = leader_finish_time - current_time
     time_step = 0.5

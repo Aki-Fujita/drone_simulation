@@ -82,20 +82,13 @@ class ReservationTable:
             raise ValueError(
                 "car_idx and new_eta must be specified in the request")
         car_0 = pd.DataFrame(new_eta)
-        # if car_idx==135:
-        #     print("ID 135")
-        #     print(car_0)
-        #     print("=====")
-            # print(df['car_idx'].astype(int) == car_idx)
+
         mask = df['car_idx'].astype(int) != car_idx
         new_df = df.loc[mask]
         # 更新された部分集合を元のDataFrameに追加
-        new_df = pd.concat([new_df, car_0], ignore_index=True)
+        new_df = pd.concat([new_df, car_0], ignore_index=False)
         self.eta_table = new_df
-    #     duplicates = new_df[new_df.duplicated(subset=['car_idx', 'x'], keep=False)]
-    #     if not duplicates.empty:
-    #         duplicated_car_idxs = duplicates['car_idx'].unique()
-    #         raise ValueError(f"Duplicate rows detected for the following car_idx values: {duplicated_car_idxs}")
+
 
 
     def plot_with_noise(self, noise_list):

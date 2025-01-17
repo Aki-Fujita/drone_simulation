@@ -12,8 +12,8 @@ def calc_late_avoid_with_early_avoid_leader(**kwargs):
     current_time = kwargs.get("current_time", [])
     eta_of_leader = kwargs.get("eta_of_leader", {})
     leader = kwargs.get("leader", {})
-    leader_finish_time = eta_of_leader.loc[eta_of_leader["eta"].idxmax(
-    )]["eta"]
+    leader_finish_time = eta_of_leader["eta"].max()
+    leader_finish_time = float(leader_finish_time) 
     if ttc < 1:
         raise ValueError("ttc is too small")
 

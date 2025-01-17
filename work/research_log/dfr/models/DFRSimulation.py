@@ -46,6 +46,10 @@ class DFRSimulation(BaseSimulation):
         last_eta_updated_time = 0
         self.prev_positions = [car.xcor for car in self.CARS]
 
+        eta_reservation_table = self.reservation_table.eta_table
+        if eta_reservation_table.index.name != "car_idx":
+              eta_reservation_table.set_index("car_idx", inplace=True, drop=False)
+
         for i in tnrange(self.total_steps, desc=f"Simulation Progress DFR, density={self.DENSITY}"):
             next_car = self.CARS[next_car_idx]
             time = i * self.TIME_STEP
@@ -91,22 +95,23 @@ class DFRSimulation(BaseSimulation):
                 continue
             influenced_by_noise_cars = []
             if len(current_noise) > 0: # ノイズがある場合
-                event_flg = "noise_continue"
                 # 新しいノイズが来るか新しい車が到着したら誰が該当するかの判定をする.
-                influenced_by_noise_cars = self.find_noise_influenced_cars(
-                    cars_on_road, current_noise, time)
-                for car in cars_on_road:
-                    # noiseを通るETAを計算する（これはノイズに引っ掛かろうがそうでなかろうが全員必須。）
-                    car.add_noise_eta(current_noise)
-                    # print(car.car_idx, car.my_etas)
-                    self.reservation_table.update_with_request(
-                        car_idx=car.car_idx, new_eta=car.my_etas)
-                    car.has_reacted_to_noise = True
+                if event_flg == "arrival" or event_flg == "noise_created":
+                    influenced_by_noise_cars = self.find_noise_influenced_cars(
+                        cars_on_road, current_noise, time)
+                    for car in cars_on_road:
+                        # noiseを通るETAを計算する（これはノイズに引っ掛かろうがそうでなかろうが全員必須。）
+                        car.add_noise_eta(current_noise)
+                        # print(car.car_idx, car.my_etas)
+                        self.reservation_table.update_with_request(
+                            car_idx=car.car_idx, new_eta=car.my_etas)
+                        car.has_reacted_to_noise = True
 
-                influenced_by_eta_cars = self.find_first_ETA_influenced_car(
-                    cars_on_road, time)
-                influenced_cars = list(
-                    set(influenced_by_noise_cars + influenced_by_eta_cars))
+                    influenced_by_eta_cars = self.find_first_ETA_influenced_car(
+                        cars_on_road, time)
+                    influenced_cars = list(
+                        set(influenced_by_noise_cars + influenced_by_eta_cars))
+                    
             else: # ノイズがない場合
                 if communication_count >= self.COMMUNICATION_SPEED:
                     influenced_cars = self.find_first_ETA_influenced_car(cars_on_road, time)
@@ -206,7 +211,7 @@ class DFRSimulation(BaseSimulation):
                 noise_x = current_noise[0]["x"][0]
             self.record(time, event_flg, noise_x)
             # self.record_headway(time, front_car)
-            self.record_with_observation_points(time) # 実際に車の数を数える方法で流量計測
+            # self.record_with_observation_points(time) # 実際に車の数を数える方法で流量計測
             
             if should_plot and (i % 5 == 0 or event_flg in self.plot_condition):
                 plot_start_time = kwargs.get("plot_start", 0)
