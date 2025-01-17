@@ -38,6 +38,12 @@ class VFRSimulation(BaseSimulation):
         self.FUTURE_SCOPE = reference.FUTURE_SCOPE
         self.create_noise = reference.create_noise  # ノイズの生成関数を揃える
         self.CARS = self.setup_cars()  # 元の車の情報を使って新たにインスタンスを生成.
+        self.observation_points = reference.observation_points
+        self.segment_length = reference.segment_length
+        self.flow_count_interval = reference.flow_count_interval
+        self.last_flow_record_time = 0.0
+        self.cross_counts_record = {x_line: 0 for x_line in self.observation_points}
+        self.density_records = {x_line: [] for x_line in self.observation_points}
 
     def setup_without_reference(self, kwargs):
         self.TIME_STEP = kwargs.get("TIME_STEP")
@@ -124,6 +130,7 @@ class VFRSimulation(BaseSimulation):
         current_noise = []
         cars_on_road = []
         next_car_idx = 0
+        self.prev_positions = [car.xcor for car in self.CARS]
 
         for i in tnrange(self.total_steps, desc="Simulation Progress VFR"):
             next_car = self.CARS[next_car_idx]
@@ -233,7 +240,12 @@ class VFRSimulation(BaseSimulation):
                 car.decide_speed_helly(front_car, self.TIME_STEP)
             
             for car in cars_on_road:
+                front_car = None if car.car_idx == 0 else self.CARS[car.car_idx - 1]
+                car.record_headway(time, front_car)
                 car.proceed(self.TIME_STEP, time)
+
+                if car.xcor >= self.TOTAL_LENGTH:
+                    self.goal_time.append(time)
 
             """
             STEP 4. 各時刻で行なう全体に対する処理
@@ -245,7 +257,8 @@ class VFRSimulation(BaseSimulation):
                 noise_x = current_noise[0]["x"][0]
             
             self.record(time, event_flg, noise_x)
-            self.record_headway(time)
+            # self.record_headway(time)
+            self.record_with_observation_points(time)
             if should_plot and (i % 5 == 0):
                 plot_start_time = kwargs.get("plot_start", 0)
                 plot_finish_time = kwargs.get("plot_finish", 1000)

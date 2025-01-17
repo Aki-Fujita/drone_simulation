@@ -44,6 +44,7 @@ class DFRSimulation(BaseSimulation):
         next_car_to_update_eta = None
         did_someone_updated_eta = False
         last_eta_updated_time = 0
+        self.prev_positions = [car.xcor for car in self.CARS]
 
         for i in tnrange(self.total_steps, desc=f"Simulation Progress DFR, density={self.DENSITY}"):
             next_car = self.CARS[next_car_idx]
@@ -191,14 +192,22 @@ class DFRSimulation(BaseSimulation):
                 if front_car is not None and front_car.xcor >= self.TOTAL_LENGTH:
                     front_car = None
                 car.decide_speed(time, self.TIME_STEP, front_car)
+                car.record_headway(time, front_car)
             for car in cars_on_road:
                 car.proceed(self.TIME_STEP, time)
+
+                if car.xcor >= self.TOTAL_LENGTH:
+                    self.goal_time.append(time)
+            
+
 
             noise_x = None
             if len(current_noise) > 0:
                 noise_x = current_noise[0]["x"][0]
             self.record(time, event_flg, noise_x)
-            self.record_headway(time)
+            # self.record_headway(time, front_car)
+            self.record_with_observation_points(time) # 実際に車の数を数える方法で流量計測
+            
             if should_plot and (i % 5 == 0 or event_flg in self.plot_condition):
                 plot_start_time = kwargs.get("plot_start", 0)
                 plot_finish_time = kwargs.get("plot_finish", 1000)

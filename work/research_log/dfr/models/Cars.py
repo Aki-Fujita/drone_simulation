@@ -32,6 +32,7 @@ class Cars:
         self.xcorList = [0]
         self.timeLog = [self.arrival_time]
         self.v_x = kwargs.get("v_mean")
+        self.headway = 1e3 # 車間距離, 記録用. 
         self.helly_params = kwargs.get("helly_params", {
                                        **helly_params_default, "max_accel": self.a_max, "min_accel": self.a_min, "v_max": self.v_max, "isRss": True})
         self.my_etas = []  # 自分のETA予定表のこと
@@ -207,6 +208,12 @@ class Cars:
 
         # 本当はself.delta_from_etaを見た上で余裕がある時には速度を増やしたりしたいが、一旦割愛
 
+    def record_headway(self, time, front_car):
+        front_x = front_car.xcor if front_car is not None else 1e6
+        self.headway = front_x - self.xcor
+        
+        
+
     def can_drive_with_planned_speed(self, front_car, planned_speed):
         """
         前の車との間に十分なスペースがあるかどうかを判断する関数.
@@ -252,6 +259,9 @@ class Cars:
             front_car_vel = front_car.v_x
         delta_x = front_car_x - self.xcor
         delta_v = front_car_vel - self.v_x
+        # if delta_x > 400:
+        #     self.v_x = self.v_mean
+        #     return # 自分が先頭の場合や距離が空きすぎている場合は定常走行する.
         v_n = self.v_x
 
         if delta_x < 0:

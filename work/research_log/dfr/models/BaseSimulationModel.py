@@ -16,8 +16,20 @@ class BaseSimulation(ABC):
         self.ONE_SEC_STEP = int(1/self.TIME_STEP)
         self.total_steps = int(self.TOTAL_TIME / self.TIME_STEP)
         self.TOTAL_LENGTH = kwargs.get("TOTAL_LENGTH")
+        self.CARS = kwargs.get("CARS")
         self.v_mean_log = []  # 平均速度のログ. 時間と密度も同時に格納する
         self.headway_log = []
+        self.goal_time = [] # 各車がゴールした時間を記録する. 
+
+        # 流量計測用の変数
+        self.observation_points = kwargs.get("observation_points", [])
+        self.segment_length = kwargs.get("segment_length", 500)
+        self.flow_count_interval = kwargs.get("flow_count_interval", 10)
+        self.flow_results = {} # 断面ベースの流量計測に利用. 
+        self.last_flow_record_time = 0.0
+        # 観測断面ごとに通過台数をカウントする辞書
+        self.cross_counts_record = {x_line: 0 for x_line in self.observation_points}
+        self.density_records = {x_line: [] for x_line in self.observation_points}
 
     @abstractmethod
     def conduct_simulation(self):
@@ -50,6 +62,7 @@ class BaseSimulation(ABC):
             if headway < 0:
                 logging.info(f"time:{time}, car_idx: {car_idx}, xcor:{car.xcor}")
                 raise ValueError("headway is negative")
+            car.headway = headway
             self.headway_log.append({
                 "time": time,
                 "headway": headway,
@@ -57,6 +70,95 @@ class BaseSimulation(ABC):
                 "car_idx": car_idx,
                 "xcoor": car.xcor,
             })
+
+    def record_with_observation_points(self, current_time, **kwargs):
+        # 初回のみ、記録開始時刻を初期化
+        if not hasattr(self, 'last_flow_record_time'):
+            self.last_flow_record_time = 0
+        # 初回のみ、prev_positionsを初期化
+        if not hasattr(self, 'prev_positions'):
+            self.prev_positions = [car.xcor for car in self.CARS]
+        if not hasattr(self, 'density_records'):
+            self.density_records = {x_line: [] for x_line in self.observation_points}
+
+        # 経過時間を計算
+        elapsed_time = current_time - self.last_flow_record_time
+
+        # # flow_count_intervalが経過していなければ、密度のみ蓄積
+        # for x_line in self.observation_points:
+        #     # --- 密度計測範囲（x_line ± segment_length / 2） ---
+        #     segment_start = x_line - self.segment_length
+        #     segment_end = x_line
+
+        #     # 道路範囲外のチェック
+        #     if segment_start < 0:
+        #         raise ValueError(f"観測点 {x_line} の密度計測区間が道路の範囲外です。")
+
+        #     # 計測区間に存在する車両をカウント
+        #     cars_in_segment = [car for car in self.CARS if segment_start <= car.xcor < segment_end]
+        #     density = len(cars_in_segment) / self.segment_length  # 台/m
+
+        #     # 密度を断面ごとに蓄積
+        #     self.density_records[x_line].append(density)
+        
+        # flow_count_intervalが経過していなければ終了
+        if elapsed_time < self.flow_count_interval:
+            return
+        
+        # 各観測断面で通過車両数と密度を計測
+        # print(f"t={current_time}, 流量計算を実行")
+        # print()
+        for x_line in self.observation_points:
+            # --- 1. 通過車両数のカウント ---
+            if x_line not in self.cross_counts_record:
+                self.cross_counts_record[x_line] = 0
+
+            for i, car in enumerate(self.CARS):
+                prev_pos = self.prev_positions[i]
+                curr_pos = car.xcor
+
+                # 観測断面通過の判定
+                if prev_pos < x_line <= curr_pos:
+                    self.cross_counts_record[x_line] += 1
+
+            segment_start = x_line - self.segment_length
+            segment_end = x_line
+            cars_in_segment = [car for car in self.CARS if segment_start <= car.xcor < segment_end]
+            # print(f"car_list:{[car.car_idx for car in cars_in_segment]}")
+            # 流量（台/秒）を計算
+            # 愚直に台数をカウントする方法と、速度から計算する方法を二つ行う。
+            passed_cars = self.cross_counts_record[x_line]
+            flow = passed_cars / elapsed_time  # 台/秒
+
+            avg_speed = sum([car.v_x for car in cars_in_segment]) / len(cars_in_segment) if cars_in_segment else 0.0
+            avg_headway = sum([car.headway for car in cars_in_segment]) / len(cars_in_segment) if cars_in_segment else 1e5
+            flow_calculated  = avg_speed * (1/(avg_headway + 1e-3))
+
+            # --- 2. 密度の計算 ---
+
+            densities = self.density_records[x_line]
+            avg_density = sum(densities) / len(densities) if densities else 0.0
+            
+            # print(f"x_line={x_line}: {passed_cars}台通過, 流量={flow:.4f} 台/秒, 密度={avg_density:.4f} 台/m, 計算流量={flow_calculated:.4f} 台/秒, 計算密度={(1/avg_headway):.4f} 台/m")
+
+            # --- 3. flow_results に流量と密度を記録 ---
+            if x_line not in self.flow_results:
+                self.flow_results[x_line] = {'flow': [], 'density': [], 'time': [], "flow_calculated": [], "density_calculated": []}
+
+            self.flow_results[x_line]['flow'].append(flow)
+            self.flow_results[x_line]['density'].append(avg_density)
+            self.flow_results[x_line]['time'].append(current_time)
+            self.flow_results[x_line]['flow_calculated'].append(flow_calculated)
+            self.flow_results[x_line]["density_calculated"].append(1/(avg_headway+1e-3))
+
+            # カウントリセット
+            self.cross_counts_record[x_line] = 0
+            self.density_records[x_line].clear()  # 密度データのリセット
+
+        # 記録時刻を更新
+        self.last_flow_record_time = current_time
+        self.prev_positions = [car.xcor for car in self.CARS]
+        
     
     def record(self, time, event_flg, noise_x=None):
         """
