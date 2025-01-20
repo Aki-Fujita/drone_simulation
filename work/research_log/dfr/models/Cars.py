@@ -57,6 +57,19 @@ class Cars:
         way_points_with_eta = list(map(calc_eta, way_points))
         self.my_etas = way_points_with_eta
         return way_points_with_eta
+    
+    def create_desired_eta_when_arrived(self, waypoints, eta_reservation_table, TTC):
+        def calc_eta(way_point):
+            # 基本ETAを計算
+            estimated_time_of_arrival = way_point["x"] / self.v_mean + self.arrival_time
+            return {**way_point, "eta": estimated_time_of_arrival, "car_idx": self.car_idx, "type": "waypoint"}
+
+        # 各waypointのETAを計算
+        waypoints_with_eta = list(map(calc_eta, waypoints))
+
+        return waypoints_with_eta
+        
+        
 
     def get_noise_eta_others(self, table):
         """
@@ -138,7 +151,7 @@ class Cars:
         if not can_early_avoid:
             noise_to_avoid = self.select_noise_for_late_avoid(
                 noiseList, current_time)
-            logging.debug("Early avoid 不可, late avoidの探索開始.")
+            # print("Early avoid 不可, late avoidの探索開始.")
             temp_acc_itinerary = calc_late_avoid(
                 noise_to_avoid, current_time, self, table, leader)
 
@@ -146,11 +159,15 @@ class Cars:
             ただし、いずれの場合も未認証.
         """
 
-        logging.debug("==== START CREATING ETA====")
+        # print("==== START CREATING ETA====")
         ideal_eta = create_itinerary_from_acc(
             car_obj=self, current_time=current_time, acc_itinerary=temp_acc_itinerary)
-        logging.debug(f"ID: {self.car_idx}の新しいETA（Validate前）", ideal_eta)
-
+        # print(f"ID: {self.car_idx}の新しいETA（Validate前）", ideal_eta)
+        # if self.car_idx == 34:
+        #     print("L167")
+        #     print(ideal_eta)
+        #     print()
+        #     print(temp_acc_itinerary)
         # 普通に計画すると前の車にぶつかることがあり得る。
         # なのでvalidateが通ったらmy_etasとacc_itineraryを登録
         if validate_with_ttc(table.eta_table, ideal_eta, table.global_params.DESIRED_TTC, car_position=self.xcor, current_time=current_time):

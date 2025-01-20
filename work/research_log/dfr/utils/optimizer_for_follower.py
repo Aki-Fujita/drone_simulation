@@ -1,5 +1,6 @@
 from scipy.optimize import minimize
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import math
 # from calc_distance_from_acc_itinerary import calc_distance_from_acc_itinerary #単体テスト実行時はこっち
@@ -58,20 +59,25 @@ def calc_late_avoid_with_leader(**kwargs):
     current_time = kwargs.get("current_time", [])
     eta_of_leader = kwargs.get("eta_of_leader", {})
     leader_finish_time = eta_of_leader["eta"].max()
+    if pd.isna(leader_finish_time):
+        print("Debug: leader_finish_time is NaN. eta_of_leader:")
+        print(eta_of_leader)
+        print(leader.car_idx)
+        raise ValueError("leader_finish_time is NaN. Check eta_of_leader for invalid data.")
     if ttc < 1:
         raise ValueError("ttc is too small")
   
     # シミュレーションのパラメータ
     total_time = leader_finish_time - current_time
-    time_step = 0.5
+    time_step = 0.2
     steps = int(total_time / time_step)
 
     # 後続車のパラメータ
     acc_itinerary = follower_acc_solver(
         follower, eta_of_leader, ttc, current_time, leader)
-    # if follower.car_idx == 39:
-    #     print("=====入った=====")
-    #     print(eta_of_leader, acc_itinerary)
+    if follower.car_idx == 41 and current_time > 110:
+        print("=====入った=====")
+        print(eta_of_leader, acc_itinerary)
     merged_acc_itinerary = merge_acc_itinerary(
         pre_itinerary=follower.acc_itinerary, new_itinerary=acc_itinerary)
     # print("merged:", merged_acc_itinerary)
@@ -104,7 +110,6 @@ def follower_acc_solver(follower, eta_of_leader, TTC, current_time, leader):
     start_params = copy.deepcopy(initial_params)
     itinerary_from_now = [{"t_start": current_time, "acc": 0, "x_start": follower.xcor,
                            "v_0": follower.v_x, "t_end": current_time}]# t_endはどうせ変わるのでここにt_startより前の値が入るのは別にヤバくはない
-    logging.debug("L105: late avoid with leader")
 
     for wp_idx, earliest_eta in enumerate(earliest_etas):
 

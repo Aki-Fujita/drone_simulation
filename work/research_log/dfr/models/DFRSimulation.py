@@ -46,9 +46,9 @@ class DFRSimulation(BaseSimulation):
         last_eta_updated_time = 0
         self.prev_positions = [car.xcor for car in self.CARS]
 
-        eta_reservation_table = self.reservation_table.eta_table
-        if eta_reservation_table.index.name != "car_idx":
-              eta_reservation_table.set_index("car_idx", inplace=True, drop=False)
+        waypoints = self.reservation_table.waypoints
+        # if eta_reservation_table.index.name != "car_idx":
+        #       eta_reservation_table.set_index("car_idx", inplace=True, drop=False)
 
         for i in tnrange(self.total_steps, desc=f"Simulation Progress DFR, density={self.DENSITY}"):
             next_car = self.CARS[next_car_idx]
@@ -64,9 +64,39 @@ class DFRSimulation(BaseSimulation):
             STEP 0. 到着する車がいれば到着
             """
             if time >= next_car.arrival_time:
+                # print(f"Arrived....car_idx={next_car.car_idx}, time={time}")
                 cars_on_road.append(next_car)
-                next_car_idx = cars_on_road[-1].car_idx + 1
                 event_flg = "arrival"
+
+                # 続いて予約を取らせる. 
+                desired_eta_list = next_car.create_desired_eta_when_arrived(waypoints, self.reservation_table.eta_table, self.TTC)
+                is_valid = self.reservation_table.validate(desired_eta_list)
+                # if next_car.car_idx == 34:
+                #     print("====MY ETAS====")
+                #     print(desired_eta_list)
+                #     print("========")
+                if is_valid:
+                    self.reservation_table.register(desired_eta_list)
+                    next_car.my_etas = desired_eta_list
+
+                else:
+                    # print(f"car_idx={next_car.car_idx}", "desired eta list:", desired_eta_list)
+                    # print( self.reservation_table.eta_table)
+                    leader = None if next_car.car_idx < 1 else self.CARS[next_car.car_idx-1]
+                    next_car.my_etas = desired_eta_list
+                    new_eta = next_car.modify_eta(
+                        noiseList=current_noise, table=self.reservation_table, current_time=time, leader=leader)
+                    self.reservation_table.update_with_request(
+                        car_idx=next_car.car_idx, new_eta=new_eta)
+                    next_car.my_etas = new_eta
+                    # print("====MY ETAS====")
+                    # print(next_car.my_etas)
+                    # print("========")
+
+                next_car_idx = cars_on_road[-1].car_idx + 1
+
+
+
             cars_on_road = [
                 car for car in cars_on_road if car.xcor < self.TOTAL_LENGTH]  # ゴールしたものは除く
 
@@ -202,9 +232,7 @@ class DFRSimulation(BaseSimulation):
                 car.proceed(self.TIME_STEP, time)
 
                 if car.xcor >= self.TOTAL_LENGTH:
-                    self.goal_time.append(time)
-            
-
+                    self.goal_time.append(time)            
 
             noise_x = None
             if len(current_noise) > 0:
@@ -266,7 +294,7 @@ class DFRSimulation(BaseSimulation):
             car.car_idx for car in self.CARS if car.arrival_time <= current_time and car.xcor < self.TOTAL_LENGTH]
         eta_table = self.reservation_table.eta_table
 
-        plt.figure(figsize=(6, 6))
+        plt.figure(figsize=(18, 12))
         ax = plt.gca()
 
         # # 全車のETAのプロット これがあるとデバッグしにくいのでコメントアウト.

@@ -79,7 +79,7 @@ class VFRSimulation(BaseSimulation):
         if current_time < plot_start_time or current_time > plot_finish_time:
             return
         color_list = ["orange", "pink", "blue", "brown", "red", "green"]
-        plt.figure(figsize=(6, 6))
+        plt.figure(figsize=(18, 12))
         ax = plt.gca()
         plt.title(f"t={current_time:.1f}")
         car_idx_list_on_road = [

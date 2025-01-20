@@ -69,6 +69,7 @@ class ReservationTable:
     def register(self, waypoints_with_eta):
         df_to_add = pd.DataFrame(waypoints_with_eta)
         combined_df = pd.concat([self.eta_table, df_to_add])
+        # print(f"combined_df: {combined_df}")
         self.eta_table = combined_df
 
     def update_with_request(self, **request):
