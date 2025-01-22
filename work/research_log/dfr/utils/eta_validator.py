@@ -40,17 +40,7 @@ def validate_with_ttc(eta_reservation_table, car_plans, TTC, **kwargs):
         if target_waypoint_x in max_eta_by_waypoint:
             last_entry_time = max_eta_by_waypoint[target_waypoint_x]
             if not (car_plan_by_x["eta"] > last_entry_time + TTC - 0.1):  # 条件に合わない場合
-                
-                if current_time>110 and car_idx == 41:
-                    print("=======")
-                    print(f"car_plan_by_x: {car_plan_by_x}")
-                    print(f"TTC: {TTC}")
-                    print(f"max_eta_by_wp: {max_eta_by_waypoint}")
-                    print()
-                    print(f"car_plans: {car_plans}")
-                    print()
-                    print("=======")
-
+          
                 return False
 
     return True

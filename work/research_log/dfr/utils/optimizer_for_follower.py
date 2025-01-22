@@ -75,9 +75,9 @@ def calc_late_avoid_with_leader(**kwargs):
     # 後続車のパラメータ
     acc_itinerary = follower_acc_solver(
         follower, eta_of_leader, ttc, current_time, leader)
-    if follower.car_idx == 41 and current_time > 110:
-        print("=====入った=====")
-        print(eta_of_leader, acc_itinerary)
+    # if follower.car_idx == 41 and current_time > 110:
+    #     print("=====入った=====")
+    #     print(eta_of_leader, acc_itinerary)
     merged_acc_itinerary = merge_acc_itinerary(
         pre_itinerary=follower.acc_itinerary, new_itinerary=acc_itinerary)
     # print("merged:", merged_acc_itinerary)

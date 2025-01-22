@@ -222,7 +222,9 @@ class VFRSimulation(BaseSimulation):
                         (c) ノイズが見えていて避けられない => 止まれるようにする
                         """
                         if car.xcor + car.foreseeable_distance < noise_start_x: # (a) 普通にfront_carを見て走る
-                            car.decide_speed_helly(None, self.TIME_STEP)
+                            
+                            car.decide_speed_helly(front_car, self.TIME_STEP)
+                            # car.decide_speed_helly(None, self.TIME_STEP) # ここで前の車が急にいなくなってめっちゃ加速することが起こる. 
                             continue
                         else:
                             # (b)か(c)で場合分け
@@ -232,6 +234,7 @@ class VFRSimulation(BaseSimulation):
                             #     print(f"time:{time}")
                             #     print(car.will_overtake_noise(target_noise, front_car, time))
                             if car.will_overtake_noise(target_noise, front_car, time):
+                                
                                 # 早避けすることが決まった
                                 car.is_crossing = True
                                 car.decide_speed_helly(front_car, self.TIME_STEP)

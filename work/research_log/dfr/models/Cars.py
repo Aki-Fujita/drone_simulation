@@ -10,12 +10,12 @@ logging.basicConfig(level=logging.INFO)  # INFOレベル以上を表示
 sys.path.append("..")
 
 helly_params_default = {
-    "max_accel": 2,
-    "min_accel": 3,
+    "max_accel": 3,
+    "min_accel": 4,
     "lambda_1": 0.4,
     "lambda_2": 0.6,
     "d": 3,
-    "T_des": 1.5,
+    "T_des": 1.8,
 }
 
 
@@ -34,7 +34,7 @@ class Cars:
         self.v_x = kwargs.get("v_mean")
         self.headway = 1e3 # 車間距離, 記録用. 
         self.helly_params = kwargs.get("helly_params", {
-                                       **helly_params_default, "max_accel": self.a_max, "min_accel": self.a_min, "v_max": self.v_max, "isRss": True})
+                                       **helly_params_default, "max_accel": self.a_max, "min_accel": self.a_min, "v_max": self.v_max, "isRss": False})
         self.my_etas = []  # 自分のETA予定表のこと
         self.delta_from_eta = 0  # ETAからのずれ. DAAで必要以上のブレーキやアクセルが必要になった場合にここの値が変動する.
         self.car_length = 3  # 車の長さ (m)
@@ -216,6 +216,9 @@ class Cars:
         if v_front is None or self.can_drive_with_planned_speed(front_car, planned_speed):
             self.v_x = planned_speed
             return
+        # planned_speedではないにせよ今のスピードで大丈夫な場合
+        if self.can_drive_with_planned_speed(front_car, self.v_x):
+            return
         
         # 衝突する場合は速度を調整する（最大限のブレーキを踏む）
         controled_speed = max(self.v_x + self.a_min_lim * time_step, 0)
@@ -276,13 +279,14 @@ class Cars:
             front_car_vel = front_car.v_x
         delta_x = front_car_x - self.xcor
         delta_v = front_car_vel - self.v_x
-        # if delta_x > 400:
-        #     self.v_x = self.v_mean
-        #     return # 自分が先頭の場合や距離が空きすぎている場合は定常走行する.
+        if delta_x > 300:
+            self.v_x = self.v_mean
+            return # 自分が先頭の場合や距離が空きすぎている場合は定常走行する.
         v_n = self.v_x
 
         if delta_x < 0:
-            print(f"Error! ID: {self.car_idx}, ")
+            print(f"Error! ID: {self.car_idx}, xcor={self.xcor}, front_car_x={front_car_x}, front_car_id={front_car.car_idx} ")
+            print(f"delta_x={delta_x}, delta_v={delta_v}, v_n={v_n}, front_car_vel={front_car_vel}")
             raise ValueError("Overtaking happened")
 
         next_speed = helly(delta_x, delta_v, time_step, v_n, self.helly_params)

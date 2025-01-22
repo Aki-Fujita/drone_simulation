@@ -89,9 +89,7 @@ class DFRSimulation(BaseSimulation):
                     self.reservation_table.update_with_request(
                         car_idx=next_car.car_idx, new_eta=new_eta)
                     next_car.my_etas = new_eta
-                    # print("====MY ETAS====")
-                    # print(next_car.my_etas)
-                    # print("========")
+
 
                 next_car_idx = cars_on_road[-1].car_idx + 1
 
