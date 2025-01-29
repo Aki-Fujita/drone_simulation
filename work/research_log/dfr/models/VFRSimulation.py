@@ -88,23 +88,36 @@ class VFRSimulation(BaseSimulation):
         # 車の位置をプロット
         for car_idx in car_idx_list_on_road:
             car_obj = self.CARS[car_idx]
-            plt.plot(car_obj.xcorList, car_obj.timeLog,
-                     color=color_list[car_idx % 6], linewidth=1, label=f'Car_{car_idx}')
+            # plt.plot(car_obj.xcorList, car_obj.timeLog,
+            #          color=color_list[car_idx % 6], linewidth=1, label=f'Car_{car_idx}', alpha=0.01)
             plt.scatter([car_obj.xcor], [current_time],
-                        color=color_list[car_idx % 6], s=40, zorder=5)
+                        color=color_list[car_idx % 6], s=40, zorder=5, label=f'Car_{car_idx}')
 
-        # ノイズ領域の描画
+        # # ノイズ領域の描画
+        # for noise in noise_list:
+        #     x_range = noise["x"]
+        #     t_range = noise["t"]
+        #     width = x_range[1] - x_range[0]
+        #     height = t_range[1] - t_range[0]
+        #     rect = patches.Rectangle(
+        #         (x_range[0], t_range[0]), width, height, color='green', alpha=0.3)
+        #     ax.add_patch(rect)
+        
+        # ノイズ領域を現在時点に描画
         for noise in noise_list:
+            noise_color = "red" if noise["t"][0] <= current_time and noise["t"][1] >= current_time else "orange"
             x_range = noise["x"]
             t_range = noise["t"]
+            noise_view_range = [current_time, current_time]
+            # print(f"noise_view_range: {t_range}")
             width = x_range[1] - x_range[0]
             height = t_range[1] - t_range[0]
             rect = patches.Rectangle(
-                (x_range[0], t_range[0]), width, height, color='green', alpha=0.3)
+                (x_range[0], current_time), width, 1, color=noise_color, alpha=0.3)
             ax.add_patch(rect)
 
         # 罫線を引く
-        plt.grid()
+        # plt.grid()
         plt.xlabel('x')
         plt.xlim(0, self.TOTAL_LENGTH + 200)
         if current_time > 20:
@@ -115,11 +128,13 @@ class VFRSimulation(BaseSimulation):
         plt.ylabel('t')
 
         # 凡例をグラフの外に表示
-        legend = plt.legend(bbox_to_anchor=(1.05, 1),
-                            loc='upper left', borderaxespad=0., fontsize='small', ncol=2)
+        # legend = plt.legend(bbox_to_anchor=(1.05, 1),
+        #                     loc='upper left', borderaxespad=0., fontsize='small', ncol=2)
 
         # 保存
-        plt.savefig(f"images/vfr/vfr_simulation_t={current_time:.1f}.png", bbox_inches='tight', bbox_extra_artists=[legend])
+        plt.savefig(f"images/vfr/vfr_simulation_t={current_time:.1f}.png")
+
+        # plt.savefig(f"images/vfr/vfr_simulation_t={current_time:.1f}.png", bbox_inches='tight', bbox_extra_artists=[legend])
         plt.close()
 
     def can_avoid_noise(self, car, noise):

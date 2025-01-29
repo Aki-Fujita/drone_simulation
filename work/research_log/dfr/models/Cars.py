@@ -279,7 +279,7 @@ class Cars:
             front_car_vel = front_car.v_x
         delta_x = front_car_x - self.xcor
         delta_v = front_car_vel - self.v_x
-        if delta_x > 300:
+        if delta_x > 700:
             self.v_x = self.v_mean
             return # 自分が先頭の場合や距離が空きすぎている場合は定常走行する.
         v_n = self.v_x

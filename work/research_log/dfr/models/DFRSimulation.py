@@ -71,10 +71,6 @@ class DFRSimulation(BaseSimulation):
                 # 続いて予約を取らせる. 
                 desired_eta_list = next_car.create_desired_eta_when_arrived(waypoints, self.reservation_table.eta_table, self.TTC)
                 is_valid = self.reservation_table.validate(desired_eta_list)
-                # if next_car.car_idx == 34:
-                #     print("====MY ETAS====")
-                #     print(desired_eta_list)
-                #     print("========")
                 if is_valid:
                     self.reservation_table.register(desired_eta_list)
                     next_car.my_etas = desired_eta_list
@@ -135,10 +131,10 @@ class DFRSimulation(BaseSimulation):
                             car_idx=car.car_idx, new_eta=car.my_etas)
                         car.has_reacted_to_noise = True
 
-                    influenced_by_eta_cars = self.find_first_ETA_influenced_car(
-                        cars_on_road, time)
-                    influenced_cars = list(
-                        set(influenced_by_noise_cars + influenced_by_eta_cars))
+                influenced_by_eta_cars = self.find_first_ETA_influenced_car(
+                    cars_on_road, time)
+                influenced_cars = list(
+                    set(influenced_by_noise_cars + influenced_by_eta_cars))
                     
             else: # ノイズがない場合
                 if communication_count >= self.COMMUNICATION_SPEED:
@@ -259,12 +255,12 @@ class DFRSimulation(BaseSimulation):
     """
     上の関数の、一つでも見つかったらすぐ返すバージョン
     """
-    def find_first_ETA_influenced_car(self, cars_on_road, time):
+    def find_first_ETA_influenced_car(self, cars_on_road, time, should_print=False):
         eta_reservation_table = self.reservation_table.eta_table
         TTC = self.reservation_table.global_params.DESIRED_TTC
 
         for car in cars_on_road:
-            if not validate_with_ttc(eta_reservation_table, car.my_etas, TTC, car_position=car.xcor, current_time=time):
+            if not validate_with_ttc(eta_reservation_table, car.my_etas, TTC, car_position=car.xcor, current_time=time, should_print=should_print):
                 return [car.car_idx]  # 条件を満たしたら即リターン
 
         return []
@@ -310,15 +306,17 @@ class DFRSimulation(BaseSimulation):
         for car_idx in car_idx_list_on_road:
             df_by_car = _df[(_df["car_idx"] == car_idx) &
                             (_df["type"] == "waypoint")]
+            # ETA線の表示
             plt.plot(df_by_car["x"], df_by_car["eta"],
                      color=color_list[car_idx % 12], linewidth=1, linestyle='--', alpha=0.1)
             plt.scatter(df_by_car["x"], df_by_car["eta"],
                         color=color_list[car_idx % 12], alpha=0.2, s=20)
+
             car = self.CARS[car_idx]
-            plt.plot(car.xcorList, car.timeLog,
-                     color=color_list[car_idx % 12], linewidth=1, label=f'Car_{car_idx}')
+            # plt.plot(car.xcorList, car.timeLog,
+            #          color=color_list[car_idx % 12], linewidth=1, label=f'Car_{car_idx}')
             plt.scatter([car.xcor], [current_time],
-                        color=color_list[car_idx % 12], s=40, zorder=5)
+                        color=color_list[car_idx % 12], s=40, zorder=5,  label=f'Car_{car_idx}')
 
         # ノイズ領域の描画
         for noise in noise_list:
@@ -328,6 +326,19 @@ class DFRSimulation(BaseSimulation):
             height = t_range[1] - t_range[0]
             rect = patches.Rectangle(
                 (x_range[0], t_range[0]), width, height, color='green', alpha=0.3)
+            ax.add_patch(rect)
+
+        # 信号としてプロット
+        for noise in noise_list:
+            noise_color = "red" if noise["t"][0] <= current_time and noise["t"][1] >= current_time else "orange"
+            x_range = noise["x"]
+            t_range = noise["t"]
+            noise_view_range = [current_time, current_time]
+            # print(f"noise_view_range: {t_range}")
+            width = x_range[1] - x_range[0]
+            height = t_range[1] - t_range[0]
+            rect = patches.Rectangle(
+                (x_range[0], current_time), width, 1, color=noise_color, alpha=0.3)
             ax.add_patch(rect)
 
         plt.title(f"t={current_time:.1f}")
@@ -345,7 +356,7 @@ class DFRSimulation(BaseSimulation):
             plt.ylim(0, 140)   # y軸の範囲を0から140に設定
 
         # 罫線を引く
-        plt.grid()
+        # plt.grid()
         plt.xlabel('x')
         plt.ylabel('ETA')
 
@@ -355,8 +366,9 @@ class DFRSimulation(BaseSimulation):
 
         # 保存処理
         try:
-            plt.savefig(
-                f"{save_dir}dfr_simulation_t={current_time:.1f}.png", bbox_inches='tight', bbox_extra_artists=[legend])
+            plt.savefig(f"{save_dir}dfr_simulation_t={current_time:.1f}.png")
+            # plt.savefig(
+            #     f"{save_dir}dfr_simulation_t={current_time:.1f}.png", bbox_inches='tight', bbox_extra_artists=[legend])
         except Exception as e:
             print(f"Error saving file for time {current_time}: {e}")
         finally:

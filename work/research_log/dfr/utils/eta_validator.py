@@ -10,6 +10,7 @@ def validate_with_ttc(eta_reservation_table, car_plans, TTC, **kwargs):
     """
 
     current_time = kwargs.get("current_time", 0)
+    should_print = kwargs.get("should_print", False)
     car_idx = car_plans[0]["car_idx"]
 
     if eta_reservation_table.index.name != "car_idx":
@@ -25,6 +26,11 @@ def validate_with_ttc(eta_reservation_table, car_plans, TTC, **kwargs):
         return True  # 前に車がいないので問題なし
     
     df = table.loc[[target_idx]]
+    if should_print and target_idx == 20:
+        print("!!!!!!!!!!!!!!!")
+        print(df)
+        print("!!!!!!!!!!!!!!!")
+
     current_car_position = kwargs.get("car_position", 0)
 
     if df.shape[0] < 1:
@@ -40,7 +46,13 @@ def validate_with_ttc(eta_reservation_table, car_plans, TTC, **kwargs):
         if target_waypoint_x in max_eta_by_waypoint:
             last_entry_time = max_eta_by_waypoint[target_waypoint_x]
             if not (car_plan_by_x["eta"] > last_entry_time + TTC - 0.1):  # 条件に合わない場合
-          
+                if should_print:
+                    print(
+                        f"invalidated: {car_plan_by_x['eta']} <= {last_entry_time} + {TTC}")
+                    print(f"car_plan_by_x: {car_plan_by_x}")
+                    print(f"max eta: {max_eta_by_waypoint}")
+                    print(f"target_idx={target_idx}")
+                    print(df)
                 return False
 
     return True
