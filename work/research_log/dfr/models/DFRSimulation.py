@@ -119,10 +119,10 @@ class DFRSimulation(BaseSimulation):
                 continue
             influenced_by_noise_cars = []
             if len(current_noise) > 0: # ノイズがある場合
-                # 新しいノイズが来るか新しい車が到着したら誰が該当するかの判定をする.
+                # 新しいノイズが来るか新しい車が到着したらノイズに対して一旦ETAを取得する.
                 if event_flg == "arrival" or event_flg == "noise_created":
-                    influenced_by_noise_cars = self.find_noise_influenced_cars(
-                        cars_on_road, current_noise, time)
+                    if event_flg == "noise_created":
+                        print(f"t={time:.2f}, noise created: {current_noise}")
                     for car in cars_on_road:
                         # noiseを通るETAを計算する（これはノイズに引っ掛かろうがそうでなかろうが全員必須。）
                         car.add_noise_eta(current_noise)
@@ -130,17 +130,24 @@ class DFRSimulation(BaseSimulation):
                         self.reservation_table.update_with_request(
                             car_idx=car.car_idx, new_eta=car.my_etas)
                         car.has_reacted_to_noise = True
-
+            
+            # communication_speedごとにETAを更新するためのフラグ. communication_speedが溜まったらETAを更新する車の判定をする
+            if communication_count >= self.COMMUNICATION_SPEED:
+                if len(current_noise) > 0: # ノイズがある場合
+                    influenced_by_noise_cars = self.find_noise_influenced_cars(cars_on_road, current_noise, time, should_print=False)
+                    # if time >= 179:
+                    #     print(f"L147. t={time:.2f},com_count:{communication_count}, influenced by noise: {influenced_by_noise_cars}")
+                else:
+                    influenced_by_noise_cars = []
                 influenced_by_eta_cars = self.find_first_ETA_influenced_car(
                     cars_on_road, time)
                 influenced_cars = list(
                     set(influenced_by_noise_cars + influenced_by_eta_cars))
-                    
-            else: # ノイズがない場合
-                if communication_count >= self.COMMUNICATION_SPEED:
-                    influenced_cars = self.find_first_ETA_influenced_car(cars_on_road, time)
-                else:
-                    influenced_cars = []
+            else:
+                influenced_cars = []
+                influenced_by_noise_cars = []
+                influenced_by_eta_cars = []
+                
 
             if event_flg or len(influenced_cars) > 0:
                 logging.debug(f"---------t={time:.2f}---------")
@@ -158,6 +165,8 @@ class DFRSimulation(BaseSimulation):
                 """
                 car_to_action_id = min(influenced_cars)
                 car_to_action = self.CARS[car_to_action_id]
+                    
+
                 # 先頭車がノイズの影響だけを受けている場合
                 leader = None if car_to_action_id < 1 else self.CARS[car_to_action_id-1]
                 if not car_to_action_id in influenced_by_eta_cars:
@@ -239,10 +248,21 @@ class DFRSimulation(BaseSimulation):
                 plot_start_time = kwargs.get("plot_start", 0)
                 plot_finish_time = kwargs.get("plot_finish", 1000)
                 self.plot_history_by_time(current_noise, time, plot_start_time, plot_finish_time)
+            
+            # 基本的にはここには来ないが、ノイズの中に入っていた車がいたらバグなのでシミュレーションを中断する
+            if len(current_noise) > 0:
+                for car in cars_on_road:
+                    xcoor = car.xcor
+                    noise_x_range = current_noise[0]["x"]
+                    noise_t_range = current_noise[0]["t"]
+                    if noise_x_range[0] <= xcoor and xcoor <= noise_x_range[1] and noise_t_range[0] <= time and time <= noise_t_range[1]:
+                        print(f"t={time:.2f}, car_idx={car.car_idx}, x={xcoor}")
+                        print(f"Error: car {car.car_idx} is in noise area.")
+                        raise Exception("Car is in noise area.")
 
-    def find_noise_influenced_cars(self, cars_on_road, noiseList, time):
+    def find_noise_influenced_cars(self, cars_on_road, noiseList, time, should_print=False):
         car_list = [car.car_idx for idx, car in enumerate(
-            cars_on_road) if check_multiple_noise_effect(noiseList, car, time)]
+            cars_on_road) if check_multiple_noise_effect(noiseList, car, time, should_print=should_print)]
         return car_list
 
     def find_ETA_influenced_cars(self, cars_on_road, time):
@@ -308,7 +328,7 @@ class DFRSimulation(BaseSimulation):
                             (_df["type"] == "waypoint")]
             # ETA線の表示
             plt.plot(df_by_car["x"], df_by_car["eta"],
-                     color=color_list[car_idx % 12], linewidth=1, linestyle='--', alpha=0.1)
+                     color=color_list[car_idx % 12], linewidth=1, linestyle='--', alpha=0.4)
             plt.scatter(df_by_car["x"], df_by_car["eta"],
                         color=color_list[car_idx % 12], alpha=0.2, s=20)
 
@@ -328,18 +348,18 @@ class DFRSimulation(BaseSimulation):
                 (x_range[0], t_range[0]), width, height, color='green', alpha=0.3)
             ax.add_patch(rect)
 
-        # 信号としてプロット
-        for noise in noise_list:
-            noise_color = "red" if noise["t"][0] <= current_time and noise["t"][1] >= current_time else "orange"
-            x_range = noise["x"]
-            t_range = noise["t"]
-            noise_view_range = [current_time, current_time]
-            # print(f"noise_view_range: {t_range}")
-            width = x_range[1] - x_range[0]
-            height = t_range[1] - t_range[0]
-            rect = patches.Rectangle(
-                (x_range[0], current_time), width, 1, color=noise_color, alpha=0.3)
-            ax.add_patch(rect)
+        # # 信号としてプロット
+        # for noise in noise_list:
+        #     noise_color = "red" if noise["t"][0] <= current_time and noise["t"][1] >= current_time else "orange"
+        #     x_range = noise["x"]
+        #     t_range = noise["t"]
+        #     noise_view_range = [current_time, current_time]
+        #     # print(f"noise_view_range: {t_range}")
+        #     width = x_range[1] - x_range[0]
+        #     height = t_range[1] - t_range[0]
+        #     rect = patches.Rectangle(
+        #         (x_range[0], current_time), width, 2, color=noise_color, alpha=0.8)
+        #     ax.add_patch(rect)
 
         plt.title(f"t={current_time:.1f}")
 

@@ -1,8 +1,8 @@
 from .calc_distance_from_acc_itinerary import calc_distance_from_acc_itinerary
 
 
-def check_multiple_noise_effect(noiseList, eta_table, time):
-    return any([not will_avoid_single_noise(noise, eta_table, time) for noise in noiseList])
+def check_multiple_noise_effect(noiseList, eta_table, time, should_print=False):
+    return any([not will_avoid_single_noise(noise, eta_table, time, should_print) for noise in noiseList])
 
 
 """
@@ -16,7 +16,7 @@ noiseにあたっていないと判断するには以下の (a) or (b)
 """
 
 
-def will_avoid_single_noise(noise, carObj, current_time):
+def will_avoid_single_noise(noise, carObj, current_time, should_print=False):
     noise_start_time = noise["t"][0]
     noise_end_time = noise["t"][1]
     noise_start_x = noise["x"][0]
@@ -27,21 +27,32 @@ def will_avoid_single_noise(noise, carObj, current_time):
 
     # すでにnoiseを避けるETAをとっている場合.
     # (a) ノイズの開始座標または終了座標に対応するETAを探す
-    noise_start_eta = None
-    noise_end_eta = None
+    eta_at_noise_start = None
+    eta_at_noise_end = None
 
     for eta in carObj.my_etas:
         if eta["x"] == noise_start_x:
-            noise_start_eta = eta["eta"]
+            eta_at_noise_start = eta["eta"]
         elif eta["x"] == noise_end_x:
-            noise_end_eta = eta["eta"]
+            eta_at_noise_end = eta["eta"]
 
-    if noise_start_eta and noise_start_eta > noise_end_time:
-        return True
-    if noise_end_eta and noise_end_eta < noise_start_time:
-        return True
+    if should_print and  current_time > 179 and carObj.car_idx == 64:
+          print(f"t={current_time}, eta_at_noise_start: {eta_at_noise_start}, eta_at_noise_end: {eta_at_noise_end}, noise_start_time: {noise_start_time}, noise_end_time: {noise_end_time}, noise_start_x: {noise_start_x}, noise_end_x: {noise_end_x}")
+          print(eta_at_noise_start and eta_at_noise_start > noise_end_time)
+          print(eta_at_noise_end and eta_at_noise_end < noise_start_time)
 
+    # ノイズに対するETAをとっている場合
+    if eta_at_noise_start is not None and eta_at_noise_end is not None:
+        # late avoidの場合
+        if eta_at_noise_start > noise_end_time:
+            return True
+        # early avoidの場合
+        elif eta_at_noise_end < noise_start_time:
+            return True
+        else:
+            return False
     # ノイズに対するETAをとっていない場合
+    print(f"L55:!! 基本的に来ないはず,t={current_time}, car_idx: {carObj.car_idx}")
     x_at_noise_start = calc_distance_from_acc_itinerary(
         carObj.acc_itinerary, noise_start_time)
     x_at_noise_end = calc_distance_from_acc_itinerary(

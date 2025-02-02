@@ -113,7 +113,7 @@ def stop_at_goal(v0, x0, t0, xe, te, car_params):
     # goal = xe-0.1としているがこの実装だと複数台が信号前で並ぶ時に重なってしまう.
     """
     decel = abs(car_params.get("decel", None))
-    goal = xe - 0.1  # 0.1m手前で止まる
+    goal = xe - 0.5  # 50cm手前で止まる
     stop_distance = v0**2 / 2 / decel  # ブレーキをかけながら進む距離
     braking_start_position = goal - stop_distance
     coasting_distance = braking_start_position - x0

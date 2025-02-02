@@ -185,7 +185,7 @@ def follower_acc_solver(follower, eta_of_leader, TTC, current_time, leader):
 
                 else:
                     print(f"initial_params: {
-                          initial_params}, eta_boundary: {eta_boundary}")
+                          initial_params}, eta_boundary: {eta_boundary}, car_idx: {follower.car_idx}")
                     print(f"can_reach_after_designated_eta: {can_reach_after_designated_eta(
                         **start_params, **eta_boundary, car_params=car_params)}")
                     raise ValueError("どうやってもETAを満たせない")

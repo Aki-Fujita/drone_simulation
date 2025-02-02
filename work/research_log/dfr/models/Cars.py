@@ -39,6 +39,7 @@ class Cars:
         self.delta_from_eta = 0  # ETAからのずれ. DAAで必要以上のブレーキやアクセルが必要になった場合にここの値が変動する.
         self.car_length = 3  # 車の長さ (m)
         self.has_reacted_to_noise = False
+        self.deviation_log = [] # ETA通りの運行から逸脱した瞬間を記録するリスト
 
         # 以下はVFRのシミュレーションで利用するprops
         self.foreseeable_distance = kwargs.get(
@@ -216,6 +217,12 @@ class Cars:
         if v_front is None or self.can_drive_with_planned_speed(front_car, planned_speed):
             self.v_x = planned_speed
             return
+        
+        # planed_speedからのdeviationが発生する場合
+        if not self.can_drive_with_planned_speed(front_car, self.v_x) and current_time > 274.5 and self.car_idx == 74:
+            print(f"ID: {self.car_idx}, planned_speed={planned_speed}, v_front={v_front}, v_x={self.v_x}")
+
+
         # planned_speedではないにせよ今のスピードで大丈夫な場合
         if self.can_drive_with_planned_speed(front_car, self.v_x):
             return
