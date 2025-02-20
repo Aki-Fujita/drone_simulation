@@ -121,8 +121,8 @@ class DFRSimulation(BaseSimulation):
             if len(current_noise) > 0: # ノイズがある場合
                 # 新しいノイズが来るか新しい車が到着したらノイズに対して一旦ETAを取得する.
                 if event_flg == "arrival" or event_flg == "noise_created":
-                    if event_flg == "noise_created":
-                        print(f"t={time:.2f}, noise created: {current_noise}")
+                    # if event_flg == "noise_created":
+                    #     print(f"t={time:.2f}, noise created: {current_noise}")
                     for car in cars_on_road:
                         # noiseを通るETAを計算する（これはノイズに引っ掛かろうがそうでなかろうが全員必須。）
                         car.add_noise_eta(current_noise)
@@ -241,7 +241,7 @@ class DFRSimulation(BaseSimulation):
             if len(current_noise) > 0:
                 noise_x = current_noise[0]["x"][0]
             self.record(time, event_flg, noise_x)
-            # self.record_headway(time, front_car)
+            self.record_headway(time)
             # self.record_with_observation_points(time) # 実際に車の数を数える方法で流量計測
             
             if should_plot and (i % 5 == 0 or event_flg in self.plot_condition):

@@ -113,7 +113,7 @@ class VFRSimulation(BaseSimulation):
             width = x_range[1] - x_range[0]
             height = t_range[1] - t_range[0]
             rect = patches.Rectangle(
-                (x_range[0], current_time), width, 1, color=noise_color, alpha=0.3)
+                (x_range[0], current_time), width, 1, color=noise_color, alpha=0.9)
             ax.add_patch(rect)
 
         # 罫線を引く
@@ -128,8 +128,8 @@ class VFRSimulation(BaseSimulation):
         plt.ylabel('t')
 
         # 凡例をグラフの外に表示
-        # legend = plt.legend(bbox_to_anchor=(1.05, 1),
-        #                     loc='upper left', borderaxespad=0., fontsize='small', ncol=2)
+        legend = plt.legend(bbox_to_anchor=(1.05, 1),
+                            loc='upper left', borderaxespad=0., fontsize='small', ncol=2)
 
         # 保存
         plt.savefig(f"images/vfr/vfr_simulation_t={current_time:.1f}.png")
@@ -217,6 +217,7 @@ class VFRSimulation(BaseSimulation):
                 noise_end_x = noise["x"][1]
                 is_leader = car.car_idx == 0 or (int(car.car_idx - 1)) not in [
                     car.car_idx for car in cars_on_road]
+
                 if car.xcor < noise_start_x:
                     """
                     以下の条件を満たしたらtarget_noiseを設定する
@@ -229,7 +230,9 @@ class VFRSimulation(BaseSimulation):
                                                  car.xcor and frontCar.xcor < noise_start_x and frontCar.is_crossing == False]
                     if len(cars_between_me_and_noise) == 0:
                         target_noise = noise
+      
                     if target_noise is not None:
+                        
                         """
                         target_noiseが設定されている場合（要するに自分の一つ前がnoiseの時）
                         (a) ノイズが見えていない => 普通にfront_carを見て走る
@@ -245,9 +248,7 @@ class VFRSimulation(BaseSimulation):
                             # (b)か(c)で場合分け
                             # もしノイズを避けられる場合
                             # そもそもここに入るのは目の前がnoiseの車
-                            # if car.car_idx == 18:
-                            #     print(f"time:{time}")
-                            #     print(car.will_overtake_noise(target_noise, front_car, time))
+                            
                             if car.will_overtake_noise(target_noise, front_car, time):
                                 
                                 # 早避けすることが決まった
@@ -258,7 +259,6 @@ class VFRSimulation(BaseSimulation):
                             else:
                                 car.stop_at_target_x(
                                     noise_start_x, time, self.TIME_STEP)
-
                                 continue
                 # まさに今ノイズ区間を渡っている場合
                 elif car.xcor < noise_end_x:
@@ -270,6 +270,8 @@ class VFRSimulation(BaseSimulation):
                 front_car = None if car.car_idx == 0 else self.CARS[car.car_idx - 1]
                 car.record_headway(time, front_car)
                 car.proceed(self.TIME_STEP, time)
+                # if car.car_idx == 55 and time > 175:
+                #     print(f"t={time}, car_idx: {car.car_idx}, xcor: {car.xcor}, v_x: {car.v_x}, front_car_xcor: {front_car.xcor}")
 
                 if car.xcor >= self.TOTAL_LENGTH:
                     self.goal_time.append(time)
@@ -284,7 +286,7 @@ class VFRSimulation(BaseSimulation):
                 noise_x = current_noise[0]["x"][0]
             
             self.record(time, event_flg, noise_x)
-            # self.record_headway(time)
+            self.record_headway(time)
             self.record_with_observation_points(time)
             if should_plot and (i % 5 == 0):
                 plot_start_time = kwargs.get("plot_start", 0)

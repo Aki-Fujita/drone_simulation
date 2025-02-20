@@ -2,20 +2,21 @@ import copy
 from .ReservationTable import ReservationTable
 import pandas as pd
 from utils import calc_early_avoid_acc, calc_late_avoid, \
-    validate_with_ttc, create_itinerary_from_acc, calc_eta_from_acc, crt_itinerary_from_a_optimized
+    validate_with_ttc, create_itinerary_from_acc, calc_eta_from_acc, crt_itinerary_from_a_optimized, bang_bang_trajectory
 import sys
 from functions import helly
 import logging
 logging.basicConfig(level=logging.INFO)  # INFOレベル以上を表示
 sys.path.append("..")
 
+
 helly_params_default = {
     "max_accel": 3,
     "min_accel": 4,
     "lambda_1": 0.4,
     "lambda_2": 0.6,
-    "d": 3,
-    "T_des": 1.8,
+    "d": 4,
+    "T_des": 1.9,
 }
 
 
@@ -34,16 +35,17 @@ class Cars:
         self.v_x = kwargs.get("v_mean")
         self.headway = 1e3 # 車間距離, 記録用. 
         self.helly_params = kwargs.get("helly_params", {
-                                       **helly_params_default, "max_accel": self.a_max, "min_accel": self.a_min, "v_max": self.v_max, "isRss": False})
+                                       **helly_params_default, "max_accel": self.a_max, "v_max": self.v_max, "isRss": False})
         self.my_etas = []  # 自分のETA予定表のこと
         self.delta_from_eta = 0  # ETAからのずれ. DAAで必要以上のブレーキやアクセルが必要になった場合にここの値が変動する.
         self.car_length = 3  # 車の長さ (m)
         self.has_reacted_to_noise = False
         self.deviation_log = [] # ETA通りの運行から逸脱した瞬間を記録するリスト
+        self.should_recover = False # 現在ETAから逸脱しているかどうかを判断するフラグ
 
         # 以下はVFRのシミュレーションで利用するprops
         self.foreseeable_distance = kwargs.get(
-            "foreseeable_distance", 160)
+            "foreseeable_distance", 250)
         self.is_crossing = False  # 今信号を渡っている最中かどうか
         self.acc_itinerary = [
             {"acc": 0, "t_start": self.arrival_time, "v_0": self.v_x, "t_end": 1e7, "x_start": 0}]
@@ -215,15 +217,25 @@ class Cars:
             planned_speed = self.v_x
             return
         if v_front is None or self.can_drive_with_planned_speed(front_car, planned_speed):
-            self.v_x = planned_speed
-            return
+            if not self.should_recover:
+                self.v_x = planned_speed
+                return
+            # planned_speedで走れるようになったもののETAから遅れている場合. 
+            else:
+                # print(f"t={current_time}, ID: {self.car_idx}, これからRecoverする")
+                # self.create_recovery_plan(current_time)
+                new_planned_speed = self.calc_speed_from_acc_itinerary(current_time)
+                self.should_recover = False
+                self.v_x = new_planned_speed
+                return
         
-        # planed_speedからのdeviationが発生する場合
-        if not self.can_drive_with_planned_speed(front_car, self.v_x) and current_time > 274.5 and self.car_idx == 74:
-            print(f"ID: {self.car_idx}, planned_speed={planned_speed}, v_front={v_front}, v_x={self.v_x}")
+        # planed_speedでは衝突の可能性がある場合（この場合はplanned_speedを出せないのでdeviationになる）
+        self.should_recover = True
+        # if not self.can_drive_with_planned_speed(front_car, planned_speed)  and self.car_idx == 79:
+        #     print(f"t={current_time}, ID: {self.car_idx}, planned_speed={planned_speed}, v_front={v_front}, v_x={self.v_x}")
 
 
-        # planned_speedではないにせよ今のスピードで大丈夫な場合
+        # planned_speedではないにせよ今のスピードで大丈夫な場合は現在の速度を維持. 
         if self.can_drive_with_planned_speed(front_car, self.v_x):
             return
         
@@ -239,7 +251,38 @@ class Cars:
         front_x = front_car.xcor if front_car is not None else 1e6
         self.headway = front_x - self.xcor
         
+    def create_recovery_plan(self, time):
+        """
+        ETAから逸脱した場合に、ETAに合わせるためのacc_itineraryを作成する関数.
+        """
+        # まずは自分のacc_itineraryと予約中のETA表を取得する.
+        current_acc_itinerary = self.acc_itinerary
+        my_etas = self.my_etas
+
+        # 次のWPのETAを取得する. 
+        next_waypoint = min( (wp for wp in my_etas if wp["x"] > self.xcor),
+                                key=lambda wp: wp["x"],
+                                default=None)
         
+        # 現在の状態からnext_waypointに狙った速度かつ狙った時間で到着できるように調整する. 
+
+        acc_itinerary_before = [acc_itin for acc_itin in current_acc_itinerary if acc_itin["t_start"] < time]
+        x0 = self.xcor
+        v0 = self.v_x
+        t0 = time
+        xe = next_waypoint["x"]
+        te = next_waypoint["eta"]
+        # 次のWPを通過する速度を取得する. 
+        ve = self.calc_speed_from_acc_itinerary(te)
+
+        # 続いて、(x0, v0, t0)から(xe, ve, te)に到達するためのacc_itineraryを作成する.
+        result = bang_bang_trajectory(x0, v0, t0, xe, ve, te, self.a_max, self.a_min)
+
+        # print(f"==RECOVER PLAN of car_id:{self.car_idx} =======")
+        # print(f"ID: {self.car_idx}, x0={x0}, v0={v0}, t0={t0}, xe={xe}, ve={ve}, te={te}")
+        # print(result)
+        # print("=========")
+
 
     def can_drive_with_planned_speed(self, front_car, planned_speed):
         """
@@ -350,16 +393,19 @@ class Cars:
 
         # まずはnoiseを渡れるかどうかを判断
         distance_to_noise = noise_end_x - self.xcor
-        # if self.car_idx == 18:
-        #     print("L315")
-        #     print(distance_to_noise, self.v_x + time >= noise_start_time, )
-        if distance_to_noise / (self.v_x+1e-3) + time >= noise_start_time:
+
+        # 自分が前の車よりも速い場合は、前の車の速度でノイズを渡れるか判定する. 
+        crossing_speed = min(self.v_x, front_car.v_x) if front_car is not None else self.v_x
+
+        if distance_to_noise / (crossing_speed+1e-3) + time >= noise_start_time:
             # この場合は等速ではいけない場合なので一旦Falseということにする（挙動の修正次第ではTrueになるかも）
             return False
 
         """
         ここまで来た時点で等速ならノイズを渡れることが確定している.
         あとは等速で行ったと仮定して前の車にぶつからないかどうかを判断する.
+        ただし、前の車の速度次第では、あるタイムステップでノイズを渡れると判断しても、次のタイミングで減速し、ノイズを渡れなくなる可能性がある.
+        なので、前の車の速度を見て、ノイズを渡れるかどうかを再度判断する.
         """
         if front_car is None:
             return True
