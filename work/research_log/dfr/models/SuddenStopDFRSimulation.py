@@ -1,4 +1,4 @@
-from utils import check_multiple_noise_effect, validate_with_ttc
+from utils import check_multiple_noise_effect, validate_with_ttc, one_by_one_eta_validator
 import sys
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -158,24 +158,49 @@ class SuddenStopDFRSimulation(BaseSimulation):
 
             if len(influenced_cars) > 0:  # ETA変更する車が存在した場合.
                 print(f"t={time:.2f}, ETA変更対象車: {influenced_cars}")
+
+                # 通信速度が0の場合は、即時的に全車のETAを更新する.
                 """
-                STEP 3. 続いて影響されるうち先頭の車のETAをupdateする.
-                (a) ノイズ由来での進路変更の場合 = > ノイズだけを気にすればよい.
-                (b) 他の車由来での進路変更 = > 前の車だけを気にすればよい.
-                (c) 両方の影響を受けた時 = > 前の車だけを気にすればよい.
-                """ 
-
-                # 先頭車がノイズの影響だけを受けている場合
-
-                # 通信速度が0の場合は、即時的に全車ののETAを更新する.
+                注意点: 
+                influenced_carsはあくまでもtarget_carのETA変更による影響を受けた車（第一波と呼ぶ）のリストなので、
+                第一波がETAを変更した際にそれの影響を受ける車（第二波）, さらに第二波の影響を受ける車... と考慮する必要がある
+                """
                 if self.COMMUNICATION_SPEED == 0:
-                    for car_to_action_id in influenced_cars:
-                        car_to_action = self.CARS[car_to_action_id]
-                        leader = None if car_to_action_id < 1 else self.CARS[car_to_action_id-1]
+                    # for car_to_action_id in influenced_cars:
+                    #     car_to_action = self.CARS[car_to_action_id]
+                    #     leader = None if car_to_action_id < 1 else self.CARS[car_to_action_id-1]
+                    #     new_eta = car_to_action.modify_eta(
+                    #     noiseList=current_noise, table=self.reservation_table, current_time=time, leader=leader)
+                    #     self.reservation_table.update_with_request(car_idx=car_to_action_id, new_eta=new_eta)
+                    #     car_to_action.my_etas = new_eta
+                    current_idx = influenced_cars[0]
+                    while current_idx < len(self.CARS):
+                        car_to_action = self.CARS[current_idx]
+                        leader = None if current_idx == 0 else self.CARS[current_idx - 1]
                         new_eta = car_to_action.modify_eta(
-                        noiseList=current_noise, table=self.reservation_table, current_time=time, leader=leader)
-                        self.reservation_table.update_with_request(car_idx=car_to_action_id, new_eta=new_eta)
+                            noiseList=current_noise,
+                            table=self.reservation_table,
+                            current_time=time,
+                            leader=leader
+                        )
+                        self.reservation_table.update_with_request(car_idx=current_idx, new_eta=new_eta)
                         car_to_action.my_etas = new_eta
+                        # print(f"車 {current_idx} のETAを更新: {new_eta}")
+                        print(f"車 {current_idx} のETAを更新")
+                        next_idx = current_idx + 1
+                        # 次の車が存在する場合、先行車（current_idx の車）のETAとの差が十分でないなら更新対象
+                        if next_idx < len(self.CARS):
+                            # one_by_one_eta_validator(対象車のETA, 先行車のETA, TTC) が Falseなら影響を受けている
+                            if not one_by_one_eta_validator(self.CARS[next_idx].my_etas, car_to_action.my_etas, self.TTC):
+                                # 影響を受けるので、次の車も更新対象
+                                current_idx = next_idx
+                            else:
+                                # 次の車のETAが十分な差を持っている場合は、更新ループを終了
+                                break
+                        else:
+                            break
+
+
                         
                 elif communication_count >= self.COMMUNICATION_SPEED:
                     car_to_action_id = min(influenced_cars)

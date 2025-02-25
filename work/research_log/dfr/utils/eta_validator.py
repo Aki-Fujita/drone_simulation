@@ -1,6 +1,24 @@
 import pandas as pd
 
 
+def one_by_one_eta_validator(car_eta_list, lead_eta_list, TTC, **kwargs):
+    """
+    ある車と、その一つ前の車のETAを受け取り、対象車がETAを変更する必要があるかを計算する. 
+    """
+    car_sorted = sorted(car_eta_list, key=lambda d: d["waypoint_idx"])
+    lead_sorted = sorted(lead_eta_list, key=lambda d: d["waypoint_idx"])
+    # 両リストの要素数が同じである前提
+    if len(car_eta_list) != len(lead_eta_list):
+        print(f"car_eta_list: {car_eta_list}")
+        print(f"lead_eta_list: {lead_eta_list}")
+        raise ValueError("ETAリストの長さが異なります。")
+    for car_eta, lead_eta in zip(car_sorted, lead_sorted):
+        # 対応するwaypointで、対象車のETAが先行車のETA+ttc未満なら不十分
+        if car_eta["eta"] < lead_eta["eta"] + TTC:
+            return False
+    return True
+
+
 def validate_with_ttc(eta_reservation_table, car_plans, TTC, **kwargs):
     """
     eta_reservation_table: 全体のスケジュール. DataFrame型を想定. 
