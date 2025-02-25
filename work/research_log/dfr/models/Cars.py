@@ -1,6 +1,7 @@
 import copy
 from .ReservationTable import ReservationTable
 import pandas as pd
+from .AccItinerary import AccItinerary
 from utils import calc_early_avoid_acc, calc_late_avoid, \
     validate_with_ttc, create_itinerary_from_acc, calc_eta_from_acc, crt_itinerary_from_a_optimized, bang_bang_trajectory
 import sys
@@ -246,6 +247,27 @@ class Cars:
         logging.debug(f"CONTROL領域: ID: {self.car_idx}, planned_speed={planned_speed}, controled_speed={controled_speed}, v_front={v_front}")
 
         # 本当はself.delta_from_etaを見た上で余裕がある時には速度を増やしたりしたいが、一旦割愛
+
+    def sudden_brake(self, current_time, brake_obj_list):
+        """
+        ブレーキをかけた上で、更新したETAを返す関数.
+        ## 処理内容 ##
+        ・現在のacc_itineraryに対して{brake_period}秒間の減速区間を追加する
+        ・そのacc_itineraryを元にETAを計算し、returnする. 
+        """
+        current_acc_itinerary = self.acc_itinerary
+        acc_itinerary = AccItinerary(current_acc_itinerary)
+        acc_itinerary.sudden_insert(brake_obj_list)
+        print(f"ID: {self.car_idx}, 元のacc_itinerary: {current_acc_itinerary}")
+        acc_itinerary_after_insert = acc_itinerary.itinerary()
+        self.acc_itinerary = acc_itinerary_after_insert
+        print("挿入後: ", acc_itinerary_after_insert)
+        new_eta = create_itinerary_from_acc(
+            car_obj=self, current_time=current_time, acc_itinerary=acc_itinerary_after_insert)
+        print("新しいETA: ", new_eta)
+        return new_eta
+
+
 
     def record_headway(self, time, front_car):
         front_x = front_car.xcor if front_car is not None else 1e6

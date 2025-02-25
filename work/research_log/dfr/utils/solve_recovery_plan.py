@@ -299,4 +299,4 @@ def check_feasible_trajectory(x0, v0, t0, xe, ve, te):
     return True
 
 
-check_feasible_trajectory(x0=1114.1643970955297, v0=10, t0=266.1, xe=1216, ve=4, te=275.1)   
+# check_feasible_trajectory(x0=1114.1643970955297, v0=10, t0=266.1, xe=1216, ve=4, te=275.1)   
