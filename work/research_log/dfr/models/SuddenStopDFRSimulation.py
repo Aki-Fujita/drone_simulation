@@ -1,4 +1,4 @@
-from utils import check_multiple_noise_effect, validate_with_ttc, one_by_one_eta_validator
+from utils import check_multiple_noise_effect, validate_with_ttc, one_by_one_eta_validator, print_formatted_dict_list
 import sys
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -118,8 +118,8 @@ class SuddenStopDFRSimulation(BaseSimulation):
                 target_car_list = [car for car in cars_on_road if car.xcor < noise_x and car.v_x > self.thresh_speed ]
                 if len(target_car_list) > 0:
                     target_car = target_car_list[0]
-                    print(f"t={time:.2f}, sudden_brake発生, 対象車: {target_car.car_idx}")
-                    brake_obj_list = self.create_brake_obj(self.brake_params, time, target_car)
+                    # print(f"t={time:.2f}, sudden_brake発生, 対象車: {target_car.car_idx}")
+                    brake_obj_list = self.create_brake_obj(self.brake_params, time, target_car)                    
                     new_eta = target_car.sudden_brake(time, brake_obj_list)
                     self.reservation_table.update_with_request(car_idx=target_car.car_idx, new_eta=new_eta)
                     target_car.my_etas = new_eta
@@ -157,7 +157,7 @@ class SuddenStopDFRSimulation(BaseSimulation):
                 event_flg = "influenced car exists"
 
             if len(influenced_cars) > 0:  # ETA変更する車が存在した場合.
-                print(f"t={time:.2f}, ETA変更対象車: {influenced_cars}")
+                # print(f"t={time:.2f}, ETA変更対象車: {influenced_cars}")
 
                 # 通信速度が0の場合は、即時的に全車のETAを更新する.
                 """
@@ -185,11 +185,11 @@ class SuddenStopDFRSimulation(BaseSimulation):
                         )
                         self.reservation_table.update_with_request(car_idx=current_idx, new_eta=new_eta)
                         car_to_action.my_etas = new_eta
-                        # print(f"車 {current_idx} のETAを更新: {new_eta}")
-                        print(f"車 {current_idx} のETAを更新")
+                        # print(f"車 {current_idx} のETAを更新")
+
                         next_idx = current_idx + 1
                         # 次の車が存在する場合、先行車（current_idx の車）のETAとの差が十分でないなら更新対象
-                        if next_idx < len(self.CARS):
+                        if next_idx <= max([car.car_idx for car in cars_on_road]):
                             # one_by_one_eta_validator(対象車のETA, 先行車のETA, TTC) が Falseなら影響を受けている
                             if not one_by_one_eta_validator(self.CARS[next_idx].my_etas, car_to_action.my_etas, self.TTC):
                                 # 影響を受けるので、次の車も更新対象

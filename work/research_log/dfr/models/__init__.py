@@ -4,3 +4,4 @@ from .DFRSimulation import DFRSimulation
 from .VFRSimulation import VFRSimulation
 from .BaseSimulationModel import BaseSimulation
 from .SuddenStopDFRSimulation import SuddenStopDFRSimulation
+from .SuddenStopVFRSimulation import SuddenStopVFRSimulation

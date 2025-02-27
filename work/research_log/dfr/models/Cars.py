@@ -3,7 +3,7 @@ from .ReservationTable import ReservationTable
 import pandas as pd
 from .AccItinerary import AccItinerary
 from utils import calc_early_avoid_acc, calc_late_avoid, \
-    validate_with_ttc, create_itinerary_from_acc, calc_eta_from_acc, crt_itinerary_from_a_optimized, bang_bang_trajectory
+    validate_with_ttc, create_itinerary_from_acc, calc_eta_from_acc, crt_itinerary_from_a_optimized, bang_bang_trajectory, print_formatted_dict_list
 import sys
 from functions import helly
 import logging
@@ -52,6 +52,10 @@ class Cars:
             {"acc": 0, "t_start": self.arrival_time, "v_0": self.v_x, "t_end": 1e7, "x_start": 0}]
         if self.a_max == None or self.v_max == None:
             raise ValueError("入力されていない項目があります。")
+        
+        # VFRの sudden stopで利用する変数. いつからいつまでどれだけの加速度を出すかを制御するための変数（割り込んだ車が入ってきた想定用）
+        self.is_controlled = False
+        self.planned_acc_dict = [] # acc_itineraryのVFR版
 
     def create_desired_eta(self, way_points):
         def calc_eta(way_points):
@@ -255,11 +259,13 @@ class Cars:
         ・現在のacc_itineraryに対して{brake_period}秒間の減速区間を追加する
         ・そのacc_itineraryを元にETAを計算し、returnする. 
         """
+        
         current_acc_itinerary = self.acc_itinerary
         acc_itinerary = AccItinerary(current_acc_itinerary)
         acc_itinerary.sudden_insert(brake_obj_list)
         # print(f"ID: {self.car_idx}, 元のacc_itinerary: {current_acc_itinerary}")
         acc_itinerary_after_insert = acc_itinerary.itinerary()
+
         self.acc_itinerary = acc_itinerary_after_insert
         # print("挿入後: ", acc_itinerary_after_insert)
         new_eta = create_itinerary_from_acc(
@@ -338,6 +344,25 @@ class Cars:
         self.xcor += self.v_x * time_step
         self.xcorList.append(self.xcor)
         self.timeLog.append(current_time)
+    
+    def obey_planned_speed(self, time):
+        """
+        planned_speedに従う関数.
+        """
+        for interval in self.planned_acc_dict:
+            # 指定された時刻が区間に含まれているか確認
+            if interval['t_start'] <= time <= interval['t_end']:
+                # 速度を計算: v = v_0 + acc * (time - t_start)
+                v_0 = interval['v_0']
+                acc = interval['acc']
+                t_start = interval['t_start']
+                speed = v_0 + acc * (time - t_start)
+                self.v_x = speed
+                return
+        else:
+            print(f"t={time:.2f}, ID: {self.car_idx}")
+            raise ValueError("速度が計算できません！")
+
 
     # VFRのシミュレーション用に前の車を見ながら速度を決める関数
     def decide_speed_helly(self, front_car, time_step):

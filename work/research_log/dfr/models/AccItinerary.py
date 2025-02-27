@@ -68,8 +68,9 @@ class AccItinerary:
             # 挿入されるaccObjよりも完全に後ろなものの場合. 
             elif new_t_end < current_acc_segment["t_start"] :
                 prev_seg = new_itinerary[-1] # previous segmentの略. 
-                v_0 = prev_seg["v_0"] + prev_seg["acc"] * (prev_seg["t_start"] - prev_seg["t_end"])
-                x_start = prev_seg["x_start"] + prev_seg["v_0"] * (prev_seg["t_start"] - prev_seg["t_end"]) + 0.5 * prev_seg["acc"] * (prev_seg["t_start"] - prev_seg["t_end"])**2
+                delta_t = prev_seg["t_end"] - prev_seg["t_start"]
+                v_0 = prev_seg["v_0"] + prev_seg["acc"] * delta_t
+                x_start = prev_seg["x_start"] + prev_seg["v_0"] *delta_t + 0.5 * prev_seg["acc"] * delta_t **2
                 if v_0 < 0:
                     print("prev_seg: ", prev_seg)
                     raise ValueError("セグメント終わりに速度が0になっています")
@@ -88,13 +89,14 @@ class AccItinerary:
                     continue
                 
                 # b-1-3の終端部の処理
-                elif new_t_end <= current_acc_segment["t_end"] and new_t_start < current_acc_segment["t_start"]:
+                elif new_t_start < current_acc_segment["t_start"] and new_t_end <= current_acc_segment["t_end"]:
                     # b-1-2の段階でnew_itineraryにnew_accelがそもそもappendされているものとして処理を行う. 
                     # まずはnew_accelの最後における速度とx座標を計算. 
                     new_accel_last = new_accel[-1]
-                    v_0 = new_accel_last["v_0"] + new_accel_last["acc"] * (new_t_end - new_t_start)
+                    delta_t = new_accel_last["t_end"] - new_accel_last["t_start"]
+                    v_0 = new_accel_last["v_0"] + new_accel_last["acc"] * delta_t
                     if v_0 > 0:
-                        x_start = new_accel_last["x_start"] + new_accel_last["v_0"] * (new_t_end - new_t_start) + 0.5 * new_accel_last["acc"] * (new_t_end - new_t_start)**2
+                        x_start = new_accel_last["x_start"] + new_accel_last["v_0"] * delta_t + 0.5 * new_accel_last["acc"] * delta_t ** 2
                     else:
                         raise ValueError("ブレーキの結果速度が0になりました")
                     
