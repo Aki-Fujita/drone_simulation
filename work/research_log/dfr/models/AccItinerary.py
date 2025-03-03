@@ -23,9 +23,66 @@ class AccItinerary:
     def itinerary(self):
         """現在のacc_itineraryを返す"""
         return self._itinerary
+    
+    # 下の関数をアップデートしたもの. 
+    def sudden_insert(self, new_accel):
+        """
+        _sudden_insertには課題があり、それは
+        ・加速中だった場合に挿入されると、挿入後にスピードが予定されていたところに元に戻らない
+        →そのためETAが過剰に遅くなってしまう、という課題があった. 
+        """
+        new_t_start = new_accel[0]["t_start"]
+        new_t_end = new_accel[-1]["t_end"]
+        new_itinerary: List[Dict[str, float]] = []
+
+        for segment in self._itinerary:
+            if segment["t_end"] <= new_t_start:
+                new_itinerary.append(segment)
+                continue
+            # あるセグメントの途中から挿入される場合. 
+            # この場合はsegmentを分割して、後半部は時間をずらして後で差し込む（速度誤差を消すため）. 
+            elif segment["t_start"]< new_t_start and new_t_start < segment["t_end"]:
+                former_segment = {**segment, "t_end": new_t_start}
+                new_itinerary.append(former_segment)
+                new_itinerary += new_accel
+                last_segment = new_accel[-1]
+                last_segment_delta = last_segment["t_end"] - last_segment["t_start"]
+
+                x_start_latter = last_segment["x_start"] + last_segment["v_0"] * last_segment_delta + 0.5 * last_segment["acc"] * last_segment_delta**2
+                t_end_latter = new_t_end + (segment["t_end"] - new_t_start)
+                latter_segment = {**segment, "t_start": new_t_end, "x_start": x_start_latter, "t_end":t_end_latter}
+
+                new_itinerary.append(latter_segment)
+            
+            elif segment["t_start"] >= new_t_start:
+                new_accel_period = new_t_end - new_t_start
+                segment_t_start = segment["t_start"] + new_accel_period
+                segment_t_end = segment["t_end"] + new_accel_period
+
+                last_segment = new_itinerary[-1]
+                last_segment_delta = last_segment["t_end"] - last_segment["t_start"]
+                x_start = last_segment["x_start"] + last_segment["v_0"] * last_segment_delta + 0.5 * last_segment["acc"] * last_segment_delta**2
+                if abs(segment["t_start"] -141.730) <0.01:
+                    print("===DEBUG===")
+                    print(last_segment)
+                    print(x_start)
+                    print("============")
+
+                segment_to_add = {**segment, "t_start": segment_t_start, "t_end":segment_t_end, "x_start": x_start} # acc, v0は変わらない.
+                new_itinerary.append(segment_to_add)
+                
+                continue
+            
+            else:
+                print(new_itinerary)
+                print(segment)
+                raise ValueError("ここには来ないはず")
+            
+                
+        self._itinerary = new_itinerary
 
     # 急ブレーキをかけるシミュレーションのために用意した関数. 逆にそこ以外では使わないようにする. 
-    def sudden_insert(self, new_accel):
+    def _sudden_insert(self, new_accel):
         """
         急ブレーキをかけた時の挙動（減速=>加速となるようなacc_itineraryを挿入する, ブレーキ単体だとシミュレーション結果に影響がありそうなため.）. 
         accel オブジェクト new_accel を既存の acc_itinerary に挿入します。

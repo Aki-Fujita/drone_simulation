@@ -263,14 +263,23 @@ class Cars:
         current_acc_itinerary = self.acc_itinerary
         acc_itinerary = AccItinerary(current_acc_itinerary)
         acc_itinerary.sudden_insert(brake_obj_list)
-        # print(f"ID: {self.car_idx}, 元のacc_itinerary: {current_acc_itinerary}")
         acc_itinerary_after_insert = acc_itinerary.itinerary()
+        if self.car_idx == 8:
+            print(f"t={current_time}, ID: {self.car_idx}")
+            print_formatted_dict_list(current_acc_itinerary)
+            print("===== AFTER ======")
+            print_formatted_dict_list(acc_itinerary_after_insert)
 
         self.acc_itinerary = acc_itinerary_after_insert
         # print("挿入後: ", acc_itinerary_after_insert)
         new_eta = create_itinerary_from_acc(
             car_obj=self, current_time=current_time, acc_itinerary=acc_itinerary_after_insert)
-        # print("新しいETA: ", new_eta)
+        
+        if self.car_idx == 8:
+            print("====昔のETA====")
+            print_formatted_dict_list(self.my_etas)
+            print("====新しいETA====")
+            print_formatted_dict_list(new_eta)
         return new_eta
 
 
