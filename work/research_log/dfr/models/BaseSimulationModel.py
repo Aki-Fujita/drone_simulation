@@ -23,8 +23,8 @@ class BaseSimulation(ABC):
 
         # 流量計測用の変数
         self.observation_points = kwargs.get("observation_points", [])
-        self.segment_length = kwargs.get("segment_length", 500)
-        self.flow_count_interval = kwargs.get("flow_count_interval", 10)
+        self.segment_length = kwargs.get("segment_length", 1000)
+        self.flow_count_interval = kwargs.get("flow_count_interval", 50)
         self.flow_results = {} # 断面ベースの流量計測に利用. 
         self.last_flow_record_time = 0.0
         # 観測断面ごとに通過台数をカウントする辞書
@@ -83,30 +83,21 @@ class BaseSimulation(ABC):
 
         # 経過時間を計算
         elapsed_time = current_time - self.last_flow_record_time
-
-        # # flow_count_intervalが経過していなければ、密度のみ蓄積
-        # for x_line in self.observation_points:
-        #     # --- 密度計測範囲（x_line ± segment_length / 2） ---
-        #     segment_start = x_line - self.segment_length
-        #     segment_end = x_line
-
-        #     # 道路範囲外のチェック
-        #     if segment_start < 0:
-        #         raise ValueError(f"観測点 {x_line} の密度計測区間が道路の範囲外です。")
-
-        #     # 計測区間に存在する車両をカウント
-        #     cars_in_segment = [car for car in self.CARS if segment_start <= car.xcor < segment_end]
-        #     density = len(cars_in_segment) / self.segment_length  # 台/m
-
-        #     # 密度を断面ごとに蓄積
-        #     self.density_records[x_line].append(density)
         
         # flow_count_intervalが経過していなければ終了
         if elapsed_time < self.flow_count_interval:
+            # 密度の記録だけ
+            for x_line in self.observation_points:
+                segment_start = x_line - self.segment_length
+                segment_end = x_line
+                cars_in_segment = [car for car in self.CARS if segment_start <= car.xcor < segment_end]
+                self.density_records[x_line].append(len(cars_in_segment))
             return
         
         # 各観測断面で通過車両数と密度を計測
         # print(f"t={current_time}, 流量計算を実行")
+        # print(self.flow_count_interval)
+        
         # print()
         for x_line in self.observation_points:
             # --- 1. 通過車両数のカウント ---
@@ -124,11 +115,10 @@ class BaseSimulation(ABC):
             segment_start = x_line - self.segment_length
             segment_end = x_line
             cars_in_segment = [car for car in self.CARS if segment_start <= car.xcor < segment_end]
-            # print(f"car_list:{[car.car_idx for car in cars_in_segment]}")
-            # 流量（台/秒）を計算
+
             # 愚直に台数をカウントする方法と、速度から計算する方法を二つ行う。
             passed_cars = self.cross_counts_record[x_line]
-            flow = passed_cars / elapsed_time  # 台/秒
+            flow = passed_cars  # 台/秒
 
             avg_speed = sum([car.v_x for car in cars_in_segment]) / len(cars_in_segment) if cars_in_segment else 0.0
             avg_headway = sum([car.headway for car in cars_in_segment]) / len(cars_in_segment) if cars_in_segment else 1e5
@@ -137,6 +127,9 @@ class BaseSimulation(ABC):
             # --- 2. 密度の計算 ---
 
             densities = self.density_records[x_line]
+            # print(f"t={current_time}, x_line={x_line}, 台数ログ:{self.density_records[x_line]}")
+            cars_in_segment = [car.car_idx for car in self.CARS if segment_start <= car.xcor < segment_end]
+            # print(f"t={current_time}, x_line={x_line}, 車両ログ:{cars_in_segment}")
             avg_density = sum(densities) / len(densities) if densities else 0.0
             
             # print(f"x_line={x_line}: {passed_cars}台通過, 流量={flow:.4f} 台/秒, 密度={avg_density:.4f} 台/m, 計算流量={flow_calculated:.4f} 台/秒, 計算密度={(1/avg_headway):.4f} 台/m")

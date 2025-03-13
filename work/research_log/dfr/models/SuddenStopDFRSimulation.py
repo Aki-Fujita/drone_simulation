@@ -114,19 +114,21 @@ class SuddenStopDFRSimulation(BaseSimulation):
             ・その車のETA変更は即時的に他の車に伝播する. 
             """
 
-            if time > 0 and time % noise_freq == 0:
+            if time > 100 and time % noise_freq == 0:
                 target_car_list = [car for car in cars_on_road if car.xcor < noise_x and car.v_x > self.thresh_speed ]
                 if len(target_car_list) > 0:
                     target_car = target_car_list[0]
+                    target_car_idx = target_car.car_idx
                     # print(f"t={time:.2f}, sudden_brake発生, 対象車: {target_car.car_idx}")
-                    brake_obj_list = self.create_brake_obj(self.brake_params, time, target_car)                    
-                    new_eta = target_car.sudden_brake(time, brake_obj_list)
+                    brake_obj_list = self.create_brake_obj(self.brake_params, time, target_car)
+                    leader = None if target_car_idx == 0 else self.CARS[target_car_idx - 1]                 
+                    new_eta = target_car.sudden_brake(time, brake_obj_list, leader)
                     self.reservation_table.update_with_request(car_idx=target_car.car_idx, new_eta=new_eta)
                     target_car.my_etas = new_eta
                     communication_count = 0
                     has_sudden_brake_happend = True
-                else:
-                    print(f"t={time:.2f}, 対象車なし")
+                # else:
+                #     print(f"t={time:.2f}, 対象車なし")
             
             """
             STEP 2. ノイズの影響を受ける車と、ノイズによって影響を受けた他の車の影響を受けた車をリスト化. 
@@ -271,7 +273,7 @@ class SuddenStopDFRSimulation(BaseSimulation):
                 noise_x = current_noise[0]["x"][0]
             self.record(time, event_flg, noise_x)
             self.record_headway(time)
-            # self.record_with_observation_points(time) # 実際に車の数を数える方法で流量計測
+            self.record_with_observation_points(time) # 実際に車の数を数える方法で流量計測
             
             if should_plot and (i % 5 == 0 or event_flg in self.plot_condition):
                 plot_start_time = kwargs.get("plot_start", 0)
@@ -367,7 +369,7 @@ class SuddenStopDFRSimulation(BaseSimulation):
             car.car_idx for car in self.CARS if car.arrival_time <= current_time and car.xcor < self.TOTAL_LENGTH]
         eta_table = self.reservation_table.eta_table
 
-        plt.figure(figsize=(18, 12))
+        plt.figure(figsize=(24, 16))
         ax = plt.gca()
 
         # # 全車のETAのプロット これがあるとデバッグしにくいのでコメントアウト.

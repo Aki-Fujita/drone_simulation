@@ -1,6 +1,6 @@
 from .check_noise_effect import will_avoid_single_noise, check_multiple_noise_effect
 from .eta_validator import validate_with_ttc, one_by_one_eta_validator
-from .noise_avoidance import calc_early_avoid_acc, calc_late_avoid, crt_itinerary_from_a_optimized
+from .noise_avoidance import calc_early_avoid_acc, calc_late_avoid, crt_itinerary_from_a_optimized, calc_late_avoid_with_leader
 from .create_eta_from_acc import create_itinerary_from_acc, calc_eta_from_acc
 from .conduct_optimization import conduct_fuel_optimization
 from .optimizer_for_follower import calc_late_avoid_with_leader
@@ -9,3 +9,5 @@ from .generate_arrival_times import generate_arrival_times_poisson
 from .simple_funcs import find_next_wpt
 from .solve_recovery_plan import bang_bang_trajectory
 from .print_formatted_dict import print_formatted_dict_list
+from .merge_acc_itinerary import merge_acc_itinerary_by_time
+from .approach_leader_eta import approach_leader_eta

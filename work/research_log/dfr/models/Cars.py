@@ -2,8 +2,8 @@ import copy
 from .ReservationTable import ReservationTable
 import pandas as pd
 from .AccItinerary import AccItinerary
-from utils import calc_early_avoid_acc, calc_late_avoid, \
-    validate_with_ttc, create_itinerary_from_acc, calc_eta_from_acc, crt_itinerary_from_a_optimized, bang_bang_trajectory, print_formatted_dict_list
+from utils import calc_early_avoid_acc, calc_late_avoid, calc_late_avoid_with_leader, \
+    validate_with_ttc, create_itinerary_from_acc, calc_eta_from_acc, approach_leader_eta, bang_bang_trajectory, print_formatted_dict_list, merge_acc_itinerary_by_time
 import sys
 from functions import helly
 import logging
@@ -252,7 +252,7 @@ class Cars:
 
         # 本当はself.delta_from_etaを見た上で余裕がある時には速度を増やしたりしたいが、一旦割愛
 
-    def sudden_brake(self, current_time, brake_obj_list):
+    def sudden_brake(self, current_time, brake_obj_list, leader, quick_recovery=True):
         """
         ブレーキをかけた上で、更新したETAを返す関数.
         ## 処理内容 ##
@@ -263,23 +263,44 @@ class Cars:
         current_acc_itinerary = self.acc_itinerary
         acc_itinerary = AccItinerary(current_acc_itinerary)
         acc_itinerary.sudden_insert(brake_obj_list)
-        acc_itinerary_after_insert = acc_itinerary.itinerary()
-        if self.car_idx == 8:
+        new_acc_itinerary = acc_itinerary.itinerary()
+
+        if self.car_idx == -1:
             print(f"t={current_time}, ID: {self.car_idx}")
             print_formatted_dict_list(current_acc_itinerary)
             print("===== AFTER ======")
-            print_formatted_dict_list(acc_itinerary_after_insert)
+            print_formatted_dict_list(new_acc_itinerary)
 
-        self.acc_itinerary = acc_itinerary_after_insert
+        if quick_recovery and leader is not None:
+            last_segment = brake_obj_list[-1]
+            last_segment_end_v = last_segment["v_0"] + last_segment["acc"] * (last_segment["t_end"] - last_segment["t_start"])
+            last_segment_period = last_segment["t_end"] - last_segment["t_start"]
+            last_segment_end_x = last_segment["x_start"] + last_segment["v_0"] * last_segment_period + 0.5 * last_segment["acc"] * last_segment_period ** 2
+            recovery_start = last_segment["t_end"] # 挿入区間の終了時刻
+            self.acc_itinerary = new_acc_itinerary
+            initial_params = {"v0": last_segment_end_v, "x0": last_segment_end_x, "t0": recovery_start}
+            # 続いてacc_itinerary_after_insertをなるべく早くゴールに着くように修正する. 
+            acc_itinerary_after_recovery = approach_leader_eta(
+                follower=self,
+                a_min = abs(self.a_min)*-1,
+                eta_of_leader = pd.DataFrame(leader.my_etas),
+                current_time = recovery_start,
+                ttc = 1.6,
+                should_return_new_acc=True,
+                initial_params = initial_params
+            )[0]
+
+            new_acc_itinerary = merge_acc_itinerary_by_time(new_acc_itinerary, acc_itinerary_after_recovery)
+            
+            if self.car_idx == -1:
+                print("===== AFTER Recovery ======")
+                print_formatted_dict_list(new_acc_itinerary)
+
+        self.acc_itinerary = new_acc_itinerary
         # print("挿入後: ", acc_itinerary_after_insert)
         new_eta = create_itinerary_from_acc(
-            car_obj=self, current_time=current_time, acc_itinerary=acc_itinerary_after_insert)
+            car_obj=self, current_time=current_time, acc_itinerary=new_acc_itinerary)
         
-        if self.car_idx == 8:
-            print("====昔のETA====")
-            print_formatted_dict_list(self.my_etas)
-            print("====新しいETA====")
-            print_formatted_dict_list(new_eta)
         return new_eta
 
 

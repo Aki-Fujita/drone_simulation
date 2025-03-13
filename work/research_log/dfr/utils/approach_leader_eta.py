@@ -15,50 +15,19 @@ logging.basicConfig(level=logging.INFO)  # INFOレベル以上を表示
 メモ: 全車の最大減速度は揃えた方が良い（そうでないと破綻するルールもある）
 """
 
-
 """
-加速度のログからvとxの時系列を計算する
+前の車のETAに極力近づくためのacc_itineraryを作る関数
 """
-
-
-def calc_distance_from_a(a_series, x0, v0, dt, N):
-    v = np.zeros(N+1)
-    x = np.zeros(N+1)
-    v[0] = v0
-    x[0] = x0
-
-    for i in range(1, N+1):
-        v[i] = v[i-1] + a_series[i-1] * dt
-        x[i] = x[i-1] + v[i-1] * dt + 0.5 * a_series[i-1] * dt**2
-    return x[N]
-
-
-def get_acc_for_time(data, t):
-    """
-    指定された時刻 t に対して、t 以下で最大の t_start を探し、その時の acc を返す。
-    :param data: 辞書のリスト。各辞書は acc, t_start, v_0 のキーを持つ。
-    :param t: 指定された時刻。
-    :return: 条件を満たす acc の値。該当するものがなければ None を返す。
-    """
-    # t_start が t 以下の要素のみをフィルタリングし、t_start で降順にソート
-    valid_items = sorted([item for item in data if item['t_start']
-                         < t], key=lambda x: x['t_start'], reverse=True)
-    # 条件を満たす最初の要素の acc を返す
-    return valid_items[0]['acc'] if valid_items else None
-
-
-"""
-前の車もnoiseを late_avoidしている前提で作られている！
-"""
-
-
-def calc_late_avoid_with_leader(**kwargs):
+def approach_leader_eta(**kwargs):
     follower = kwargs.get("follower")
     ttc = kwargs.get("ttc", 0)
     leader = kwargs.get("leader", 0)  # 先行車のオブジェクト
     current_time = kwargs.get("current_time", [])
     eta_of_leader = kwargs.get("eta_of_leader", {})
     should_return_new_acc = kwargs.get("should_return_new_acc", False)
+    initial_params = kwargs.get("initial_params", None)
+    if initial_params is None:
+        initial_params =  {"v0": follower.v_x, "x0": follower.xcor, "t0": current_time}
     leader_finish_time = eta_of_leader["eta"].max()
     if pd.isna(leader_finish_time):
         print("Debug: leader_finish_time is NaN. eta_of_leader:")
@@ -75,25 +44,21 @@ def calc_late_avoid_with_leader(**kwargs):
 
     # 後続車のパラメータ
     acc_itinerary = follower_acc_solver(
-        follower, eta_of_leader, ttc, current_time, leader)
+        follower, eta_of_leader, ttc, leader, initial_params)
     # if follower.car_idx == 8 and current_time > 110:
     #     print("=====入った=====")
     #     print(eta_of_leader, acc_itinerary)
     if should_return_new_acc:
         # print(f"L83: {acc_itinerary}")
         return acc_itinerary, time_step, steps
+    
     merged_acc_itinerary = merge_acc_itinerary( # FIXME: ここのmergeのロジックがちょっと変な感じする
         pre_itinerary=follower.acc_itinerary, new_itinerary=acc_itinerary)
-    # print("merged:", merged_acc_itinerary)
-    # if follower.car_idx == 8 and current_time > 110:
-    #     print("beforeのacc_itinerary")
-    #     print(follower.acc_itinerary)
-    #     print("new_acc_itinerary")
-    #     print(acc_itinerary)
+
     return merged_acc_itinerary, time_step, steps
 
 
-def follower_acc_solver(follower, eta_of_leader, TTC, current_time, leader):
+def follower_acc_solver(follower, eta_of_leader, TTC, leader, initial_params):
     """
     基本方針
     (a) まずleaderのETAを一通り確認し、それに対し+TTC秒以上開けたETAを作成する
@@ -106,39 +71,32 @@ def follower_acc_solver(follower, eta_of_leader, TTC, current_time, leader):
     # (a) まずはLeaderのETAから自分に可能な最速のETAを計算する（前準備）
     earliest_etas = []
     for eta_info in eta_of_leader:
-        earilist_eta = eta_info["eta"] + TTC + \
-            0.1  # 先頭車のETAにTTC秒以上開けた上でマージンを0.1秒とる（これ、密度が高くなると計算が合わない要因になり得る）
+        earilist_eta = eta_info["eta"] + TTC + 0.05  # 先頭車のETAにTTC秒以上開けた上でマージンを0.05秒とる（これ、密度が高くなると計算が合わない要因になり得る）
         earliest_etas.append(
             {**eta_info, "eta": earilist_eta, "car_idx": follower.car_idx})
 
     # (b) 続いて上のETAが実現可能であるかを検証し、無理ならばETAを遅らせていく
-    initial_params = {"v0": follower.v_x,
-                      "x0": follower.xcor, "t0": current_time}
     car_params = {"decel": follower.a_min,  
                   "accel": follower.a_max, "v_max": follower.v_max, "a_min_lim": follower.a_min_lim}
     start_params = copy.deepcopy(initial_params)
-    itinerary_from_now = [{"t_start": current_time, "acc": 0, "x_start": follower.xcor,
-                           "v_0": follower.v_x, "t_end": current_time}]# t_endはどうせ変わるのでここにt_startより前の値が入るのは別にヤバくはない
+    itinerary_from_now = [{"t_start": initial_params["t0"], "acc": 0, "x_start": initial_params["x0"],
+                           "v_0": initial_params["v0"], "t_end": initial_params["t0"]}]# t_endはどうせ変わるのでここにt_startより前の値が入るのは別にヤバくはない
 
     for wp_idx, earliest_eta in enumerate(earliest_etas):
 
         eta_boundary = {"xe": earliest_eta["x"], "te": earliest_eta["eta"]}
-        if earliest_eta["x"] < follower.xcor:
+        if earliest_eta["x"] < initial_params["x0"]:
             continue
 
         if not should_brake(**start_params, **eta_boundary):
             # この場合、この区間のさらに先まで見た上で、これから先どこもブレーキが必要なかったら加速する！
             upcoming_wps = [{"xe": e["x"], "te": e["eta"]}
                             for i, e in enumerate(earliest_etas) if i >= wp_idx]
-            # デバッグ用
-            # if follower.car_idx == 27:
-                # print([should_brake(**start_params, **eta_plan)
-                #       for eta_plan in upcoming_wps])
-                # print("L120: ", start_params, upcoming_wps, itinerary_from_now)
+            
             if all([not should_brake(**start_params, **eta_plan) for eta_plan in upcoming_wps]):
                 # print("これだとだいぶ余裕があるので加速する")
                 new_itinerary, sp = update_acc_itinerary_with_accel(itinerary_from_now, start_params, upcoming_wps, car_params={
-                                                                    **car_params, "acc": 2}, current_x=follower.xcor, follower=follower)
+                                                                    **car_params, "acc": 2}, current_x=initial_params["x0"], follower=follower)
 
                 # 今のacc_itineraryだとこの先にブレーキが必要ないので、どこかしらに当たるまで加速する.
                 itinerary_from_now = update_acc_itinerary(
@@ -152,7 +110,7 @@ def follower_acc_solver(follower, eta_of_leader, TTC, current_time, leader):
         if can_reach_after_designated_eta(**start_params, **eta_boundary, car_params=car_params):
             # print(f'減速すべき区間, goal:{eta_boundary}, sp:{start_params}')
             a, eta = crt_acc_itinerary_for_decel_area(
-                **start_params, **eta_boundary, ve=None, car_params=car_params, step_size=0.5, earliest_etas=earliest_etas, car_idx=follower.car_idx)
+                **start_params, **eta_boundary, ve=None, car_params=car_params, step_size=0.2, earliest_etas=earliest_etas, car_idx=follower.car_idx)
             v = a[-1]["v_0"]  # 必ず等速区間で終わるため
             start_params = {"v0": v, "x0": eta_boundary["xe"], "t0": eta}
             # if follower.car_idx == 6:
@@ -178,26 +136,29 @@ def follower_acc_solver(follower, eta_of_leader, TTC, current_time, leader):
                 減速を頑張ってもETA（TTC=TTC_GLOBALで設定されている）より前についてしまう場合.
                 => あまりにゴールが近い場合は、最悪TTC = GLOBAL_TTCでなくても良いので、それを考慮する. 
                 """
-                if leader.xcor >= eta_boundary["xe"]: # この処理自体はめっちゃ良いと思うが、これをdecel = a_minの時にも適用するか悩ましい
-                    TTC_LIM = 1.0 # 限界のTTC
-                    eta_boundary["te"] - TTC + TTC_LIM
-                    if can_reach_after_designated_eta(**start_params, **eta_boundary, car_params=car_params):
-                        a, eta = crt_acc_itinerary_for_decel_area(
-                            **start_params, **eta_boundary, ve=None, car_params=car_params, step_size=0.2, earliest_etas=earliest_etas, car_idx=follower.car_idx)
-                        v = a[-1]["v_0"]  # 必ず等速区間で終わるため
-                        start_params = {"v0": v, "x0": eta_boundary["xe"], "t0": eta}
-                        if follower.car_idx == 6:
-                            print(f"L162_itinerary_from_now: {itinerary_from_now}, a={a}")
-                        itinerary_from_now = update_acc_itinerary(itinerary_from_now, a)
-                        car_params["decel"] = follower.a_min
-                        continue
+                raise ValueError("どうやってもETAを満たせない")
 
-                else:
-                    print(f"initial_params: {
-                          initial_params}, eta_boundary: {eta_boundary}, car_idx: {follower.car_idx}")
-                    print(f"can_reach_after_designated_eta: {can_reach_after_designated_eta(
-                        **start_params, **eta_boundary, car_params=car_params)}")
-                    raise ValueError("どうやってもETAを満たせない")
+                # if leader.xcor >= eta_boundary["xe"]: # この処理自体はめっちゃ良いと思うが、これをdecel = a_minの時にも適用するか悩ましい
+                #     TTC_LIM = 1.0 # 限界のTTC
+                #     eta_boundary["te"] - TTC + TTC_LIM
+                #     if can_reach_after_designated_eta(**start_params, **eta_boundary, car_params=car_params):
+                #         a, eta = crt_acc_itinerary_for_decel_area(
+                #             **start_params, **eta_boundary, ve=None, car_params=car_params, step_size=0.2, earliest_etas=earliest_etas, car_idx=follower.car_idx)
+                #         v = a[-1]["v_0"]  # 必ず等速区間で終わるため
+                #         start_params = {"v0": v, "x0": eta_boundary["xe"], "t0": eta}
+                #         if follower.car_idx == 6:
+                #             print(f"L162_itinerary_from_now: {itinerary_from_now}, a={a}")
+                #         itinerary_from_now = update_acc_itinerary(itinerary_from_now, a)
+                #         car_params["decel"] = follower.a_min
+                #         continue
+
+                # else:
+                #     print(f"initial_params: {
+                #           initial_params}, eta_boundary: {eta_boundary}, car_idx: {follower.car_idx}")
+                #     print(f"can_reach_after_designated_eta: {can_reach_after_designated_eta(
+                #         **start_params, **eta_boundary, car_params=car_params)}")
+                #     raise ValueError("どうやってもETAを満たせない")
+                
     logging.debug("acc_itinerary:", itinerary_from_now)
     return itinerary_from_now
 
@@ -310,9 +271,6 @@ def can_reach_after_designated_eta(v0, x0, t0, xe, te, car_params):
         if brake_distance < delta_x:
             return True
         else:
-            # print(f"L267: v0={v0}, x0={x0}, t0={t0}, xe={xe}, te={te}, delta_t={delta_t}, brake_time={
-            #       brake_time}, cover_distance={cover_distance}, delta_x={delta_x}")
-
             return False
 
 
@@ -402,19 +360,6 @@ def update_acc_itinerary_with_accel(itinerary_from_now, start_params, upcoming_w
         else:  # これ以上加速しちゃダメということ.
             return result, result_sp
 
-
-def isRssOK(distance, leader_speed, follower_speed):
-    leader_blake_max = 3
-    follower_blake_max = 3
-    leader_blake_distance = leader_speed ** 2 / \
-        (2 * leader_blake_max)  # ここは一旦ブレーキの最大加速度を3としている
-    follower_blake_distance = follower_speed ** 2 / (2 * follower_blake_max)
-    if distance + leader_blake_distance < follower_blake_distance:
-        print("===FAIL DETAIL===")
-        print(distance, leader_blake_distance, follower_blake_distance,
-              "leader speed:", leader_speed, "follower speed:", follower_speed)
-        print("=================")
-    return distance + leader_blake_distance > follower_blake_distance
 
 
 def conduct_tests():

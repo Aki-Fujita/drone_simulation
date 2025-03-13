@@ -132,7 +132,7 @@ class SuddenStopVFRSimulation(BaseSimulation):
             STEP 1. ノイズが来るかを判定
             """
 
-            if time > 0 and time % noise_freq == 0:
+            if time > 100 and time % noise_freq == 0:
                 car_x_list = [car.xcor for car in cars_on_road]
                 target_car_list = [car for car in cars_on_road if car.xcor < noise_x and car.v_x > self.thresh_speed ]
                 target_car = target_car_list[0]
