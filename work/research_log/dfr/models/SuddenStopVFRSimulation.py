@@ -102,6 +102,7 @@ class SuddenStopVFRSimulation(BaseSimulation):
         self.prev_positions = [car.xcor for car in self.CARS]
         noise_freq = self.noise_params.get("NOISE_FREQUENCY")
         noise_x = self.noise_params.get("NOISE_START_X")
+        noise_x_list = self.noise_params.get("NOISE_X_LIST", [])
         print(f"noise_freq: {noise_freq}, noise_x: {noise_x}, thresh_speed: {self.thresh_speed}")
 
         for i in tnrange(self.total_steps, desc="Simulation Progress VFR"):
@@ -132,12 +133,22 @@ class SuddenStopVFRSimulation(BaseSimulation):
             STEP 1. ノイズが来るかを判定
             """
 
-            if time > 100 and time % noise_freq == 0:
-                car_x_list = [car.xcor for car in cars_on_road]
-                target_car_list = [car for car in cars_on_road if car.xcor < noise_x and car.v_x > self.thresh_speed ]
-                target_car = target_car_list[0]
-                brake_obj_list = self.create_brake_obj(self.brake_params, time, target_car)
-                target_car.planned_acc_dict = brake_obj_list              
+            if len(noise_x_list) > 0:
+                delta = 0
+                for noise_x in noise_x_list:
+                    if time > 100 and time % noise_freq == 0:
+                        target_car_list = [car for car in cars_on_road if car.xcor < noise_x and car.v_x > self.thresh_speed ]
+                        target_car = target_car_list[0]
+                        brake_obj_list = self.create_brake_obj(self.brake_params, time, target_car)
+                        target_car.planned_acc_dict = brake_obj_list    
+                    delta += 2
+
+            else:
+                if time > 100 and time % noise_freq == 0:                  
+                    target_car_list = [car for car in cars_on_road if car.xcor < noise_x and car.v_x > self.thresh_speed ]
+                    target_car = target_car_list[0]
+                    brake_obj_list = self.create_brake_obj(self.brake_params, time, target_car)
+                    target_car.planned_acc_dict = brake_obj_list       
                   
 
             if len(cars_on_road) < 1:
@@ -185,8 +196,8 @@ class SuddenStopVFRSimulation(BaseSimulation):
             ・プロット
             """
             
-            self.record(time, event_flg, noise_x)
-            self.record_headway(time)
+            # self.record(time, event_flg, noise_x)
+            # self.record_headway(time)
             self.record_with_observation_points(time)
             if should_plot and (i % 5 == 0):
                 plot_start_time = kwargs.get("plot_start", 0)

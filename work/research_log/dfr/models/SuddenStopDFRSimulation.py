@@ -57,6 +57,7 @@ class SuddenStopDFRSimulation(BaseSimulation):
         self.prev_positions = [car.xcor for car in self.CARS]
         noise_freq = self.noise_params.get("NOISE_FREQUENCY")
         noise_x = self.noise_params.get("NOISE_START_X")
+        noise_x_list = self.noise_params.get("NOISE_X_LIST", [])
 
         waypoints = self.reservation_table.waypoints
         # if eta_reservation_table.index.name != "car_idx":
@@ -114,21 +115,42 @@ class SuddenStopDFRSimulation(BaseSimulation):
             ・その車のETA変更は即時的に他の車に伝播する. 
             """
 
-            if time > 100 and time % noise_freq == 0:
-                target_car_list = [car for car in cars_on_road if car.xcor < noise_x and car.v_x > self.thresh_speed ]
-                if len(target_car_list) > 0:
-                    target_car = target_car_list[0]
-                    target_car_idx = target_car.car_idx
-                    # print(f"t={time:.2f}, sudden_brake発生, 対象車: {target_car.car_idx}")
-                    brake_obj_list = self.create_brake_obj(self.brake_params, time, target_car)
-                    leader = None if target_car_idx == 0 else self.CARS[target_car_idx - 1]                 
-                    new_eta = target_car.sudden_brake(time, brake_obj_list, leader)
-                    self.reservation_table.update_with_request(car_idx=target_car.car_idx, new_eta=new_eta)
-                    target_car.my_etas = new_eta
-                    communication_count = 0
-                    has_sudden_brake_happend = True
-                # else:
-                #     print(f"t={time:.2f}, 対象車なし")
+            if len(noise_x_list) > 0:
+                delta = 0
+                for noise_x in noise_x_list:
+                    if time > 100 and time % noise_freq == delta:
+                        target_car_list = [car for car in cars_on_road if car.xcor < noise_x and car.v_x > self.thresh_speed ]
+                        target_car = target_car_list[0]
+                        target_car_idx = target_car.car_idx
+                        # print(f"t={time:.2f}, sudden_brake発生, 対象車: {target_car.car_idx}")
+                        brake_obj_list = self.create_brake_obj(self.brake_params, time, target_car)
+                        leader = None if target_car_idx == 0 else self.CARS[target_car_idx - 1]                 
+                        new_eta = target_car.sudden_brake(time, brake_obj_list, leader)
+                        self.reservation_table.update_with_request(car_idx=target_car.car_idx, new_eta=new_eta)
+                        target_car.my_etas = new_eta
+                        communication_count = 0
+                        has_sudden_brake_happend = True
+
+                        delta += 2
+                    else:
+                        pass
+            
+            else:
+                if time > 100 and time % noise_freq == 0:
+                    target_car_list = [car for car in cars_on_road if car.xcor < noise_x and car.v_x > self.thresh_speed ]
+                    if len(target_car_list) > 0:
+                        target_car = target_car_list[0]
+                        target_car_idx = target_car.car_idx
+                        # print(f"t={time:.2f}, sudden_brake発生, 対象車: {target_car.car_idx}")
+                        brake_obj_list = self.create_brake_obj(self.brake_params, time, target_car)
+                        leader = None if target_car_idx == 0 else self.CARS[target_car_idx - 1]                 
+                        new_eta = target_car.sudden_brake(time, brake_obj_list, leader)
+                        self.reservation_table.update_with_request(car_idx=target_car.car_idx, new_eta=new_eta)
+                        target_car.my_etas = new_eta
+                        communication_count = 0
+                        has_sudden_brake_happend = True
+                    # else:
+                    #     print(f"t={time:.2f}, 対象車なし"
             
             """
             STEP 2. ノイズの影響を受ける車と、ノイズによって影響を受けた他の車の影響を受けた車をリスト化. 
@@ -202,7 +224,6 @@ class SuddenStopDFRSimulation(BaseSimulation):
                         else:
                             break
 
-
                         
                 elif communication_count >= self.COMMUNICATION_SPEED:
                     car_to_action_id = min(influenced_cars)
@@ -271,8 +292,8 @@ class SuddenStopDFRSimulation(BaseSimulation):
 
             if len(current_noise) > 0:
                 noise_x = current_noise[0]["x"][0]
-            self.record(time, event_flg, noise_x)
-            self.record_headway(time)
+            # self.record(time, event_flg, noise_x)
+            # self.record_headway(time)
             self.record_with_observation_points(time) # 実際に車の数を数える方法で流量計測
             
             if should_plot and (i % 5 == 0 or event_flg in self.plot_condition):
@@ -280,17 +301,6 @@ class SuddenStopDFRSimulation(BaseSimulation):
                 plot_finish_time = kwargs.get("plot_finish", 1000)
                 self.plot_history_by_time(current_noise, time, plot_start_time, plot_finish_time)
             
-            # 基本的にはここには来ないが、ノイズの中に入っていた車がいたらバグなのでシミュレーションを中断する
-            if len(current_noise) > 0:
-                for car in cars_on_road:
-                    xcoor = car.xcor
-                    noise_x_range = current_noise[0]["x"]
-                    noise_t_range = current_noise[0]["t"]
-                    if noise_x_range[0] <= xcoor and xcoor <= noise_x_range[1] and noise_t_range[0] <= time and time <= noise_t_range[1]:
-                        print(f"t={time:.2f}, car_idx={car.car_idx}, x={xcoor}")
-                        print(f"Error: car {car.car_idx} is in noise area.")
-                        raise Exception("Car is in noise area.")
-
     def find_noise_influenced_cars(self, cars_on_road, noiseList, time, should_print=False):
         car_list = [car.car_idx for idx, car in enumerate(
             cars_on_road) if check_multiple_noise_effect(noiseList, car, time, should_print=should_print)]
